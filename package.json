@@ -9,11 +9,14 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^18.11.9",
     "typescript": "^4.8.2",
     "vite": "^3.0.9",
     "vite-plugin-solid": "^2.3.0"
   },
   "dependencies": {
+    "@stitches/core": "^1.2.8",
+    "solid-icons": "^1.0.4",
     "solid-js": "^1.5.1"
   }
 }
