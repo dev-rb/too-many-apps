@@ -22,6 +22,8 @@ interface ButtonProps {
 
 export const Button = (props: ButtonProps & HtmlButtonProps) => {
 	let [self, rest] = splitProps(props, [
+		'children',
+		'class',
 		'leftIcon',
 		'rightIcon',
 		'color',
@@ -44,7 +46,7 @@ export const Button = (props: ButtonProps & HtmlButtonProps) => {
 					variant: self.variant || 'filled',
 					fullWidth: self.fullWidth,
 				}),
-				rest.class
+				self.class
 			)}
 			data-button
 			data-disabled={rest.disabled}
@@ -61,7 +63,7 @@ export const Button = (props: ButtonProps & HtmlButtonProps) => {
 					class={styles.label()}
 					style={{ 'text-transform': self.uppercase ? 'uppercase' : undefined }}
 				>
-					{rest.children}
+					{self.children}
 				</span>
 				<Show when={self.rightIcon}>
 					<span class={styles.icon({ direction: 'right' })}>
