@@ -15,6 +15,7 @@ import {
 } from 'solid-icons/ai';
 import { createStore } from 'solid-js/store';
 import { cx } from '~/utils/common';
+import { keyframes } from '@stitches/core';
 
 interface StateValues {
 	opened: boolean;
@@ -28,7 +29,7 @@ const sidebarStyles = css({
 	display: 'flex',
 	flexDirection: 'column',
 	py: '20px',
-	transition: '500ms ease',
+	transition: '400ms ease',
 	variants: {
 		opened: {
 			false: {
@@ -46,6 +47,8 @@ const sidebarStyles = css({
 					'& button': {
 						'& span': {
 							margin: 0,
+							transition: 'margin 300ms ease',
+							// transitionDelay: '450ms ',
 						},
 					},
 				},
@@ -138,6 +141,30 @@ function SidebarHeader(props: SidebarHeaderProps) {
 
 const sidebarItemStyles = css({});
 
+const noLabel = keyframes({
+	'0%': {
+		opacity: 1,
+		width: 'auto',
+	},
+	'50%': {
+		opacity: 0,
+	},
+	'100%': {
+		opacity: 0,
+		width: 0,
+	},
+});
+
+const sidebarLabel = css({
+	variants: {
+		showLabel: {
+			true: {
+				animation: `${noLabel} 400ms forwards ease-out`,
+			},
+		},
+	},
+});
+
 interface SidebarItemProps {
 	icon?: JSX.Element;
 	showLabel?: boolean;
@@ -151,9 +178,12 @@ const SidebarItem = (props: SidebarItemProps) => {
 		},
 		props
 	);
+
 	return (
 		<Button variant="light" leftIcon={props.icon} fullWidth>
-			<Show when={props.showLabel === true}>{props.children}</Show>
+			<div class={sidebarLabel({ showLabel: !props.showLabel })}>
+				{props.children}
+			</div>
 		</Button>
 	);
 };
