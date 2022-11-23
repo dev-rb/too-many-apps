@@ -23,13 +23,16 @@ interface StateValues {
 }
 
 const sidebarStyles = css({
-	width: 'max(20vw, 10vw)',
+	width: '20vw',
 	height: '100vh',
 	backgroundColor: '$dark-6',
 	display: 'flex',
 	flexDirection: 'column',
 	py: '20px',
 	transition: '400ms ease',
+	'@md': {
+		width: '50vw',
+	},
 	variants: {
 		opened: {
 			false: {
