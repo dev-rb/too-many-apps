@@ -6,8 +6,7 @@ import {
 	Show,
 	useContext,
 } from 'solid-js';
-import { css, theme } from '~/styles/theme';
-import { Button } from '../Button';
+import { css, Button } from '@hope-ui/solid';
 import {
 	AiFillHome,
 	AiOutlineDoubleLeft,
@@ -23,15 +22,15 @@ interface StateValues {
 }
 
 const sidebarStyles = css({
-	width: '20vw',
+	width: '50vw',
 	height: '100vh',
-	backgroundColor: '$dark-6',
+	backgroundColor: '$neutral2',
 	display: 'flex',
 	flexDirection: 'column',
 	py: '20px',
 	transition: '400ms ease',
 	'@md': {
-		width: '50vw',
+		width: '20vw',
 	},
 	variants: {
 		opened: {
@@ -42,8 +41,8 @@ const sidebarStyles = css({
 					justify: 'center',
 					align: 'center',
 					'& button': {
-						margin: '0 calc(50%)',
-						transition: '600ms ease',
+						margin: '0 auto',
+						transition: 'margin 600ms ease',
 					},
 				},
 				'.sidebar-content': {
@@ -64,6 +63,7 @@ const sidebarButton = css({
 	width: 'fit-content',
 	marginLeft: 'auto',
 	padding: 5,
+	marginStart: 'auto',
 	'& span': {
 		margin: 0,
 	},
@@ -75,7 +75,7 @@ const sidebarHeader = css({
 	px: '20px',
 	pb: 5,
 	mb: 20,
-	borderBottom: '2px solid $dark-3',
+	borderBottom: '2px solid $neutral6',
 });
 
 const sidebarContent = css({
@@ -124,8 +124,8 @@ function SidebarHeader(props: SidebarHeaderProps) {
 	return (
 		<div class={cx(sidebarHeader(), 'sidebar-header')}>
 			<Button
-				variant="subtle"
-				color="dark"
+				variant="ghost"
+				colorScheme="neutral"
 				class={sidebarButton()}
 				leftIcon={
 					<AiOutlineDoubleLeft
@@ -169,7 +169,7 @@ const sidebarLabel = css({
 });
 
 interface SidebarItemProps {
-	icon?: JSX.Element;
+	icon: JSX.Element;
 	showLabel?: boolean;
 	children: JSX.Element;
 }
@@ -183,7 +183,7 @@ const SidebarItem = (props: SidebarItemProps) => {
 	);
 
 	return (
-		<Button variant="light" leftIcon={props.icon} fullWidth>
+		<Button variant="subtle" leftIcon={props.icon} fullWidth>
 			<div class={sidebarLabel({ showLabel: !props.showLabel })}>
 				{props.children}
 			</div>

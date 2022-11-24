@@ -1,5 +1,14 @@
 /* @refresh reload */
+import { HopeProvider } from '@hope-ui/solid';
 import { render } from 'solid-js/web';
 import App from './App';
 
-render(() => <App />, document.getElementById('root') as HTMLElement);
+function Index() {
+	return (
+		<HopeProvider config={{ initialColorMode: 'dark' }}>
+			<App />
+		</HopeProvider>
+	);
+}
+
+render(() => <Index />, document.getElementById('root') as HTMLElement);
