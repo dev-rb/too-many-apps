@@ -39,9 +39,7 @@ export const AlphaSlider = (props: AlphaSliderProps & BoxProps) => {
           backgroundImage: `linear-gradient(${
             local.direction === 'horizontal' ? '90deg' : '180deg'
           }, transparent, ${
-            isHex(local.color)
-              ? local.color.substring(0, local.color.length + 1)
-              : local.color
+            isHex(local.color) ? local.color.substring(0, 7) : local.color
           })`,
         },
         {
