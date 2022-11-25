@@ -1,26 +1,28 @@
 import Sidebar from './components/Sidebar';
 import { css } from '@hope-ui/solid';
+import { ColorConvert } from './apps/ColorConvert';
 
 const appStyles = css({
-	display: 'flex',
+  display: 'flex',
 });
 
 const mainStyles = css({
-	display: 'flex',
-	flexDirection: 'column',
-	p: 20,
-	color: 'white',
+  display: 'flex',
+  flexDirection: 'column',
+  p: 20,
+  color: 'white',
+  width: '100%',
 });
 
 const App = () => {
-	return (
-		<div class={appStyles()}>
-			<Sidebar />
-			<main class={mainStyles()}>
-				<h1> Test </h1>
-			</main>
-		</div>
-	);
+  return (
+    <div class={appStyles()}>
+      <Sidebar />
+      <main class={mainStyles()}>
+        <ColorConvert />
+      </main>
+    </div>
+  );
 };
 
 export default App;
