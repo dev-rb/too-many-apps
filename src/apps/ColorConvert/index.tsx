@@ -21,6 +21,7 @@ import {
 import { For } from 'solid-js';
 import { AiFillCopy } from 'solid-icons/ai';
 import { createStore } from 'solid-js/store';
+import ColorInput from '~/components/ColorInput';
 
 const COLOR_FORMATS = ['HEX', 'RGB', 'RGBA', 'HSL', 'HSLA'];
 
@@ -53,17 +54,7 @@ export const ColorConvert = () => {
               </SelectListbox>
             </SelectContent>
           </Select>
-          <InputGroup>
-            <Input variant="filled"></Input>
-            <InputRightAddon border="none" px="0">
-              <IconButton
-                variant={'ghost'}
-                colorScheme={'neutral'}
-                aria-label="copy"
-                icon={<AiFillCopy />}
-              />
-            </InputRightAddon>
-          </InputGroup>
+          <ColorInput value="#FFFFFF" onChange={() => {}} />
         </HStack>
       </VStack>
     </VStack>
