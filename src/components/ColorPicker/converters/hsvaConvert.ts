@@ -155,7 +155,7 @@ function formatHexPart(number: number) {
 
 export function hsvaToHex(color: HsvaColor) {
     const { r, g, b, a } = hsvaToRgbaObject(color);
-    return `#${formatHexPart(r)}${formatHexPart(g)}${formatHexPart(b)}${hexTransparencies[a * 100 as keyof typeof hexTransparencies]}`;
+    return `#${formatHexPart(r)}${formatHexPart(g)}${formatHexPart(b)}${hexTransparencies[Number((+a.toFixed(2)* 100).toFixed(0)) as keyof typeof hexTransparencies]}`;
 }
 
 const CONVERTERS: Record<ColorFormat, (color: HsvaColor) => string> = {

@@ -108,8 +108,9 @@ const ColorInput = (props: ColorInputProps) => {
           </PopoverContent>
         </Popover>
         <Input
-          value={color()}
+          value={color().toUpperCase()}
           onBlur={handleInputBlur}
+          htmlSize={24}
           onChange={(e) => handleInputChange(e.currentTarget.value)}
         />
       </InputGroup>
