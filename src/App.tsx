@@ -1,6 +1,6 @@
-import Sidebar from './components/Sidebar';
 import { css } from '@hope-ui/solid';
 import { ColorConvert } from './apps/ColorConvert';
+import AppNav from './components/AppNav';
 
 const appStyles = css({
   display: 'flex',
@@ -11,13 +11,14 @@ const mainStyles = css({
   flexDirection: 'column',
   p: 20,
   color: 'white',
-  width: '100%',
+  width: '100vw',
+  height: '100vh',
 });
 
 const App = () => {
   return (
     <div class={appStyles()}>
-      <Sidebar />
+      <AppNav />
       <main class={mainStyles()}>
         <ColorConvert />
       </main>
