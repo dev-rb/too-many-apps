@@ -15,7 +15,7 @@ const AppNav = () => {
   const selected = createSelector(active);
 
   return (
-    <div class="flex flex-col gap-6 mr-2 pr-8 pl-4 pt-5 border-r-slate-8 border-r-1">
+    <div class="flex flex-col gap-6 mr-2 pr-8 pl-4 pt-5 border-r-dark-7 border-r-1">
       <For each={NAV_ITEMS}>
         {(item) => (
           <div
@@ -24,7 +24,7 @@ const AppNav = () => {
               ['color-white hover:before:bg-blue-7 before:bg-blue-6']: selected(
                 item.name
               ),
-              ['color-gray hover:before:bg-slate-8 before:bg-transparent']:
+              ['color-dark-3 hover:before:bg-dark-7 before:bg-transparent']:
                 !selected(item.name),
             }}
             onClick={() => setActive(item.name)}
