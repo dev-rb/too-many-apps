@@ -15,52 +15,26 @@ const AppNav = () => {
   const selected = createSelector(active);
 
   return (
-    <VStack
-      gap={20}
-      pt={50}
-      pr={20}
-      mr={20}
-      css={{ borderRight: '2px solid $neutral4' }}
-    >
+    <div class="flex flex-col gap-6 mr-2 pr-8 pl-4 pt-5 border-r-slate-8 border-r-1">
       <For each={NAV_ITEMS}>
         {(item) => (
-          <VStack
-            css={{
-              position: 'relative',
-              py: 5,
-              minWidth: '$24',
-              cursor: 'pointer',
-              color: selected(item.name) ? 'white' : '$neutral10',
-              '&:hover': {
-                '&::before': {
-                  backgroundColor: selected(item.name)
-                    ? '#2C84E9'
-                    : '$neutral4',
-                },
-              },
-              '&::before': {
-                content: '',
-                position: 'absolute',
-                top: 0,
-                height: '100%',
-                width: '100%',
-                pl: 100,
-                borderTopRightRadius: 6,
-                borderBottomRightRadius: 6,
-                backgroundColor: selected(item.name)
-                  ? '#2C84E9'
-                  : 'transparent',
-                zIndex: -1,
-              },
+          <div
+            class={`flex flex-col justify-center items-center relative py-1 cursor-pointer z-10 before:(content-empty absolute top-0 -left-4 w-full h-full pl-24 rounded-r-lg) before:-z-1 `}
+            classList={{
+              ['color-white hover:before:bg-blue-7 before:bg-blue-6']: selected(
+                item.name
+              ),
+              ['color-gray hover:before:bg-slate-8 before:bg-transparent']:
+                !selected(item.name),
             }}
             onClick={() => setActive(item.name)}
           >
             <Dynamic component={item.icon} size={35} />
-            <Text> {item.name} </Text>
-          </VStack>
+            <p> {item.name} </p>
+          </div>
         )}
       </For>
-    </VStack>
+    </div>
   );
 };
 

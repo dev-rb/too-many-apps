@@ -17,9 +17,9 @@ const mainStyles = css({
 
 const App = () => {
   return (
-    <div class={appStyles()}>
+    <div class={'flex bg-gray-9 font-sans'}>
       <AppNav />
-      <main class={mainStyles()}>
+      <main class={'flex flex-col p-5 color-white w-screen, h-screen'}>
         <ColorConvert />
       </main>
     </div>
