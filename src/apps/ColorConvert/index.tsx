@@ -1,6 +1,7 @@
 import { Button, HStack, VStack, Text } from '@hope-ui/solid';
 import { makeClipboard } from '@solid-primitives/clipboard';
-import { Show } from 'solid-js';
+import { BiSolidCheckCircle } from 'solid-icons/bi';
+import { createSignal, Show } from 'solid-js';
 import { For, JSX, mergeProps } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { z } from 'zod';
@@ -25,7 +26,9 @@ interface ColorConverterState {
 }
 
 export const ColorConvert = () => {
-  const [write, read] = makeClipboard();
+  const [write] = makeClipboard();
+
+  const [copied, setCopied] = createSignal<string | false>(false);
 
   const [state, setState] = createStore<ColorConverterState>({
     activeFormat: 'hex',
@@ -36,7 +39,7 @@ export const ColorConvert = () => {
   const onColorChange: JSX.EventHandlerUnion<HTMLInputElement, Event> = (e) => {
     if (!e.currentTarget.value.length) {
       setState('error', '');
-
+      setState('value', '');
       return;
     }
 
@@ -58,17 +61,26 @@ export const ColorConvert = () => {
   const formatColor = (format: ColorFormat, color: string) => {
     const hsva = parseColor(color);
 
-    if (format === 'rgb' || format === 'rgba') {
+    if (format === 'rgb') {
       return hsvaToRgba(hsva, false);
+    } else if (format === 'rgba') {
+      return hsvaToRgba(hsva, true);
     } else if (format === 'hex') {
       return hsvaToHex(hsva);
-    } else if (format === 'hsl' || format === 'hsla') {
+    } else if (format === 'hsl') {
       return hsvaToHsl(hsva, false);
+    } else if (format === 'hsla') {
+      return hsvaToHsl(hsva, true);
     }
   };
 
-  const copyToClipboard = (value?: string) => {
+  const copyToClipboard = (format: string, value?: string) => {
     write(value);
+    setCopied(format);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   return (
@@ -97,41 +109,46 @@ export const ColorConvert = () => {
               {state.error}
             </p>
           </div>
-          {/* <h1 class="text-6xl font-600 color-dark-4 text-center tracking-wide select-none">
-            {state.value}
-          </h1> */}
         </div>
       </InfoCard>
 
-      <For each={COLOR_FORMATS.filter((val) => val !== state.activeFormat)}>
-        {(format) => (
-          <InfoCard
-            header={
-              <div class="flex">
-                <h1 class="text-5 color-dark-2"> {format} </h1>
+      <Show when={state.value.length > 0}>
+        <For each={COLOR_FORMATS.filter((val) => val !== state.activeFormat)}>
+          {(format) => (
+            <InfoCard
+              header={
+                <div class="flex">
+                  <h1 class="text-5 color-dark-2"> {format} </h1>
+                </div>
+              }
+              footer={
+                <div class="flex">
+                  <button
+                    class="btn-primary flex gap-1 items-center"
+                    onClick={() =>
+                      copyToClipboard(format, formatColor(format, state.value))
+                    }
+                  >
+                    <Show
+                      when={copied() && copied() === format}
+                      fallback={<> COPY </>}
+                    >
+                      <BiSolidCheckCircle size={20} />
+                      COPIED
+                    </Show>
+                  </button>
+                </div>
+              }
+            >
+              <div class="py-4">
+                <h1 class="text-3xl font-600 color-dark-2 text-center tracking-wide select-none">
+                  {formatColor(format, state.value)}
+                </h1>
               </div>
-            }
-            footer={
-              <div class="flex">
-                <button
-                  class="btn-primary"
-                  onClick={() =>
-                    copyToClipboard(formatColor(format, state.value))
-                  }
-                >
-                  COPY
-                </button>
-              </div>
-            }
-          >
-            <div class="py-4">
-              <h1 class="text-3xl font-600 color-dark-2 text-center tracking-wide select-none">
-                {formatColor(format, state.value)}
-              </h1>
-            </div>
-          </InfoCard>
-        )}
-      </For>
+            </InfoCard>
+          )}
+        </For>
+      </Show>
     </div>
   );
 };
