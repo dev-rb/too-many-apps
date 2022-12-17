@@ -1,10 +1,9 @@
-import { Button, HStack, VStack, Text } from '@hope-ui/solid';
 import { makeClipboard } from '@solid-primitives/clipboard';
 import { BiSolidCheckCircle } from 'solid-icons/bi';
 import { createSignal, Show } from 'solid-js';
 import { For, JSX, mergeProps } from 'solid-js';
 import { createStore } from 'solid-js/store';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import {
   hsvaToHex,
   hsvaToHsl,
@@ -21,9 +20,31 @@ import {
 
 interface ColorConverterState {
   activeFormat: ColorFormat;
-  value: string;
+  value: z.infer<typeof colorSchema>;
   error: string;
 }
+
+const VALIDATION_REGEXP: Record<ColorFormat, RegExp> = {
+  hex: /^#?([0-9A-F]{3,}){1,2}$/i,
+  rgb: /^rgb\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,
+  rgba: /^rgba\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,
+  hsl: /hsl\(\s*(\d+)\s*,\s*(\d+(?:\.\d+)?%)\s*,\s*(\d+(?:\.\d+)?%)\)/i,
+  hsla: /^hsla\((\d+),\s*([\d.]+)%,\s*([\d.]+)%,\s*(\d*(?:\.\d+)?)\)$/i,
+};
+
+const colorSchema = z
+  .string()
+  .min(3)
+  .regex(
+    new RegExp(
+      Object.values(VALIDATION_REGEXP)
+        .map((regex) => regex.source)
+        .join('|')
+    ),
+    {
+      message: 'Invalid color value',
+    }
+  );
 
 export const ColorConvert = () => {
   const [write] = makeClipboard();
@@ -37,40 +58,39 @@ export const ColorConvert = () => {
   });
 
   const onColorChange: JSX.EventHandlerUnion<HTMLInputElement, Event> = (e) => {
-    if (!e.currentTarget.value.length) {
-      setState('error', '');
-      setState('value', '');
-      return;
-    }
-
-    const validColor = isColorValid(e.currentTarget.value);
-
-    if (!validColor) {
-      setState('error', 'Invalid color value');
-    } else {
-      setState('error', '');
-      const formatType = identifyFormat(e.currentTarget.value);
+    try {
+      const parasedValue = colorSchema.parse(e.currentTarget.value);
+      setState('value', parasedValue);
+      const formatType = identifyFormat(parasedValue);
       if (formatType !== 'UNKNOWN') {
         setState('activeFormat', formatType);
       }
+      setState('error', '');
+    } catch (err) {
+      const error = err as ZodError;
+      for (const issue of error.issues) {
+        if (issue.code === 'too_small') {
+          setState('value', '');
+          return;
+        } else {
+          setState('error', issue.message);
+          return;
+        }
+      }
+      setState('error', error.issues.map((issue) => issue.message).join('. '));
     }
-
-    setState('value', e.currentTarget.value);
   };
 
   const formatColor = (format: ColorFormat, color: string) => {
     const hsva = parseColor(color);
+    const hasAlpha = format.endsWith('a') || format === 'hex';
 
-    if (format === 'rgb') {
-      return hsvaToRgba(hsva, false);
-    } else if (format === 'rgba') {
-      return hsvaToRgba(hsva, true);
+    if (format.includes('rgb')) {
+      return hsvaToRgba(hsva, hasAlpha);
     } else if (format === 'hex') {
       return hsvaToHex(hsva);
-    } else if (format === 'hsl') {
-      return hsvaToHsl(hsva, false);
-    } else if (format === 'hsla') {
-      return hsvaToHsl(hsva, true);
+    } else if (format.includes('hsl')) {
+      return hsvaToHsl(hsva, hasAlpha);
     }
   };
 
