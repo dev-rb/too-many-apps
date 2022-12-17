@@ -55,7 +55,7 @@ const ColorInput = (props: ColorInputProps) => {
           style={{ background: props.value }}
         />
         <input
-          class="text-2xl font-600 color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-50 placeholder-shown:(text-center color-dark-4 text-4xl)"
+          class="text-xl  color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-60 placeholder-shown:(text-center color-dark-4 font-600 text-4xl)"
           classList={{
             ['border-b-1 border-b-red-7']: error().length != 0,
             ['border-b-none']: error().length === 0,

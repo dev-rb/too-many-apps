@@ -8,7 +8,7 @@ export default defineConfig({
       'btn-primary':
         'flex items-center justify-center cursor-pointer outline-none border-none py-1 px-4 h-8 font-600 text-3 rounded-[0.3rem] ml-auto bg-blue-7 color-white shadow-[0px_0px_6px_2px_rgba(28,126,214,0.5)] hover:bg-blue-6',
     },
-    [/^btn-(.*)$/, ([, size]) => `h-${size}`],
+    [/^btn-(.*)$/, ([, size]) => `h-${size} w-${size}`],
   ],
   theme: {
     colors: {

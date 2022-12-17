@@ -58,94 +58,87 @@ const ColorConverter = (props: ColorConverterProps) => {
     }
   };
 
+  let timerId: NodeJS.Timeout | undefined = undefined;
+
   const copyToClipboard = (format: string, value?: string) => {
     write(value);
     setCopied(format);
 
-    setTimeout(() => {
+    if (timerId) {
+      clearTimeout(timerId);
+    }
+
+    timerId = setTimeout(() => {
       setCopied(false);
     }, 2000);
   };
+
+  const toFormats = () =>
+    COLOR_FORMATS.filter((val) => val !== state.activeFormat);
+
   return (
     <div class="relative">
-      <button
-        title="Close this converter"
-        class="absolute -top-4 -left-4 bg-dark-5 rounded-xl w-8 h-8 flex items-center justify-center text-2xl color-white appearance-none border-none cursor-pointer hover:bg-dark-4"
-        onClick={() => props.closeConverter(props.index)}
-      >
-        <BiRegularX />
-      </button>
-      <InfoCard>
-        <div class="py-2 flex items-center gap-2">
+      <CloseButton closeConverter={() => props.closeConverter(props.index)} />
+
+      <div class="flex flex-col bg-dark-7 min-w-sm pl-2 rounded-2 border-dark-4 border-1">
+        <div class="flex items-center gap-2 w-full">
           <ColorInput value={state.value} onColorChange={onColorChange} />
           <div class="flex items-center justify-around w-full">
-            <For
-              each={COLOR_FORMATS.filter((val) => val !== state.activeFormat)}
-            >
+            <For each={toFormats()}>
               {(format, index) => (
-                <div class="flex flex-col px-4 border-l-dark-4 border-l-2 w-full">
-                  <h1 class="text-4 color-dark-3 uppercase w-fit">{format}</h1>
-                  <div class="flex whitespace-nowrap justify-between items-center gap-4">
-                    <h1 class="text-2xl font-600 color-dark-1 text-center tracking-wide select-none">
-                      {formatColor(format, state.value)}
+                <div
+                  class="flex flex-col px-4 border-l-dark-4 border-l-2 w-full py-2 hover:bg-dark-5 cursor-pointer"
+                  classList={{
+                    ['rounded-r-2']: index() === toFormats().length - 1,
+                  }}
+                  onClick={() =>
+                    copyToClipboard(format, formatColor(format, state.value))
+                  }
+                >
+                  <div class="flex justify-between">
+                    <h1 class="text-4 color-dark-3 uppercase w-fit">
+                      {format}
                     </h1>
-                    <button
-                      class="btn-primary flex gap-1 items-center ml-none"
-                      onClick={() =>
-                        copyToClipboard(
-                          format,
-                          formatColor(format, state.value)
-                        )
-                      }
-                    >
+                    <div class="text-3 font-bold color-dark-2">
                       <Show
                         when={copied() && copied() === format}
                         fallback={<> COPY </>}
                       >
-                        <BiSolidCheckCircle size={20} />
-                        COPIED
+                        <div class="flex items-center gap-1 color-green">
+                          <BiSolidCheckCircle size={15} />
+                          COPIED
+                        </div>
                       </Show>
-                    </button>
+                    </div>
+                  </div>
+                  <div class="flex whitespace-nowrap justify-between items-center gap-4">
+                    <h1 class="text-2xl font-600 color-dark-1 text-center tracking-wide select-none">
+                      {formatColor(format, state.value)}
+                    </h1>
                   </div>
                 </div>
               )}
             </For>
           </div>
         </div>
-      </InfoCard>
+      </div>
     </div>
   );
 };
 
-interface InputHeaderProps {
-  activeFormat: ColorFormat;
-  colorValue?: string;
+interface CloseButtonProps {
+  closeConverter: () => void;
 }
 
-const InputHeader = (props: InputHeaderProps) => {
-  props = mergeProps({ colorValue: '#FFFFFF' }, props);
+const CloseButton = (props: CloseButtonProps) => {
   return (
-    <div class="flex gap-2 justify-between items-center">
-      <div class="flex gap-2">
-        <For each={COLOR_FORMATS}>
-          {(format) => (
-            <button
-              class="btn-primary btn-6"
-              classList={{
-                ['bg-dark-5 color-dark-2 hover:(bg-dark-4) shadow-none']:
-                  props.activeFormat !== format,
-              }}
-            >
-              {format}
-            </button>
-          )}
-        </For>
-      </div>
-      <div
-        class="w-8 h-8 rounded-md"
-        style={{ 'background-color': props.colorValue }}
-      />
-    </div>
+    <button
+      title="Close this converter"
+      class="absolute -top-4 -left-4 bg-dark-5 rounded-xl w-8 h-8 flex items-center justify-center text-2xl color-white appearance-none border-none cursor-pointer hover:bg-dark-4"
+      onClick={props.closeConverter}
+    >
+      <BiRegularX />
+    </button>
   );
 };
 
