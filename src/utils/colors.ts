@@ -243,7 +243,7 @@ export function parseRgba(color: string): HsvaColor {
   });
 }
 
-const VALIDATION_REGEXP: Record<ColorFormat, RegExp> = {
+export const VALIDATION_REGEXP: Record<ColorFormat, RegExp> = {
   hex: /^#?([0-9A-F]{3,}){1,2}$/i,
   rgb: /^rgb\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,
   rgba: /^rgba\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,

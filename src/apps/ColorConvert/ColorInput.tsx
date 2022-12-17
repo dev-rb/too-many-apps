@@ -1,14 +1,6 @@
 import { createSignal } from 'solid-js';
 import { z, ZodError } from 'zod';
-import { ColorFormat } from '~/utils/colors';
-
-const VALIDATION_REGEXP: Record<ColorFormat, RegExp> = {
-  hex: /^#?([0-9A-F]{3,}){1,2}$/i,
-  rgb: /^rgb\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,
-  rgba: /^rgba\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i,
-  hsl: /hsl\(\s*(\d+)\s*,\s*(\d+(?:\.\d+)?%)\s*,\s*(\d+(?:\.\d+)?%)\)/i,
-  hsla: /^hsla\((\d+),\s*([\d.]+)%,\s*([\d.]+)%,\s*(\d*(?:\.\d+)?)\)$/i,
-};
+import { VALIDATION_REGEXP } from '~/utils/colors';
 
 const colorSchema = z
   .string({ description: 'Color Value' })
@@ -55,7 +47,7 @@ const ColorInput = (props: ColorInputProps) => {
           style={{ background: props.value }}
         />
         <input
-          class="text-xl  color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-60 placeholder-shown:(text-center color-dark-4 font-600 text-4xl)"
+          class="text-xl uppercase color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-60 placeholder-shown:(text-center color-dark-4 font-600 text-4xl)"
           classList={{
             ['border-b-1 border-b-red-7']: error().length != 0,
             ['border-b-none']: error().length === 0,
