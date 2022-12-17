@@ -1,4 +1,5 @@
 export type ColorFormat = 'hex' | 'rgba' | 'rgb' | 'hsl' | 'hsla';
+export const COLOR_FORMATS = ['hex', 'rgba', 'rgb', 'hsl', 'hsla'] as const;
 
 export interface HsvaColor {
   h: number;
@@ -260,6 +261,16 @@ const CONVERTERS: Record<ColorFormat, (color: string) => HsvaColor> = {
 
 export function isHex(color: string) {
   return VALIDATION_REGEXP['hex'].test(color);
+}
+
+export function identifyFormat(color: string): ColorFormat | 'UNKNOWN' {
+  for (const [key, regexp] of Object.entries(VALIDATION_REGEXP)) {
+    if (regexp.test(color)) {
+      return key as ColorFormat;
+    }
+  }
+
+  return 'UNKNOWN';
 }
 
 export function isColorValid(color: string) {

@@ -19,10 +19,12 @@
   },
   "dependencies": {
     "@hope-ui/solid": "^0.6.7",
+    "@solid-primitives/clipboard": "^1.4.5",
     "@stitches/core": "^1.2.8",
     "@unocss/runtime": "^0.47.6",
     "solid-icons": "^1.0.4",
     "solid-js": "^1.5.1",
-    "solid-transition-group": "^0.0.10"
+    "solid-transition-group": "^0.0.10",
+    "zod": "^3.20.2"
   }
 }
