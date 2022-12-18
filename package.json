@@ -20,6 +20,7 @@
   "dependencies": {
     "@hope-ui/solid": "^0.6.7",
     "@solid-primitives/clipboard": "^1.4.5",
+    "@solidjs/router": "^0.5.1",
     "@stitches/core": "^1.2.8",
     "@unocss/runtime": "^0.47.6",
     "solid-icons": "^1.0.4",
