@@ -1,54 +1,141 @@
 import {
   createEffect,
+  createSelector,
   createSignal,
+  createUniqueId,
+  For,
   mergeProps,
   onCleanup,
   onMount,
 } from 'solid-js';
+import { createStore } from 'solid-js/store';
+import { clamp } from '~/utils/math';
 
-const COMPONENT_WIDTH = 96;
-const SPACING = 24;
-const CONTAINER_PADDING = 20;
+interface LayoutComponent {
+  id: string;
+  name: string;
+  color?: string;
+  size?: { width: number; height: number };
+  position?: { x: number; y: number };
+}
+
+const DEFAULT_COMPONENTS: LayoutComponent[] = [
+  {
+    id: createUniqueId(),
+    name: 'Row',
+    color: 'pink',
+  },
+  {
+    id: createUniqueId(),
+    name: 'Column',
+    color: 'blue',
+  },
+];
+
+interface State {
+  selected: LayoutComponent | undefined;
+  displayBounds: { x: number; y: number; height: number; width: number };
+  components: LayoutComponent[];
+}
 
 const LayoutBuilder = () => {
+  const [state, setState] = createStore<State>({
+    selected: undefined,
+    displayBounds: { x: 0, y: 0, height: 0, width: 0 },
+    components: [],
+  });
+
   const [displayRef, setDisplayRef] = createSignal<HTMLDivElement>();
-  const [compContainerRef, setCompContainerRef] =
-    createSignal<HTMLDivElement>();
 
-  const [displayBounds, setDisplayBounds] = createSignal({
-    x: 0,
-    y: 0,
-    height: 0,
-    width: 0,
-  });
+  const [startPosition, setStartPosition] = createSignal(
+    { x: 0, y: 0 },
+    { equals: false }
+  );
+  const [isDragging, setIsDragging] = createSignal(false);
 
-  const [compContainerBounds, setCompContainerBounds] = createSignal({
-    x: 0,
-    y: 0,
-    height: 0,
-    width: 0,
-  });
+  const onMouseDown = (e: MouseEvent) => {
+    if (state.selected) {
+      setIsDragging(true);
+      setStartPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      const newId = createUniqueId();
+      const newComp = {
+        id: newId,
+        name: state.selected.name,
+        color: state.selected.color,
+        position: {
+          x: e.clientX - state.displayBounds.x,
+          y: e.clientY - state.displayBounds.y,
+        },
+        size: { width: 0, height: 0 },
+      };
+      setState('components', (p) => [...p, newComp]);
+
+      setState('selected', { ...newComp });
+    }
+  };
+
+  const onMouseMove = (e: MouseEvent) => {
+    e.preventDefault();
+
+    if (isDragging()) {
+      setState(
+        'components',
+        (p) => p.id === state.selected?.id,
+        'size',
+        (p) => ({
+          width: clamp(
+            e.clientX - startPosition().x,
+            0,
+            state.displayBounds.width -
+              (startPosition().x - state.displayBounds.x)
+          ),
+          height: clamp(
+            e.clientY - startPosition().y,
+            0,
+            state.displayBounds.height -
+              (startPosition().y - state.displayBounds.y)
+          ),
+        })
+      );
+    }
+  };
+
+  const onMouseUp = (e: MouseEvent) => {
+    setIsDragging(false);
+    setStartPosition({ x: 0, y: 0 });
+  };
+
+  const toggleActive = (name: string) => {
+    const selected = DEFAULT_COMPONENTS.find((v) => v.id === name);
+    console.log(selected);
+    if (selected) {
+      setState('selected', { ...selected });
+    }
+  };
+
+  const active = createSelector(() => state.selected?.id);
 
   onMount(() => {
     if (displayRef()) {
       const bounds = displayRef()!.getBoundingClientRect();
-      setDisplayBounds({
+      setState('displayBounds', {
         x: bounds.left,
         y: bounds.top,
         height: bounds.height,
-        width: bounds.height,
+        width: bounds.width,
       });
     }
 
-    if (compContainerRef()) {
-      const bounds = compContainerRef()!.getBoundingClientRect();
-      setCompContainerBounds({
-        x: bounds.left,
-        y: bounds.top,
-        height: bounds.height,
-        width: bounds.height,
-      });
-    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    onCleanup(() => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    });
   });
 
   return (
@@ -64,31 +151,33 @@ const LayoutBuilder = () => {
           </div>
         </div>
         {/* Display */}
-        <div ref={setDisplayRef} class="bg-white w-full h-full"></div>
+        <div
+          ref={setDisplayRef}
+          class="bg-white w-full h-full"
+          onMouseDown={onMouseDown}
+        >
+          <For each={state.components}>
+            {(comp) => (
+              <LayoutComponent
+                {...comp}
+                active={active(comp.id)}
+                toggleActive={toggleActive}
+              />
+            )}
+          </For>
+        </div>
       </div>
       {/* Components Box */}
-      <div
-        ref={setCompContainerRef}
-        class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start"
-      >
-        <LayoutComponent
-          index={0}
-          name="Row"
-          color="pink"
-          position={{
-            x: compContainerBounds().x,
-            y: compContainerBounds().y,
-          }}
-        />
-        <LayoutComponent
-          index={1}
-          name="Column"
-          color="blue"
-          position={{
-            x: compContainerBounds().x,
-            y: compContainerBounds().y,
-          }}
-        />
+      <div class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start">
+        <For each={DEFAULT_COMPONENTS}>
+          {(comp) => (
+            <LayoutComponent
+              {...comp}
+              active={active(comp.id)}
+              toggleActive={toggleActive}
+            />
+          )}
+        </For>
       </div>
     </div>
   );
@@ -96,80 +185,51 @@ const LayoutBuilder = () => {
 
 export default LayoutBuilder;
 
-interface LayoutComponentProps {
-  index: number;
-  name: string;
-  color?: string;
+interface LayoutComponentProps extends LayoutComponent {
   position?: { x: number; y: number };
+  active: boolean;
+  toggleActive: (name: string) => void;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
-  props = mergeProps({ color: 'white' }, props);
-
-  const xOffset = props.index * (SPACING + COMPONENT_WIDTH) + CONTAINER_PADDING;
-  const yOffset = CONTAINER_PADDING;
+  props = mergeProps(
+    { color: 'white', size: { width: 96, height: 40 } },
+    props
+  );
 
   const [compRef, setCompRef] = createSignal<HTMLDivElement>();
-  const [isDragging, setIsDragging] = createSignal(false);
 
-  const [startPosition, setStartPosition] = createSignal(
-    { x: 0, y: 0 },
-    { equals: false }
-  );
   const [position, setPosition] = createSignal(
     props.position ?? { x: 0, y: 0 },
     { equals: false }
   );
 
-  const onMouseDown = (e: MouseEvent) => {
-    if (compRef()) {
-      const compBounds = compRef()!.getBoundingClientRect();
-      setIsDragging(true);
-      setStartPosition({
-        x: e.clientX - compBounds.left + (props.position?.x ?? 0) + xOffset,
-        y: e.clientY - compBounds.top + (props.position?.y ?? 0) + yOffset,
-      });
-    }
-  };
-
-  const onMouseMove = (e: MouseEvent) => {
-    if (isDragging()) {
-      setPosition({
-        x: e.clientX - startPosition().x,
-        y: e.clientY - startPosition().y,
-      });
-    }
-  };
-
-  const onMouseUp = (e: MouseEvent) => {
-    if (isDragging()) {
-      setIsDragging(false);
-    }
-  };
-
   createEffect(() => {
-    if (props.position && compRef()) {
-      compRef()!.style.top = (props.position?.y ?? 0) + yOffset + 'px';
-      compRef()!.style.left = (props.position?.x ?? 0) + xOffset + 'px';
-    }
-  });
-
-  onMount(() => {
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-
-    onCleanup(() => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    });
+    setPosition(props.position ?? { x: 0, y: 0 });
   });
 
   return (
     <div
       ref={setCompRef}
-      class={`flex items-center justify-center w-24 h-10 bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50 cursor-move fixed select-none`}
-      onMouseDown={onMouseDown}
-      style={{ transform: `translate(${position().x}px, ${position().y}px)` }}
+      class={`flex items-center justify-center bg-${props.color}/30 border-${
+        props.color
+      }-4 border-1 rounded-sm lines-gradient to-${
+        props.color
+      }-4/50 cursor-pointer select-none ${
+        props.active ? 'ring-blue-7 ring-4' : ''
+      }`}
+      style={{
+        position: props.position ? 'fixed' : 'relative',
+        transform: `translate(${position().x}px, ${position().y}px)`,
+        width: `${props.size!.width}px`,
+        height: `${props.size!.height}px`,
+      }}
+      data-id={props.id}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        props.toggleActive(props.id);
+      }}
     >
       <p class="font-600 color-white"> {props.name} </p>
     </div>
