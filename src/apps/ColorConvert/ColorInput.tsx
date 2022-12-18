@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createEffect, createSignal, on, Show } from 'solid-js';
 import { z, ZodError } from 'zod';
 import { VALIDATION_REGEXP } from '~/utils/colors';
 
@@ -21,13 +21,19 @@ interface ColorInputProps {
 }
 
 const ColorInput = (props: ColorInputProps) => {
+  const [isTyping, setIsTyping] = createSignal(false);
+
   const [error, setError] = createSignal('');
 
   const onColorChange = (newValue: string) => {
     if (newValue.length < 1) {
       props.onColorChange('');
       setError('');
+      setIsTyping(false);
       return;
+    }
+    if (!isTyping()) {
+      setIsTyping(true);
     }
     try {
       const value = colorSchema.parse(newValue);
@@ -47,16 +53,20 @@ const ColorInput = (props: ColorInputProps) => {
           style={{ background: props.value }}
         />
         <input
-          class="text-xl uppercase color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-60 placeholder-shown:(text-center color-dark-4 font-600 text-4xl)"
+          class="text-xl uppercase color-dark-1 tracking-wide select-none bg-transparent  outline-none border-x-none border-t-none appearance-none max-w-60"
           classList={{
             ['border-b-1 border-b-red-7']: error().length != 0,
             ['border-b-none']: error().length === 0,
           }}
           type="text"
           value={props.value}
-          placeholder={'#FFFFFF'}
           onInput={(e) => onColorChange(e.currentTarget.value)}
         />
+        <Show when={!isTyping()}>
+          <p class="absolute left-50% color-dark-4 font-600 text-4xl -translate-x-50% pointer-events-none">
+            #FFFFFF
+          </p>
+        </Show>
       </div>
       <p class="absolute -bottom-1 left-0 color-red-7 text-xs whitespace-nowrap translate-y-[100%]">
         {error()}
