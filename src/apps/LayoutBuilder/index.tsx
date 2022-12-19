@@ -22,6 +22,8 @@ interface LayoutComponent {
 const ZERO_SIZE: Size = { width: 0, height: 0 };
 const ZERO_POS: XYPosition = { x: 0, y: 0 };
 
+const MIN_SIZE = 40;
+
 const DEFAULT_COMPONENTS: LayoutComponent[] = [
   {
     id: createUniqueId(),
@@ -35,14 +37,18 @@ const DEFAULT_COMPONENTS: LayoutComponent[] = [
   },
 ];
 
-interface State {
+interface ComponentState {
   selected: LayoutComponent | undefined;
   displayBounds: XYPosition & Size;
   components: LayoutComponent[];
 }
 
 const LayoutBuilder = () => {
-  const [state, setState] = createStore<State>({
+  const [toolState, setToolState] = createStore<{ selectedComponent: LayoutComponent | undefined }>({
+    selectedComponent: undefined,
+  });
+
+  const [componentState, setComponentState] = createStore<ComponentState>({
     selected: undefined,
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
     components: [],
@@ -53,7 +59,17 @@ const LayoutBuilder = () => {
   const [startPosition, setStartPosition] = createSignal(ZERO_POS, {
     equals: false,
   });
+
+  const [startElPos, setStartElPos] = createSignal(ZERO_POS, {
+    equals: false,
+  });
+
+  const [startSize, setStartSize] = createSignal(ZERO_SIZE, {
+    equals: false,
+  });
   const [isDragging, setIsDragging] = createSignal(false);
+
+  const [handle, setHandle] = createSignal('top-right');
 
   const createNewComponent = (name: string, color?: string, startPos?: XYPosition, startSize: Size = ZERO_SIZE) => {
     const newId = createUniqueId();
@@ -66,27 +82,111 @@ const LayoutBuilder = () => {
     };
   };
 
+  const startResize = (e: MouseEvent, handle: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (componentState.selected) {
+      setIsDragging(true);
+      setHandle(handle);
+      setStartElPos({ x: componentState.selected.position?.x ?? 0, y: componentState.selected.position?.y ?? 0 });
+      setStartPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      setStartSize({
+        width: componentState.selected.size?.width ?? 0,
+        height: componentState.selected.size?.height ?? 0,
+      });
+      document.addEventListener('mousemove', onResize);
+      document.addEventListener('mouseup', onMouseUp);
+    }
+  };
+
+  const onResize = (e: MouseEvent) => {
+    e.preventDefault();
+
+    if (isDragging() && componentState.selected) {
+      const xEdgeDist = e.clientX - componentState.displayBounds.x;
+      const yEdgeDist = e.clientY - componentState.displayBounds.y;
+      let newWidth = startSize().width;
+      let newHeight = startSize().height;
+      let newX = componentState.selected.position?.x ?? 0;
+      let newY = componentState.selected.position?.y ?? 0;
+      if (['bottom-left', 'top-left'].includes(handle())) {
+        newWidth = startSize().width - (e.clientX - startPosition().x);
+        newX = startElPos().x + (e.clientX - startPosition().x);
+      }
+
+      if (['bottom-left', 'bottom-right'].includes(handle())) {
+        newHeight = startSize().height + (e.clientY - startPosition().y);
+      }
+
+      if (['top-left', 'top-right'].includes(handle())) {
+        newHeight = startSize().height - (e.clientY - startPosition().y);
+        newY = startElPos().y + (e.clientY - startPosition().y);
+      }
+
+      if (['bottom-right', 'top-right'].includes(handle())) {
+        newWidth = startSize().width + (e.clientX - startPosition().x);
+      }
+      setComponentState(
+        'components',
+        (p) => p.id === componentState.selected?.id,
+        (p) => {
+          let newPos = p.position ?? ZERO_POS;
+          let newSize = p.size ?? ZERO_SIZE;
+
+          const isInXDisplayBound = xEdgeDist > 0 && xEdgeDist < componentState.displayBounds.width;
+
+          const isInYDisplayBound = yEdgeDist > 0 && yEdgeDist < componentState.displayBounds.height;
+
+          if (isInXDisplayBound && newWidth > MIN_SIZE) {
+            newSize.width = Math.abs(newWidth);
+            newPos.x = newX;
+          }
+
+          if (isInYDisplayBound && newHeight > MIN_SIZE) {
+            newSize.height = Math.abs(newHeight);
+            newPos.y = newY;
+          }
+
+          return {
+            ...p,
+            position: {
+              ...newPos,
+            },
+            size: {
+              ...newSize,
+            },
+          };
+        }
+      );
+    }
+  };
+
   const onMouseDown = (e: MouseEvent) => {
-    if (state.selected) {
+    if (toolState.selectedComponent) {
       setIsDragging(true);
       setStartPosition({
-        x: e.clientX - state.displayBounds.x,
-        y: e.clientY - state.displayBounds.y,
+        x: e.clientX,
+        y: e.clientY,
       });
-      const newComp = createNewComponent(state.selected.name, state.selected.color, {
-        x: e.clientX - state.displayBounds.x,
-        y: e.clientY - state.displayBounds.y,
+      const newComp = createNewComponent(toolState.selectedComponent.name, toolState.selectedComponent.color, {
+        x: e.clientX - componentState.displayBounds.x,
+        y: e.clientY - componentState.displayBounds.y,
       });
 
-      setState((p) => {
+      setComponentState((p) => {
         let components = [...p.components, newComp];
 
         return {
           ...p,
           components,
-          selected: { ...newComp },
+          selected: newComp,
         };
       });
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
     }
   };
 
@@ -94,22 +194,22 @@ const LayoutBuilder = () => {
     e.preventDefault();
 
     if (isDragging()) {
-      const newWidth = e.clientX - (startPosition().x + state.displayBounds.x);
-      const newHeight = e.clientY - (startPosition().y + state.displayBounds.y);
+      const newWidth = e.clientX - startPosition().x;
+      const newHeight = e.clientY - startPosition().y;
 
-      const xEdgeDist = e.clientX - state.displayBounds.x;
-      const yEdgeDist = e.clientY - state.displayBounds.y;
+      const xEdgeDist = e.clientX - componentState.displayBounds.x;
+      const yEdgeDist = e.clientY - componentState.displayBounds.y;
 
-      setState(
+      setComponentState(
         'components',
-        (p) => p.id === state.selected?.id,
+        (p) => p.id === componentState.selected?.id,
         (p) => {
           let newPos = p.position ?? ZERO_POS;
           let newSize = p.size ?? ZERO_SIZE;
 
-          const isInXDisplayBound = xEdgeDist > 0 && xEdgeDist < state.displayBounds.width;
+          const isInXDisplayBound = xEdgeDist > 0 && xEdgeDist < componentState.displayBounds.width;
 
-          const isInYDisplayBound = yEdgeDist > 0 && yEdgeDist < state.displayBounds.height;
+          const isInYDisplayBound = yEdgeDist > 0 && yEdgeDist < componentState.displayBounds.height;
 
           if (isInXDisplayBound) {
             newSize.width = Math.abs(newWidth);
@@ -142,30 +242,29 @@ const LayoutBuilder = () => {
   const onMouseUp = (e: MouseEvent) => {
     setIsDragging(false);
     setStartPosition(ZERO_POS);
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
   };
 
   const toggleActive = (name: string) => {
     const selected = DEFAULT_COMPONENTS.find((v) => v.id === name);
     if (selected) {
-      setState('selected', { ...selected });
+      setToolState('selectedComponent', { ...selected });
     }
   };
 
-  const active = createSelector(() => state.selected?.id);
+  const active = createSelector(() => toolState.selectedComponent?.id);
 
   onMount(() => {
     if (displayRef()) {
       const bounds = displayRef()!.getBoundingClientRect();
-      setState('displayBounds', {
+      setComponentState('displayBounds', {
         x: bounds.left,
         y: bounds.top,
         height: bounds.height,
         width: bounds.width,
       });
     }
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
 
     onCleanup(() => {
       document.removeEventListener('mousemove', onMouseMove);
@@ -187,15 +286,13 @@ const LayoutBuilder = () => {
         </div>
         {/* Display */}
         <div ref={setDisplayRef} class="bg-white w-full h-full" onMouseDown={onMouseDown}>
-          <For each={state.components}>
-            {(comp) => <LayoutComponent {...comp} active={active(comp.id)} toggleActive={toggleActive} />}
-          </For>
+          <For each={componentState.components}>{(comp) => <LayoutComponent {...comp} resize={startResize} />}</For>
         </div>
       </div>
       {/* Components Box */}
       <div class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start">
         <For each={DEFAULT_COMPONENTS}>
-          {(comp) => <LayoutComponent {...comp} active={active(comp.id)} toggleActive={toggleActive} />}
+          {(comp) => <LayoutComponentDisplay {...comp} active={active(comp.id)} toggleActive={toggleActive} />}
         </For>
       </div>
     </div>
@@ -205,9 +302,7 @@ const LayoutBuilder = () => {
 export default LayoutBuilder;
 
 interface LayoutComponentProps extends LayoutComponent {
-  position?: XYPosition;
-  active: boolean;
-  toggleActive: (name: string) => void;
+  resize: (e: MouseEvent, handle: string) => void;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
@@ -229,16 +324,57 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div
       ref={setCompRef}
-      class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none ${
-        props.active ? 'ring-blue-7 ring-4' : ''
-      }`}
+      class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none `}
       style={{
         position: props.position ? 'fixed' : 'relative',
         transform: `translate(${position().x}px, ${position().y}px)`,
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,
       }}
-      data-id={props.id}
+    >
+      <div
+        class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
+        onMouseDown={(e) => props.resize?.(e, 'top-left')}
+      />
+      <div
+        class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -right-1.5 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
+        onMouseDown={(e) => props.resize?.(e, 'top-right')}
+      />
+      <div
+        class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -left-1.5 cursor-sw-resize hover:(border-white border-2) active:(border-white border-2)`}
+        onMouseDown={(e) => props.resize?.(e, 'bottom-left')}
+      />
+      <div
+        class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -right-1.5 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
+        onMouseDown={(e) => props.resize?.(e, 'bottom-right')}
+      />
+      <p class="font-600 color-white"> {props.name} </p>
+    </div>
+  );
+};
+
+interface LayoutComponentDisplayProps {
+  id: string;
+  color?: string;
+  name: string;
+  active: boolean;
+  toggleActive: (name: string) => void;
+}
+
+const LayoutComponentDisplay = (props: LayoutComponentDisplayProps) => {
+  props = mergeProps({ color: 'white' }, props);
+
+  const [compRef, setCompRef] = createSignal<HTMLDivElement>();
+
+  const getBackgroundStyles = () =>
+    `bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50`;
+
+  return (
+    <div
+      ref={setCompRef}
+      class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none w-24 h-10 ${
+        props.active ? 'ring-blue-7 ring-4' : ''
+      }`}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
