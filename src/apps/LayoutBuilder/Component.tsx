@@ -1,7 +1,9 @@
 import { mergeProps, createSignal, createEffect, Show } from 'solid-js';
 import { ZERO_POS } from '~/constants';
 import { XYPosition } from '~/types';
+import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilderContext } from '.';
+import { isPointInBounds } from './utils';
 
 interface LayoutComponentProps extends ILayoutComponent {
   resize: (e: MouseEvent) => void;
@@ -32,10 +34,33 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const onMouseMove = (e: MouseEvent) => {
     const dragState = isDragging();
     if (dragState) {
-      builder.updateComponentPosition(props.id, {
-        x: e.clientX - dragState.x,
-        y: e.clientY - dragState.y,
+      const newPos = {
+        x: clamp(
+          e.clientX - dragState.x,
+          0,
+          builder.componentState.displayBounds.x + (builder.componentState.displayBounds.width - props.size.width)
+        ),
+        y: clamp(
+          e.clientY - dragState.y,
+          0,
+          builder.componentState.displayBounds.y + (builder.componentState.displayBounds.height - props.size.height)
+        ),
+      };
+
+      const inBoundsTopLeft = isPointInBounds(newPos, {
+        x: builder.componentState.displayBounds.width,
+        y: builder.componentState.displayBounds.height,
       });
+      const inBoundsBottomRight = isPointInBounds(
+        { x: newPos.x + props.size.width, y: newPos.y + props.size.height },
+        {
+          x: builder.componentState.displayBounds.width,
+          y: builder.componentState.displayBounds.height,
+        }
+      );
+      builder.updateComponentPosition(props.id, newPos);
+      if (inBoundsTopLeft.x && inBoundsTopLeft.y && inBoundsBottomRight.x && inBoundsBottomRight.y) {
+      }
     }
   };
 
