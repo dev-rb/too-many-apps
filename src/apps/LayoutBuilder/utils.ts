@@ -1,3 +1,5 @@
+import { createUniqueId } from 'solid-js';
+import { ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
 
 export function calculateResize(currentSize: Size, currentPos: XYPosition, mousePos: XYPosition, handle: string) {
@@ -41,4 +43,22 @@ export function calculateResize(currentSize: Size, currentPos: XYPosition, mouse
   }
 
   return { updatedSize, updatedPos };
+}
+
+export function isPointInBounds(point: XYPosition, bounds: XYPosition) {
+  const inX = point.x > 0 && point.x < bounds.x;
+  const inY = point.y > 0 && point.y < bounds.y;
+
+  return { x: inX, y: inY };
+}
+
+export function createNewComponent(name: string, color?: string, startPos?: XYPosition, startSize: Size = ZERO_SIZE) {
+  const newId = createUniqueId();
+  return {
+    id: newId,
+    name: name,
+    color: color,
+    position: startPos,
+    size: startSize,
+  };
 }
