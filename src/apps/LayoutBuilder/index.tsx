@@ -8,8 +8,9 @@ import {
   mergeProps,
   onCleanup,
   onMount,
+  useContext,
 } from 'solid-js';
-import { createStore, unwrap } from 'solid-js/store';
+import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
 import LayoutComponent from './Component';
@@ -19,11 +20,11 @@ export interface ILayoutComponent {
   id: string;
   name: string;
   color?: string;
-  size?: Size;
-  position?: XYPosition;
+  size: Size;
+  position: XYPosition;
 }
 
-const DEFAULT_COMPONENTS: ILayoutComponent[] = [
+const DEFAULT_COMPONENTS = [
   {
     id: createUniqueId(),
     name: 'Row',
@@ -65,12 +66,31 @@ const LayoutBuilder = () => {
     activeHandle: 'top-left',
   });
 
+  const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
+    setComponentState(
+      'components',
+      (p) => p.id === id,
+      (p) => ({
+        ...p,
+        position: reconcile(typeof newPosition === 'function' ? newPosition(p.position) : newPosition)(p),
+      })
+    );
+  };
+
+  const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
+    setComponentState(
+      'components',
+      (p) => p.id === id,
+      (p) => ({ ...p, size: reconcile(typeof newSize === 'function' ? newSize(p.size) : newSize)(p) })
+    );
+  };
+
   const startResize = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (componentState.selected) {
-      const currentPosition = componentState.selected.position ?? ZERO_POS;
-      const currentSize = componentState.selected.size ?? ZERO_SIZE;
+      const currentPosition = componentState.selected.position;
+      const currentSize = componentState.selected.size;
 
       const clickX = e.clientX - componentState.displayBounds.x - currentPosition.x;
       const clickY = e.clientY - componentState.displayBounds.y - currentPosition.y;
@@ -116,32 +136,25 @@ const LayoutBuilder = () => {
       const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
 
       const inBounds = isPointInBounds(
-        { x: distanceToLeft, y: distanceToTop },
+        { x: Math.floor(distanceToLeft), y: Math.floor(distanceToTop) },
         { x: componentState.displayBounds.width, y: componentState.displayBounds.height }
       );
 
       if (inBounds.x || inBounds.y) {
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
-        setComponentState(
-          'components',
-          (p) => p.id === componentState.selected?.id,
-          (p) => ({
-            ...p,
-            position: {
-              x: inBounds.x ? updatedPos.x : p.position?.x ?? 0,
-              y: inBounds.y ? updatedPos.y : p.position?.y ?? 0,
-            },
-            size: {
-              width: inBounds.x ? updatedSize.width : p.size?.width ?? 0,
-              height: inBounds.y ? updatedSize.height : p.size?.height ?? 0,
-            },
-          })
-        );
+        updateComponentPosition(componentState.selected?.id, (p) => ({
+          x: inBounds.x ? updatedPos.x : p.x,
+          y: inBounds.y ? updatedPos.y : p.y,
+        }));
+        updateComponentSize(componentState.selected?.id, (p) => ({
+          width: inBounds.x ? updatedSize.width : p.width ?? 0,
+          height: inBounds.y ? updatedSize.height : p.height ?? 0,
+        }));
       }
     }
   };
 
-  const onMouseDown = (e: MouseEvent) => {
+  const onDrawStart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (toolState.selectedComponent) {
@@ -153,10 +166,14 @@ const LayoutBuilder = () => {
         },
       });
 
-      const newComp = createNewComponent(toolState.selectedComponent.name, toolState.selectedComponent.color, {
-        x: e.clientX - componentState.displayBounds.x,
-        y: e.clientY - componentState.displayBounds.y,
-      });
+      const newComp = createNewComponent(
+        toolState.selectedComponent.name,
+        {
+          x: e.clientX - componentState.displayBounds.x,
+          y: e.clientY - componentState.displayBounds.y,
+        },
+        toolState.selectedComponent.color
+      );
 
       setComponentState((p) => {
         let components = [...p.components, newComp];
@@ -167,12 +184,12 @@ const LayoutBuilder = () => {
           selected: { ...newComp },
         };
       });
-      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mousemove', onDraw);
       document.addEventListener('mouseup', onMouseUp);
     }
   };
 
-  const onMouseMove = (e: MouseEvent) => {
+  const onDraw = (e: MouseEvent) => {
     e.preventDefault();
 
     if (dragState.isDragging) {
@@ -214,7 +231,7 @@ const LayoutBuilder = () => {
     setDragState({
       isDragging: false,
     });
-    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mousemove', onDraw);
     document.removeEventListener('mousemove', onResize);
     document.removeEventListener('mouseup', onMouseUp);
   };
@@ -245,17 +262,23 @@ const LayoutBuilder = () => {
     }
 
     onCleanup(() => {
-      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mousemove', onDraw);
       document.removeEventListener('mousemove', onResize);
       document.removeEventListener('mouseup', onMouseUp);
     });
   });
 
+  const contextValues = {
+    componentState,
+    toolState,
+    updateComponentPosition,
+  };
+
   return (
-    <BuilderContext.Provider value={{ componentState, toolState }}>
+    <BuilderContext.Provider value={contextValues}>
       <div class="flex flex-col justify-center items-center w-full h-full overflow-y-hidden">
         {/* Visual Display */}
-        <div class="flex flex-col w-3xl h-md mb-20">
+        <div class="flex flex-col w-5xl h-xl mb-20">
           {/* Display header */}
           <div class="w-full h-4 bg-dark-5 flex items-center">
             <div class="ml-auto flex gap-2 mr-2">
@@ -265,7 +288,7 @@ const LayoutBuilder = () => {
             </div>
           </div>
           {/* Display */}
-          <div ref={setDisplayRef} class="bg-white w-full h-full" onMouseDown={onMouseDown}>
+          <div ref={setDisplayRef} class="bg-white w-full h-full" onMouseDown={onDrawStart}>
             <For each={componentState.components}>
               {(comp) => (
                 <LayoutComponent
@@ -290,6 +313,24 @@ const LayoutBuilder = () => {
 };
 
 export default LayoutBuilder;
+
+interface BuilderContextValues {
+  componentState: ComponentState;
+  toolState: {
+    selectedComponent: ILayoutComponent | undefined;
+  };
+  updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+}
+
+export const useBuilderContext = () => {
+  const ctx = useContext(BuilderContext);
+
+  if (!ctx) {
+    throw new Error('BuilderContext can only be used inside a BuilderContext provider.');
+  }
+
+  return ctx as BuilderContextValues;
+};
 
 interface ComponentDisplayProps {
   id: string;

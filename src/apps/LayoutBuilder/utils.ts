@@ -52,7 +52,7 @@ export function isPointInBounds(point: XYPosition, bounds: XYPosition) {
   return { x: inX, y: inY };
 }
 
-export function createNewComponent(name: string, color?: string, startPos?: XYPosition, startSize: Size = ZERO_SIZE) {
+export function createNewComponent(name: string, startPos: XYPosition, color?: string, startSize: Size = ZERO_SIZE) {
   const newId = createUniqueId();
   return {
     id: newId,
