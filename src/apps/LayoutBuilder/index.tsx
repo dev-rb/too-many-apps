@@ -23,8 +23,6 @@ interface LayoutComponent {
 const ZERO_SIZE: Size = { width: 0, height: 0 };
 const ZERO_POS: XYPosition = { x: 0, y: 0 };
 
-const MIN_SIZE = 40;
-
 const DEFAULT_COMPONENTS: LayoutComponent[] = [
   {
     id: createUniqueId(),
@@ -190,7 +188,7 @@ const LayoutBuilder = () => {
         return {
           ...p,
           components,
-          selected: newComp,
+          selected: { ...newComp },
         };
       });
       document.addEventListener('mousemove', onMouseMove);
@@ -285,6 +283,7 @@ const LayoutBuilder = () => {
 
     onCleanup(() => {
       document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mousemove', onResize);
       document.removeEventListener('mouseup', onMouseUp);
     });
   });
@@ -307,9 +306,7 @@ const LayoutBuilder = () => {
             {(comp) => (
               <LayoutComponent
                 {...comp}
-                id={comp.id}
-                position={comp.position}
-                size={comp.size}
+                active={componentState.selected?.id === comp.id}
                 resize={startResize}
                 selectElement={selectElement}
               />
@@ -332,6 +329,7 @@ export default LayoutBuilder;
 interface LayoutComponentProps extends LayoutComponent {
   resize: (e: MouseEvent) => void;
   selectElement: (id: string) => void;
+  active: boolean;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
@@ -344,6 +342,11 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   });
 
   const selectElement = () => props.selectElement(props.id);
+  const onMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectElement();
+  };
 
   const onHandleMouseDown = (e: MouseEvent) => {
     selectElement();
@@ -354,8 +357,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     setPosition(props.position ?? ZERO_POS);
   });
 
+  const colorOpacity = () => (props.active ? 50 : 30);
+
   const getBackgroundStyles = () =>
-    `bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50`;
+    `bg-${props.color}/${colorOpacity()} border-${props.color}-4 border-1 rounded-sm lines-gradient to-${
+      props.color
+    }-4/50`;
 
   return (
     <div
@@ -367,7 +374,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,
       }}
-      onMouseDown={selectElement}
+      onMouseDown={onMouseDown}
     >
       <div
         class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
