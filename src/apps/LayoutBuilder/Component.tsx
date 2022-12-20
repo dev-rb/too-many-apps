@@ -1,6 +1,6 @@
 import { mergeProps, createSignal, createEffect, Show } from 'solid-js';
-import { ZERO_POS } from '~/constants';
-import { XYPosition } from '~/types';
+import { ZERO_POS, ZERO_SIZE } from '~/constants';
+import { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilderContext } from '.';
 import { isPointInBounds } from './utils';
@@ -35,32 +35,11 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     const dragState = isDragging();
     if (dragState) {
       const newPos = {
-        x: clamp(
-          e.clientX - dragState.x,
-          0,
-          builder.componentState.displayBounds.x + (builder.componentState.displayBounds.width - props.size.width)
-        ),
-        y: clamp(
-          e.clientY - dragState.y,
-          0,
-          builder.componentState.displayBounds.y + (builder.componentState.displayBounds.height - props.size.height)
-        ),
+        x: clamp(e.clientX - dragState.x, 0, builder.componentState.displayBounds.width - props.size.width),
+        y: clamp(e.clientY - dragState.y, 0, builder.componentState.displayBounds.height - props.size.height),
       };
 
-      const inBoundsTopLeft = isPointInBounds(newPos, {
-        x: builder.componentState.displayBounds.width,
-        y: builder.componentState.displayBounds.height,
-      });
-      const inBoundsBottomRight = isPointInBounds(
-        { x: newPos.x + props.size.width, y: newPos.y + props.size.height },
-        {
-          x: builder.componentState.displayBounds.width,
-          y: builder.componentState.displayBounds.height,
-        }
-      );
       builder.updateComponentPosition(props.id, newPos);
-      if (inBoundsTopLeft.x && inBoundsTopLeft.y && inBoundsBottomRight.x && inBoundsBottomRight.y) {
-      }
     }
   };
 
@@ -95,6 +74,21 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       }}
       onMouseDown={onMouseDown}
     >
+      <div
+        class="w-2 h-2 bg-red-7 rounded-full absolute"
+        title="height"
+        style={{ top: props.size.height + 'px', left: 0 + 'px' }}
+      />
+      <div
+        class="w-2 h-2 bg-green-7 rounded-full absolute"
+        title="width"
+        style={{ top: 0 + 'px', left: props.size.width + 'px' }}
+      />
+      <div
+        class="w-4 h-4 bg-blue-7 rounded-full absolute"
+        title="x position"
+        style={{ top: 0 + 'px', left: props.position.x + 'px' }}
+      />
       <Show when={props.active}>
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}

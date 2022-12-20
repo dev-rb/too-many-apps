@@ -13,8 +13,9 @@ import {
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
+import { clamp } from '~/utils/math';
 import LayoutComponent from './Component';
-import { calculateResize, createNewComponent, isPointInBounds } from './utils';
+import { calculateResize, createNewComponent, isLeftClick, isPointInBounds } from './utils';
 
 export interface ILayoutComponent {
   id: string;
@@ -88,6 +89,8 @@ const LayoutBuilder = () => {
   const startResize = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isLeftClick(e)) return;
     if (componentState.selected) {
       const currentPosition = componentState.selected.position;
       const currentSize = componentState.selected.size;
@@ -130,33 +133,39 @@ const LayoutBuilder = () => {
     if (dragState.isDragging && componentState.selected) {
       const { activeHandle, startElPos, startPos, startSize } = unwrap(dragState);
 
-      const distanceToLeft = e.clientX - componentState.displayBounds.x;
-      const distanceToTop = e.clientY - componentState.displayBounds.y;
-
       const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
 
-      const inBounds = isPointInBounds(
-        { x: Math.floor(distanceToLeft), y: Math.floor(distanceToTop) },
-        { x: componentState.displayBounds.width, y: componentState.displayBounds.height }
-      );
+      const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
+      updateComponentPosition(componentState.selected?.id, (p) => ({
+        x: Math.max(0, Math.round(updatedPos.x)),
+        y: Math.max(0, Math.round(updatedPos.y)),
+      }));
 
-      if (inBounds.x || inBounds.y) {
-        const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
-        updateComponentPosition(componentState.selected?.id, (p) => ({
-          x: inBounds.x ? updatedPos.x : p.x,
-          y: inBounds.y ? updatedPos.y : p.y,
-        }));
-        updateComponentSize(componentState.selected?.id, (p) => ({
-          width: inBounds.x ? updatedSize.width : p.width ?? 0,
-          height: inBounds.y ? updatedSize.height : p.height ?? 0,
-        }));
-      }
+      updateComponentSize(componentState.selected?.id, (p) => {
+        let newWidth = Math.abs(updatedSize.width);
+        let newHeight = Math.abs(updatedSize.height);
+        if (updatedPos.x < 0) {
+          newWidth = p.width;
+        } else if (Math.floor(componentState.displayBounds.width - (updatedPos.x + newWidth)) < 0) {
+          newWidth = componentState.displayBounds.width - updatedPos.x;
+        }
+        if (updatedPos.y < 0) {
+          newHeight = p.height;
+        } else if (Math.floor(componentState.displayBounds.height - (updatedPos.y + newHeight)) < 0) {
+          newHeight = componentState.displayBounds.height - updatedPos.y;
+        }
+        return {
+          width: Math.round(newWidth),
+          height: Math.round(newHeight),
+        };
+      });
     }
   };
 
   const onDrawStart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!isLeftClick(e)) return;
     if (toolState.selectedComponent) {
       setDragState({
         isDragging: true,
@@ -212,11 +221,8 @@ const LayoutBuilder = () => {
         (p) => ({
           ...p,
           position: {
-            x: inBounds.x && newWidth < 0 ? newWidth + startPos.x - componentState.displayBounds.x : p.position?.x ?? 0,
-            y:
-              inBounds.y && newHeight < 0
-                ? newHeight + startPos.y - componentState.displayBounds.y
-                : p.position?.y ?? 0,
+            x: inBounds.x && newWidth < 0 ? distanceToLeft : p.position?.x ?? 0,
+            y: inBounds.y && newHeight < 0 ? distanceToTop : p.position?.y ?? 0,
           },
           size: {
             width: inBounds.x ? Math.abs(newWidth) : p.size?.width ?? 0,
