@@ -1,12 +1,11 @@
-import { mergeProps, createSignal, createEffect, Show } from 'solid-js';
-import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import { Size, XYPosition } from '~/types';
+import { mergeProps, createSignal, Show, createEffect, on } from 'solid-js';
+import { createStore } from 'solid-js/store';
+import { XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilderContext } from '.';
-import { isPointInBounds } from './utils';
+import { createTransformable } from './createTransformable';
 
 interface LayoutComponentProps extends ILayoutComponent {
-  resize: (e: MouseEvent) => void;
   selectElement: (id: string) => void;
   active: boolean;
 }
@@ -17,6 +16,18 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const builder = useBuilderContext();
 
   const [isDragging, setIsDragging] = createSignal<XYPosition | false>(false);
+
+  const [newBounds, { setElement, startResize }] = createTransformable(builder.componentState.displayBounds, {
+    canDraw: () => props.active,
+    canTransform: () => props.active,
+  });
+
+  createEffect(
+    on(newBounds, () => {
+      builder.updateComponentPosition(props.id, { ...newBounds() });
+      builder.updateComponentSize(props.id, { ...newBounds() });
+    })
+  );
 
   const selectElement = () => props.selectElement(props.id);
   const onMouseDown = (e: MouseEvent) => {
@@ -51,7 +62,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const onHandleMouseDown = (e: MouseEvent) => {
     selectElement();
-    props.resize?.(e);
+    startResize(e);
   };
 
   const colorOpacity = () => (props.active ? 50 : 30);
@@ -63,6 +74,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   return (
     <div
+      ref={setElement}
       class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none ${
         props.active ? 'z-10' : ''
       }`}

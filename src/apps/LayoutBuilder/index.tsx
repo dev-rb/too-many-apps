@@ -6,6 +6,7 @@ import {
   createUniqueId,
   For,
   mergeProps,
+  on,
   onCleanup,
   onMount,
   useContext,
@@ -15,6 +16,8 @@ import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import LayoutComponent from './Component';
+import { createDrawable } from './createDrawable';
+import { createTransformable } from './createTransformable';
 import { calculateResize, createNewComponent, isLeftClick, isPointInBounds } from './utils';
 
 export interface ILayoutComponent {
@@ -59,14 +62,6 @@ const LayoutBuilder = () => {
 
   const [displayRef, setDisplayRef] = createSignal<HTMLDivElement>();
 
-  const [dragState, setDragState] = createStore({
-    startPos: ZERO_POS,
-    startElPos: ZERO_POS,
-    startSize: ZERO_SIZE,
-    isDragging: false,
-    activeHandle: 'top-left',
-  });
-
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
     setComponentState(
       'components',
@@ -86,161 +81,37 @@ const LayoutBuilder = () => {
     );
   };
 
-  const startResize = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const { elementBounds, onDrawStart, setParentElement } = createDrawable(
+    () => toolState.selectedComponent !== undefined,
+    {
+      onDrawStart(startPosition) {
+        const newComp = createNewComponent(
+          toolState.selectedComponent!.name,
+          startPosition,
+          toolState.selectedComponent!.color
+        );
 
-    if (!isLeftClick(e)) return;
-    if (componentState.selected) {
-      const currentPosition = componentState.selected.position;
-      const currentSize = componentState.selected.size;
+        setComponentState((p) => {
+          let components = [...p.components, newComp];
 
-      const clickX = e.clientX - componentState.displayBounds.x - currentPosition.x;
-      const clickY = e.clientY - componentState.displayBounds.y - currentPosition.y;
+          return {
+            ...p,
+            components,
+            selected: { ...newComp },
+          };
+        });
+      },
+    }
+  );
 
-      let handle = 'top-left';
-
-      if (Math.abs(clickX) < 10 && Math.abs(clickY) < 10) {
-        handle = 'top-left';
-      } else if (Math.abs(currentSize.width - clickX) < 10 && Math.abs(clickY) < 10) {
-        handle = 'top-right';
-      } else if (Math.abs(clickX) < 10 && Math.abs(currentSize.height - clickY) < 10) {
-        handle = 'bottom-left';
-      } else if (Math.abs(currentSize.width - clickX) < 10 && Math.abs(currentSize.height - clickY) < 10) {
-        handle = 'bottom-right';
+  createEffect(
+    on(elementBounds, () => {
+      if (componentState.selected) {
+        updateComponentPosition(componentState.selected!.id, { x: elementBounds().x, y: elementBounds().y });
+        updateComponentSize(componentState.selected!.id, { ...elementBounds() });
       }
-
-      setDragState({
-        isDragging: true,
-        startElPos: currentPosition,
-        startPos: {
-          x: e.clientX,
-          y: e.clientY,
-        },
-        startSize: currentSize,
-        activeHandle: handle,
-      });
-
-      document.addEventListener('mousemove', onResize);
-      document.addEventListener('mouseup', onMouseUp);
-    }
-  };
-
-  const onResize = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (dragState.isDragging && componentState.selected) {
-      const { activeHandle, startElPos, startPos, startSize } = unwrap(dragState);
-
-      const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
-
-      const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
-      updateComponentPosition(componentState.selected?.id, (p) => ({
-        x: Math.max(0, Math.round(updatedPos.x)),
-        y: Math.max(0, Math.round(updatedPos.y)),
-      }));
-
-      updateComponentSize(componentState.selected?.id, (p) => {
-        let newWidth = Math.abs(updatedSize.width);
-        let newHeight = Math.abs(updatedSize.height);
-        if (updatedPos.x < 0) {
-          newWidth = p.width;
-        } else if (Math.floor(componentState.displayBounds.width - (updatedPos.x + newWidth)) < 0) {
-          newWidth = componentState.displayBounds.width - updatedPos.x;
-        }
-        if (updatedPos.y < 0) {
-          newHeight = p.height;
-        } else if (Math.floor(componentState.displayBounds.height - (updatedPos.y + newHeight)) < 0) {
-          newHeight = componentState.displayBounds.height - updatedPos.y;
-        }
-        return {
-          width: Math.round(newWidth),
-          height: Math.round(newHeight),
-        };
-      });
-    }
-  };
-
-  const onDrawStart = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isLeftClick(e)) return;
-    if (toolState.selectedComponent) {
-      setDragState({
-        isDragging: true,
-        startPos: {
-          x: e.clientX,
-          y: e.clientY,
-        },
-      });
-
-      const newComp = createNewComponent(
-        toolState.selectedComponent.name,
-        {
-          x: e.clientX - componentState.displayBounds.x,
-          y: e.clientY - componentState.displayBounds.y,
-        },
-        toolState.selectedComponent.color
-      );
-
-      setComponentState((p) => {
-        let components = [...p.components, newComp];
-
-        return {
-          ...p,
-          components,
-          selected: { ...newComp },
-        };
-      });
-      document.addEventListener('mousemove', onDraw);
-      document.addEventListener('mouseup', onMouseUp);
-    }
-  };
-
-  const onDraw = (e: MouseEvent) => {
-    e.preventDefault();
-
-    if (dragState.isDragging) {
-      const startPos = dragState.startPos;
-
-      const newWidth = e.clientX - startPos.x;
-      const newHeight = e.clientY - startPos.y;
-
-      const distanceToLeft = e.clientX - componentState.displayBounds.x;
-      const distanceToTop = e.clientY - componentState.displayBounds.y;
-
-      const inBounds = isPointInBounds(
-        { x: distanceToLeft, y: distanceToTop },
-        { x: componentState.displayBounds.width, y: componentState.displayBounds.height }
-      );
-
-      setComponentState(
-        'components',
-        (p) => p.id === componentState.selected?.id,
-        (p) => ({
-          ...p,
-          position: {
-            x: inBounds.x && newWidth < 0 ? distanceToLeft : p.position?.x ?? 0,
-            y: inBounds.y && newHeight < 0 ? distanceToTop : p.position?.y ?? 0,
-          },
-          size: {
-            width: inBounds.x ? Math.abs(newWidth) : p.size?.width ?? 0,
-            height: inBounds.y ? Math.abs(newHeight) : p.size?.height ?? 0,
-          },
-        })
-      );
-    }
-  };
-
-  const onMouseUp = () => {
-    setDragState({
-      isDragging: false,
-    });
-    document.removeEventListener('mousemove', onDraw);
-    document.removeEventListener('mousemove', onResize);
-    document.removeEventListener('mouseup', onMouseUp);
-  };
+    })
+  );
 
   const toggleActive = (name: string) => {
     const selected = DEFAULT_COMPONENTS.find((v) => v.id === name);
@@ -266,18 +137,18 @@ const LayoutBuilder = () => {
         width: bounds.width,
       });
     }
-
-    onCleanup(() => {
-      document.removeEventListener('mousemove', onDraw);
-      document.removeEventListener('mousemove', onResize);
-      document.removeEventListener('mouseup', onMouseUp);
-    });
   });
+
+  const assignDisplayRef = (el: HTMLDivElement) => {
+    setDisplayRef(el);
+    setParentElement(el);
+  };
 
   const contextValues = {
     componentState,
     toolState,
     updateComponentPosition,
+    updateComponentSize,
   };
 
   return (
@@ -294,13 +165,12 @@ const LayoutBuilder = () => {
             </div>
           </div>
           {/* Display */}
-          <div ref={setDisplayRef} class="bg-white w-full h-full" onMouseDown={onDrawStart}>
+          <div ref={assignDisplayRef} class="bg-white w-full h-full" onMouseDown={onDrawStart}>
             <For each={componentState.components}>
               {(comp) => (
                 <LayoutComponent
                   {...comp}
                   active={componentState.selected?.id === comp.id}
-                  resize={startResize}
                   selectElement={selectElement}
                 />
               )}
@@ -326,6 +196,7 @@ interface BuilderContextValues {
     selectedComponent: ILayoutComponent | undefined;
   };
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+  updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
 }
 
 export const useBuilderContext = () => {
