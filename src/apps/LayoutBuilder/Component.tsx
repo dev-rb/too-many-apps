@@ -1,5 +1,5 @@
 import { mergeProps, createSignal, Show, createEffect, on } from 'solid-js';
-import { XYPosition } from '~/types';
+import { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilderContext } from '.';
 import { createTransformable } from './createTransformable';
@@ -16,15 +16,37 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const [isDragging, setIsDragging] = createSignal<XYPosition | false>(false);
 
-  const [newBounds, { setElement, startResize }] = createTransformable(
-    builder.componentState.displayBounds,
-    () => props.active
-  );
+  const [newBounds, { setElement, onResizeStart }] = createTransformable(() => props.active);
+
+  const transformBounds = (bounds: Size & XYPosition) => {
+    let newWidth = Math.abs(bounds.width);
+    let newHeight = Math.abs(bounds.height);
+
+    const previousSize = { width: props.size.width, height: props.size.height };
+    if (bounds.x < 0) {
+      newWidth = previousSize.width;
+    } else if (Math.floor(builder.componentState.displayBounds.width - (bounds.x + newWidth)) < 0) {
+      newWidth = builder.componentState.displayBounds.width - bounds.x;
+    }
+    if (bounds.y < 0) {
+      newHeight = previousSize.height;
+    } else if (Math.floor(builder.componentState.displayBounds.height - (bounds.y + newHeight)) < 0) {
+      newHeight = builder.componentState.displayBounds.height - bounds.y;
+    }
+
+    return {
+      x: Math.max(0, Math.round(bounds.x)),
+      y: Math.max(0, Math.round(bounds.y)),
+      width: Math.round(newWidth),
+      height: Math.round(newHeight),
+    };
+  };
 
   createEffect(
     on(newBounds, () => {
-      builder.updateComponentPosition(props.id, { ...newBounds() });
-      builder.updateComponentSize(props.id, { ...newBounds() });
+      const transformedBounds = transformBounds({ ...newBounds() });
+      builder.updateComponentPosition(props.id, { ...transformedBounds });
+      builder.updateComponentSize(props.id, { ...transformedBounds });
     })
   );
 
@@ -60,8 +82,9 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   };
 
   const onHandleMouseDown = (e: MouseEvent) => {
+    e.stopPropagation();
     selectElement();
-    startResize(e);
+    onResizeStart(e, { x: builder.componentState.displayBounds.x, y: builder.componentState.displayBounds.y });
   };
 
   const colorOpacity = () => (props.active ? 50 : 30);
