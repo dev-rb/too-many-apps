@@ -1,4 +1,3 @@
-import { element } from '@solid-primitives/clipboard';
 import { createEffect, createSignal, on } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
@@ -39,13 +38,13 @@ export const createDrawable = (canDraw?: boolean | (() => boolean), handlers?: T
           y: e.clientY,
         },
       });
-      setElementBounds((p) => ({
-        ...p,
+      handlers?.onDrawStart({ x: e.clientX - parentBounds().x, y: e.clientY - parentBounds().y });
+      setElementBounds({
+        ...ZERO_SIZE,
         x: e.clientX - parentBounds().x,
         y: e.clientY - parentBounds().y,
-      }));
+      });
 
-      handlers?.onDrawStart({ x: e.clientX - parentBounds().x, y: e.clientY - parentBounds().y });
       document.addEventListener('mousemove', onDraw);
       document.addEventListener('mouseup', onMouseUp);
     }
@@ -84,5 +83,5 @@ export const createDrawable = (canDraw?: boolean | (() => boolean), handlers?: T
     document.removeEventListener('mouseup', onMouseUp);
   };
 
-  return { elementBounds, onDrawStart, setParentElement };
+  return [elementBounds, { onDrawStart, setParentElement }] as const;
 };

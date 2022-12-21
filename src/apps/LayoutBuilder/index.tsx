@@ -78,13 +78,13 @@ const LayoutBuilder = () => {
     );
   };
 
-  const { elementBounds, onDrawStart, setParentElement } = createDrawable(
+  const [elementBounds, { onDrawStart, setParentElement }] = createDrawable(
     () => toolState.selectedComponent !== undefined,
     {
       onDrawStart(startPosition) {
         const newComp = createNewComponent(
           toolState.selectedComponent!.name,
-          startPosition,
+          { ...startPosition },
           toolState.selectedComponent!.color
         );
 
@@ -104,8 +104,9 @@ const LayoutBuilder = () => {
   createEffect(
     on(elementBounds, () => {
       if (componentState.selected) {
-        updateComponentPosition(componentState.selected!.id, { x: elementBounds().x, y: elementBounds().y });
-        updateComponentSize(componentState.selected!.id, { ...elementBounds() });
+        const bounds = elementBounds();
+        updateComponentPosition(componentState.selected!.id, { x: bounds.x, y: bounds.y });
+        updateComponentSize(componentState.selected!.id, { ...bounds });
       }
     })
   );
