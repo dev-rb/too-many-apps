@@ -4,20 +4,11 @@ import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
 import { calculateResize, isLeftClick, isPointInBounds } from './utils';
 
-interface TransformableHandlers {
-  onDrawStart: (startPosition: XYPosition) => void;
-}
-
 interface TransformableToggles {
   canTransform?: boolean | (() => boolean);
-  canDraw?: boolean | (() => boolean);
 }
 
-export const createTransformable = (
-  parentBounds: Size & XYPosition,
-  toggles?: TransformableToggles,
-  handlers?: TransformableHandlers
-) => {
+export const createTransformable = (parentBounds: Size & XYPosition, canTransform?: boolean | (() => boolean)) => {
   const [element, setElement] = createSignal<HTMLElement>();
 
   const [elementBounds, setElementBounds] = createSignal({ x: 0, y: 0, width: 0, height: 0 }, { equals: false });
@@ -52,7 +43,6 @@ export const createTransformable = (
 
   createEffect(
     on(element, () => {
-      console.log('el change', element());
       updateElementBounds();
     })
   );
@@ -62,12 +52,8 @@ export const createTransformable = (
     e.stopPropagation();
 
     if (!isLeftClick(e)) return;
-    const canTransform = toggles?.canTransform
-      ? typeof toggles?.canTransform === 'function'
-        ? toggles?.canTransform()
-        : toggles?.canTransform
-      : true;
-    if (canTransform) {
+    const canResize = canTransform ? (typeof canTransform === 'function' ? canTransform() : canTransform) : true;
+    if (canResize) {
       updateElementBounds();
       const currentPosition = { x: elementBounds().x, y: elementBounds().y };
       const currentSize = { width: elementBounds().width, height: elementBounds().height };
@@ -112,8 +98,10 @@ export const createTransformable = (
       const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
 
       const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
+
       let newWidth = Math.abs(updatedSize.width);
       let newHeight = Math.abs(updatedSize.height);
+
       const previousSize = { width: elementBounds().width, height: elementBounds().height };
       if (updatedPos.x < 0) {
         newWidth = previousSize.width;

@@ -7,18 +7,15 @@ import {
   For,
   mergeProps,
   on,
-  onCleanup,
   onMount,
   useContext,
 } from 'solid-js';
-import { createStore, reconcile, unwrap } from 'solid-js/store';
+import { createStore, reconcile } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
-import { clamp } from '~/utils/math';
 import LayoutComponent from './Component';
 import { createDrawable } from './createDrawable';
-import { createTransformable } from './createTransformable';
-import { calculateResize, createNewComponent, isLeftClick, isPointInBounds } from './utils';
+import { createNewComponent } from './utils';
 
 export interface ILayoutComponent {
   id: string;

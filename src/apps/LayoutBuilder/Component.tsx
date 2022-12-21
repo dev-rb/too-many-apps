@@ -1,5 +1,4 @@
 import { mergeProps, createSignal, Show, createEffect, on } from 'solid-js';
-import { createStore } from 'solid-js/store';
 import { XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilderContext } from '.';
@@ -17,10 +16,10 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const [isDragging, setIsDragging] = createSignal<XYPosition | false>(false);
 
-  const [newBounds, { setElement, startResize }] = createTransformable(builder.componentState.displayBounds, {
-    canDraw: () => props.active,
-    canTransform: () => props.active,
-  });
+  const [newBounds, { setElement, startResize }] = createTransformable(
+    builder.componentState.displayBounds,
+    () => props.active
+  );
 
   createEffect(
     on(newBounds, () => {
@@ -79,7 +78,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         props.active ? 'z-10' : ''
       }`}
       style={{
-        position: props.position ? 'fixed' : 'relative',
+        position: 'absolute',
         transform: `translate(${props.position.x}px, ${props.position.y}px)`,
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,

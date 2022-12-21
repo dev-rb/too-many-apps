@@ -12,10 +12,7 @@ export const createDrawable = (canDraw?: boolean | (() => boolean), handlers?: T
   const [parentElement, setParentElement] = createSignal<HTMLElement>();
   const [dragState, setDragState] = createStore({
     startPos: ZERO_POS,
-    startElPos: ZERO_POS,
-    startSize: ZERO_SIZE,
     isDragging: false,
-    activeHandle: 'top-left',
   });
   const [elementBounds, setElementBounds] = createSignal({ x: 0, y: 0, width: 0, height: 0 }, { equals: false });
   const [parentBounds, setParentBounds] = createSignal({ x: 0, y: 0, width: 0, height: 0 }, { equals: false });
