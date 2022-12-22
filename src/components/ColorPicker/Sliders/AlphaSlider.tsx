@@ -9,16 +9,7 @@ interface AlphaSliderProps extends BaseColorSliderProps {
 
 type BoxProps = PropsOf<typeof Box>;
 export const AlphaSlider = (props: AlphaSliderProps & BoxProps) => {
-  const [local, rest] = splitProps(props, [
-    'value',
-    'onChange',
-    'color',
-    'direction',
-  ]);
-
-  createEffect(() => {
-    console.log(local.color);
-  });
+  const [local, rest] = splitProps(props, ['value', 'onChange', 'color', 'direction']);
 
   return (
     <ColorSlider
@@ -36,15 +27,12 @@ export const AlphaSlider = (props: AlphaSliderProps & BoxProps) => {
           backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
         },
         {
-          backgroundImage: `linear-gradient(${
-            local.direction === 'horizontal' ? '90deg' : '180deg'
-          }, transparent, ${
+          backgroundImage: `linear-gradient(${local.direction === 'horizontal' ? '90deg' : '180deg'}, transparent, ${
             isHex(local.color) ? local.color.substring(0, 7) : local.color
           })`,
         },
         {
-          boxShadow:
-            'rgba(0, 0, 0, .1) 0px 0px 0px 1px inset, rgb(0, 0, 0, .15) 0px 0px 4px inset',
+          boxShadow: 'rgba(0, 0, 0, .1) 0px 0px 0px 1px inset, rgb(0, 0, 0, .15) 0px 0px 4px inset',
         },
       ]}
       {...rest}

@@ -22,9 +22,7 @@ const App = () => {
     <Router>
       <div class={'flex bg-dark-9 font-sans w-screen h-screen'}>
         <AppNav />
-        <main
-          class={'flex flex-col px-5 color-white w-screen overflow-x-hidden'}
-        >
+        <main class={'flex flex-col px-5 color-white w-screen overflow-x-hidden'}>
           <Routes>
             <Route path="/" component={ColorConvert} />
             <Route path="/layout" component={LayoutBuilder} />
