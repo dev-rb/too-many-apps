@@ -1,11 +1,11 @@
-import { createEffect, createSignal, on, onCleanup, onMount } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
-import { calculateResize, isLeftClick, isPointInBounds } from './utils';
+import { calculateResize, isLeftClick } from './utils';
 
-interface TransformableToggles {
-  canTransform?: boolean | (() => boolean);
+interface TransformableHandlers {
+  onResize?: (newBounds: XYPosition & Size) => void;
 }
 
 export const createTransformable = (canTransform?: boolean | (() => boolean)) => {

@@ -1,21 +1,19 @@
 import {
+  Accessor,
   createContext,
-  createEffect,
+  createMemo,
   createSelector,
-  createSignal,
   createUniqueId,
   For,
   mergeProps,
-  on,
-  onMount,
   useContext,
 } from 'solid-js';
-import { createStore, reconcile } from 'solid-js/store';
+import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
-import LayoutComponent from './Component';
-import { createDrawable } from './createDrawable';
-import { createNewComponent } from './utils';
+import { access } from '~/utils/common';
+import Layers from './Layers';
+import LayoutCanvas from './LayoutCanvas';
 
 export interface ILayoutComponent {
   id: string;
@@ -23,6 +21,7 @@ export interface ILayoutComponent {
   color?: string;
   size: Size;
   position: XYPosition;
+  css?: string;
 }
 
 const DEFAULT_COMPONENTS = [
@@ -39,107 +38,98 @@ const DEFAULT_COMPONENTS = [
 ];
 
 interface ComponentState {
-  selected: ILayoutComponent | undefined;
+  selected: string | undefined;
   displayBounds: XYPosition & Size;
-  components: ILayoutComponent[];
+  components: { [key: string]: ILayoutComponent };
 }
 
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
-  const [toolState, setToolState] = createStore<{ selectedComponent: ILayoutComponent | undefined }>({
+  const [toolState, setToolState] = createStore<{
+    selectedComponent: ILayoutComponent | undefined;
+    isDragging: boolean;
+  }>({
     selectedComponent: undefined,
+    isDragging: false,
   });
 
   const [componentState, setComponentState] = createStore<ComponentState>({
     selected: undefined,
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
-    components: [],
+    components: {},
   });
 
-  const [displayRef, setDisplayRef] = createSignal<HTMLDivElement>();
+  // const transformBounds = (bounds: Size & XYPosition) => {
+  //   let newWidth = Math.abs(bounds.width);
+  //   let newHeight = Math.abs(bounds.height);
+
+  //   const previousSize = { width: props.size.width, height: props.size.height };
+  //   if (bounds.x < 0) {
+  //     newWidth = previousSize.width;
+  //   } else if (Math.floor(builder.componentState.displayBounds.width - (bounds.x + newWidth)) < 0) {
+  //     newWidth = builder.componentState.displayBounds.width - bounds.x;
+  //   }
+  //   if (bounds.y < 0) {
+  //     newHeight = previousSize.height;
+  //   } else if (Math.floor(builder.componentState.displayBounds.height - (bounds.y + newHeight)) < 0) {
+  //     newHeight = builder.componentState.displayBounds.height - bounds.y;
+  //   }
+
+  //   return {
+  //     x: Math.max(0, Math.round(bounds.x)),
+  //     y: Math.max(0, Math.round(bounds.y)),
+  //     width: Math.round(newWidth),
+  //     height: Math.round(newHeight),
+  //   };
+  // };
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    setComponentState(
-      'components',
-      (p) => p.id === id,
-      (p) => ({
-        ...p,
-        position: reconcile(typeof newPosition === 'function' ? newPosition(p.position) : newPosition)(p),
-      })
-    );
+    setComponentState('components', id, (p) => ({
+      ...p,
+      position: {
+        ...p.position,
+        x: Math.max(0, access(newPosition, p.position).x),
+        y: Math.max(0, access(newPosition, p.position).y),
+      },
+    }));
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    setComponentState(
-      'components',
-      (p) => p.id === id,
-      (p) => ({ ...p, size: reconcile(typeof newSize === 'function' ? newSize(p.size) : newSize)(p) })
-    );
+    let restrictedSize = { ...newSize };
+
+    setComponentState('components', id, (p) => ({
+      ...p,
+      size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
+    }));
   };
 
-  const [elementBounds, { onDrawStart, setParentElement }] = createDrawable(
-    () => toolState.selectedComponent !== undefined,
-    {
-      onDrawStart(startPosition) {
-        const newComp = createNewComponent(
-          toolState.selectedComponent!.name,
-          { ...startPosition },
-          toolState.selectedComponent!.color
-        );
-
-        setComponentState((p) => {
-          let components = [...p.components, newComp];
-
-          return {
-            ...p,
-            components,
-            selected: { ...newComp },
-          };
-        });
-      },
+  const getSelectedComponent = createMemo(() => {
+    if (componentState.selected) {
+      return componentState.components[componentState.selected];
     }
-  );
+  });
 
-  createEffect(
-    on(elementBounds, () => {
-      if (componentState.selected) {
-        const bounds = elementBounds();
-        updateComponentPosition(componentState.selected!.id, { x: bounds.x, y: bounds.y });
-        updateComponentSize(componentState.selected!.id, { ...bounds });
-      }
-    })
-  );
-
-  const toggleActive = (name: string) => {
-    const selected = DEFAULT_COMPONENTS.find((v) => v.id === name);
+  const selectTool = (id: string) => {
+    const selected = DEFAULT_COMPONENTS.find((v) => v.id === id);
     if (selected) {
       setToolState('selectedComponent', { ...selected });
     }
   };
 
-  const selectElement = (id: string) => {
-    const comp = componentState.components.find((comp) => comp.id === id);
-    setComponentState('selected', { ...comp });
+  const selectComponent = (id: string) => {
+    setComponentState('selected', id);
   };
+
+  const setIsDragging = (val: boolean) => setToolState('isDragging', val);
 
   const isToolActive = createSelector(() => toolState.selectedComponent?.id);
 
-  onMount(() => {
-    if (displayRef()) {
-      const bounds = displayRef()!.getBoundingClientRect();
-      setComponentState('displayBounds', {
-        x: bounds.left,
-        y: bounds.top,
-        height: bounds.height,
-        width: bounds.width,
-      });
-    }
-  });
-
-  const assignDisplayRef = (el: HTMLDivElement) => {
-    setDisplayRef(el);
-    setParentElement(el);
+  const createNewComponent = (component: ILayoutComponent) => {
+    setComponentState('components', (p) => ({
+      ...p,
+      [component.id]: { ...component },
+    }));
   };
 
   const contextValues = {
@@ -147,38 +137,22 @@ const LayoutBuilder = () => {
     toolState,
     updateComponentPosition,
     updateComponentSize,
+    selectComponent,
+    createNewComponent,
+    setIsDragging,
+    getSelectedComponent,
   };
 
   return (
     <BuilderContext.Provider value={contextValues}>
-      <div class="flex flex-col justify-center items-center w-full h-full overflow-y-hidden">
-        {/* Visual Display */}
-        <div class="flex flex-col w-5xl h-xl mb-20">
-          {/* Display header */}
-          <div class="w-full h-4 bg-dark-5 flex items-center">
-            <div class="ml-auto flex gap-2 mr-2">
-              <div class="w-2 h-2 bg-green-7 rounded-full" />
-              <div class="w-2 h-2 bg-yellow-7 rounded-full" />
-              <div class="w-2 h-2 bg-red-7 rounded-full" />
-            </div>
-          </div>
-          {/* Display */}
-          <div ref={assignDisplayRef} class="bg-white w-full h-full" onMouseDown={onDrawStart}>
-            <For each={componentState.components}>
-              {(comp) => (
-                <LayoutComponent
-                  {...comp}
-                  active={componentState.selected?.id === comp.id}
-                  selectElement={selectElement}
-                />
-              )}
-            </For>
-          </div>
+      <div class="flex flex-col justify-center  w-full h-full overflow-y-hidden gap-4">
+        <div class="flex items-start">
+          <Layers />
+          <LayoutCanvas />
         </div>
-        {/* Components Box */}
         <div class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start">
           <For each={DEFAULT_COMPONENTS}>
-            {(comp) => <ComponentDisplay {...comp} active={isToolActive(comp.id)} toggleActive={toggleActive} />}
+            {(comp) => <ComponentDisplay {...comp} active={isToolActive(comp.id)} selectTool={selectTool} />}
           </For>
         </div>
       </div>
@@ -192,9 +166,14 @@ interface BuilderContextValues {
   componentState: ComponentState;
   toolState: {
     selectedComponent: ILayoutComponent | undefined;
+    isDragging: boolean;
   };
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
+  selectComponent: (id: string) => void;
+  createNewComponent: (component: ILayoutComponent) => void;
+  setIsDragging: (val: boolean) => void;
+  getSelectedComponent: Accessor<ILayoutComponent | undefined>;
 }
 
 export const useBuilderContext = () => {
@@ -212,27 +191,24 @@ interface ComponentDisplayProps {
   color?: string;
   name: string;
   active: boolean;
-  toggleActive: (name: string) => void;
+  selectTool: (id: string) => void;
 }
 
 const ComponentDisplay = (props: ComponentDisplayProps) => {
   props = mergeProps({ color: 'white' }, props);
-
-  const [compRef, setCompRef] = createSignal<HTMLDivElement>();
 
   const getBackgroundStyles = () =>
     `bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50`;
 
   return (
     <div
-      ref={setCompRef}
       class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none w-24 h-10 ${
         props.active ? 'ring-blue-7 ring-4' : ''
       }`}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        props.toggleActive(props.id);
+        props.selectTool(props.id);
       }}
     >
       <p class="font-600 color-white"> {props.name} </p>
