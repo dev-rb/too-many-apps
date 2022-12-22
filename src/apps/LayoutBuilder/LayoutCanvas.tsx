@@ -2,6 +2,7 @@ import { createEffect, createSignal, For, on, onMount } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { XYPosition } from '~/types';
+import { clamp } from '~/utils/math';
 import { useBuilderContext } from '.';
 import LayoutComponent from './Component';
 import { calculateResize, createNewComponent, isLeftClick, isPointInBounds } from './utils';
@@ -54,35 +55,42 @@ const LayoutCanvas = () => {
         builder.createNewComponent(newComp);
         builder.selectComponent(newComp.id);
       } else if (transformOp() === 'resize' && selectedElement()) {
-        const currentPos = positionRelativeToCanvas(selectedElement()!.position);
+        const currentPos = selectedElement()!.position;
         const currentSize = selectedElement()!.size;
+
+        const clickX = e.clientX - canvasBounds().x;
+        const clickY = e.clientY - canvasBounds().y;
+
+        const distance = {
+          top: clickY - currentPos.y,
+          left: clickX - currentPos.x,
+          right: clickX - currentSize.width - currentPos.x,
+          bottom: clickY - currentSize.height - currentPos.y,
+        };
+
         let handle = 'top-left';
-        console.log(
-          currentSize.width - (e.clientX - canvasBounds().x - currentSize.width),
-          e.clientX,
-          e.clientX - (canvasBounds().x + canvasBounds().width) + selectedElement()!.position.x
-        );
-        const clickX = e.clientX - currentSize.width;
-        const clickY = e.clientY - canvasBounds().y - currentSize.height;
 
-        console.log(e.clientX - currentSize.width, canvasBounds().x);
-
-        if (Math.abs(clickX) < 40 && Math.abs(clickY) < 40) {
+        if (distance.top < 10 && distance.left < 10) {
           handle = 'top-left';
-        } else if (Math.abs(currentSize.width - clickX) < 40 && Math.abs(clickY) < 40) {
+        } else if (distance.top < 10 && distance.right < 10) {
           handle = 'top-right';
-        } else if (Math.abs(clickX) < 40 && Math.abs(currentSize.height - clickY) < 40) {
+        } else if (distance.bottom < 10 && distance.left < 10) {
           handle = 'bottom-left';
-        } else if (
-          Math.abs(canvasBounds().width - (currentSize.width - e.clientX)) < 40 &&
-          Math.abs(currentSize.height - clickY) < 40
-        ) {
+        } else if (distance.bottom < 10 && distance.right < 10) {
           handle = 'bottom-right';
         }
-        console.log(handle);
-        setDragState((p) => ({ ...p, startPos: currentPos, startSize: currentSize, activeHandle: handle }));
+
+        setDragState((p) => ({
+          ...p,
+          startElPos: currentPos,
+          startSize: currentSize,
+          startPos: {
+            x: e.clientX,
+            y: e.clientY,
+          },
+          activeHandle: handle,
+        }));
       } else if (transformOp() === 'drag' && selectedElement()) {
-        console.log('drag state');
         setDragState((p) => ({
           ...p,
           startPos: { x: e.clientX - selectedElement()!.position.x, y: e.clientY - selectedElement()!.position.y },
@@ -112,21 +120,26 @@ const LayoutCanvas = () => {
         let newWidth = Math.abs(updatedSize.width);
         let newHeight = Math.abs(updatedSize.height);
 
-        const previousSize = startSize;
-        if (updatedPos.x < 0) {
-          newWidth = previousSize.width;
-        } else if (Math.floor(builder.componentState.displayBounds.width - (updatedPos.x + newWidth)) < 0) {
-          newWidth = builder.componentState.displayBounds.width - updatedPos.x;
-        }
-        if (updatedPos.y < 0) {
-          newHeight = previousSize.height;
-        } else if (Math.floor(builder.componentState.displayBounds.height - (updatedPos.y + newHeight)) < 0) {
-          newHeight = builder.componentState.displayBounds.height - updatedPos.y;
-        }
-        builder.updateComponentSize(selectedElement()!.id, { width: newWidth, height: newHeight });
+        builder.updateComponentSize(selectedElement()!.id, (p) => {
+          if (updatedPos.x < 0) {
+            newWidth = p.width;
+          } else if (Math.floor(canvasBounds().width - (updatedPos.x + newWidth)) < 0) {
+            newWidth = canvasBounds().width - updatedPos.x;
+          }
+          if (updatedPos.y < 0) {
+            newHeight = p.height;
+          } else if (Math.floor(canvasBounds().height - (updatedPos.y + newHeight)) < 0) {
+            newHeight = canvasBounds().height - updatedPos.y;
+          }
+          return { width: newWidth, height: newHeight };
+        });
         builder.updateComponentPosition(selectedElement()!.id, updatedPos);
       } else if (transformOp() === 'drag' && selectedElement()!) {
-        builder.updateComponentPosition(selectedElement()!.id, newMousePos);
+        const newPos = {
+          x: clamp(e.clientX - dragState.startPos.x, 0, canvasBounds().width - selectedElement()!.size.width),
+          y: clamp(e.clientY - dragState.startPos.y, 0, canvasBounds().height - selectedElement()!.size.height),
+        };
+        builder.updateComponentPosition(selectedElement()!.id, newPos);
       }
     }
   };
@@ -170,7 +183,11 @@ const LayoutCanvas = () => {
         </div>
       </div>
       {/* Display */}
-      <div ref={setCanvasRef} class="bg-white w-full h-full" onMouseDown={onDragStart}>
+      <div ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDragStart}>
+        <div
+          class="absolute bg-violet-7 w-4 h-4 rounded-full"
+          style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
+        />
         <For each={Object.values(builder.componentState.components)}>
           {(comp) => (
             <LayoutComponent

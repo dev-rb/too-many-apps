@@ -60,30 +60,6 @@ const LayoutBuilder = () => {
     components: {},
   });
 
-  // const transformBounds = (bounds: Size & XYPosition) => {
-  //   let newWidth = Math.abs(bounds.width);
-  //   let newHeight = Math.abs(bounds.height);
-
-  //   const previousSize = { width: props.size.width, height: props.size.height };
-  //   if (bounds.x < 0) {
-  //     newWidth = previousSize.width;
-  //   } else if (Math.floor(builder.componentState.displayBounds.width - (bounds.x + newWidth)) < 0) {
-  //     newWidth = builder.componentState.displayBounds.width - bounds.x;
-  //   }
-  //   if (bounds.y < 0) {
-  //     newHeight = previousSize.height;
-  //   } else if (Math.floor(builder.componentState.displayBounds.height - (bounds.y + newHeight)) < 0) {
-  //     newHeight = builder.componentState.displayBounds.height - bounds.y;
-  //   }
-
-  //   return {
-  //     x: Math.max(0, Math.round(bounds.x)),
-  //     y: Math.max(0, Math.round(bounds.y)),
-  //     width: Math.round(newWidth),
-  //     height: Math.round(newHeight),
-  //   };
-  // };
-
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
     setComponentState('components', id, (p) => ({
       ...p,

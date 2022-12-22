@@ -62,6 +62,10 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         title="x position"
         style={{ top: 0 + 'px', left: props.position.x + 'px' }}
       />
+      <div class="text-xl absolute top-50% left-50% -translate-x-50%  color-black w-full h-full">
+        Width: {props.size.width} {'\n'}
+        Height: {props.size.height}
+      </div>
       <Show when={props.active}>
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
