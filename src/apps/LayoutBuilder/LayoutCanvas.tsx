@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, on, onMount } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import { XYPosition } from '~/types';
+import { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { useBuilderContext } from '.';
 import LayoutComponent from './Component';
@@ -30,6 +30,26 @@ const LayoutCanvas = () => {
     return { x: position.x - canvasBounds().x, y: position.y - canvasBounds().y };
   };
 
+  const getActiveHandleByClick = (mousePos: XYPosition, elPosition: XYPosition, elSize: Size) => {
+    const distance = {
+      top: mousePos.y - elPosition.y,
+      left: mousePos.x - elPosition.x,
+      right: mousePos.x - elSize.width - elPosition.x,
+      bottom: mousePos.y - elSize.height - elPosition.y,
+    };
+
+    if (distance.top < 10 && distance.left < 10) {
+      return 'top-left';
+    } else if (distance.top < 10 && distance.right < 10) {
+      return 'top-right';
+    } else if (distance.bottom < 10 && distance.left < 10) {
+      return 'bottom-left';
+    } else if (distance.bottom < 10 && distance.right < 10) {
+      return 'bottom-right';
+    }
+    return 'top-left';
+  };
+
   const onDragStart = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -43,42 +63,28 @@ const LayoutCanvas = () => {
           y: e.clientY,
         },
       });
-      if (transformOp() === 'draw') {
+      if (transformOp() === 'draw' || transformOp() === 'resize') {
+        let currentPos = selectedElement()?.position ?? ZERO_POS;
+        let currentSize = selectedElement()?.size ?? ZERO_SIZE;
         const startPosition = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-        const newComp = createNewComponent(
-          builder.toolState.selectedComponent!.name,
-          { ...startPosition },
-          builder.toolState.selectedComponent!.color,
-          undefined,
-          selectedElement() ? selectedElement()!.layer + 1 : undefined
-        );
-
-        builder.createNewComponent(newComp);
-        builder.selectComponent(newComp.id);
-      } else if (transformOp() === 'resize' && selectedElement()) {
-        const currentPos = selectedElement()!.position;
-        const currentSize = selectedElement()!.size;
-
-        const clickX = e.clientX - canvasBounds().x;
-        const clickY = e.clientY - canvasBounds().y;
-
-        const distance = {
-          top: clickY - currentPos.y,
-          left: clickX - currentPos.x,
-          right: clickX - currentSize.width - currentPos.x,
-          bottom: clickY - currentSize.height - currentPos.y,
-        };
-
         let handle = 'top-left';
+        if (transformOp() === 'draw') {
+          const newComp = createNewComponent(
+            builder.toolState.selectedComponent!.name,
+            { ...startPosition },
+            builder.toolState.selectedComponent!.color,
+            undefined,
+            selectedElement() ? selectedElement()!.layer + 1 : undefined
+          );
 
-        if (distance.top < 10 && distance.left < 10) {
-          handle = 'top-left';
-        } else if (distance.top < 10 && distance.right < 10) {
-          handle = 'top-right';
-        } else if (distance.bottom < 10 && distance.left < 10) {
-          handle = 'bottom-left';
-        } else if (distance.bottom < 10 && distance.right < 10) {
-          handle = 'bottom-right';
+          builder.createNewComponent(newComp);
+          builder.selectComponent(newComp.id);
+          currentPos = startPosition;
+          currentSize = ZERO_SIZE;
+        }
+
+        if (transformOp() === 'resize') {
+          handle = getActiveHandleByClick(startPosition, currentPos, currentSize);
         }
 
         setDragState((p) => ({
@@ -91,6 +97,7 @@ const LayoutCanvas = () => {
           },
           activeHandle: handle,
         }));
+        // setDragState((p) => ({ ...p, startElPos: startPosition }));
       } else if (transformOp() === 'drag' && selectedElement()) {
         setDragState((p) => ({
           ...p,
@@ -100,41 +107,35 @@ const LayoutCanvas = () => {
     }
   };
 
+  const restrictSize = (position: XYPosition, newSize: Size, previousSize: Size) => {
+    let newWidth = Math.abs(newSize.width);
+    let newHeight = Math.abs(newSize.height);
+    if (position.x < 0) {
+      newWidth = previousSize.width;
+    } else if (Math.floor(canvasBounds().width - (position.x + newWidth)) < 0) {
+      newWidth = canvasBounds().width - position.x;
+    }
+    if (position.y < 0) {
+      newHeight = previousSize.height;
+    } else if (Math.floor(canvasBounds().height - (position.y + newHeight)) < 0) {
+      newHeight = canvasBounds().height - position.y;
+    }
+
+    return { width: newWidth, height: newHeight };
+  };
+
   const onDrag = (e: MouseEvent) => {
     if (dragState.isDragging) {
       const { activeHandle, startElPos, startPos, startSize } = unwrap(dragState);
       const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
-      if (transformOp() === 'draw') {
-        const newSize = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-        const inBounds = isPointInBounds(newSize, { x: canvasBounds().width, y: canvasBounds().height });
-
-        builder.updateComponentPosition(builder.componentState.selected!, (p) => ({
-          x: inBounds.x && newMousePos.x < 0 ? newSize.x : p.x,
-          y: inBounds.y && newMousePos.y < 0 ? newSize.y : p.y,
-        }));
-        builder.updateComponentSize(builder.componentState.selected!, (p) => ({
-          width: inBounds.x ? Math.abs(newMousePos.x) : p.width,
-          height: inBounds.y ? Math.abs(newMousePos.y) : p.height,
-        }));
-      } else if (transformOp() === 'resize' && selectedElement()) {
+      if (transformOp() === 'draw' || transformOp() === 'resize') {
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
-        let newWidth = Math.abs(updatedSize.width);
-        let newHeight = Math.abs(updatedSize.height);
 
-        builder.updateComponentSize(selectedElement()!.id, (p) => {
-          if (updatedPos.x < 0) {
-            newWidth = p.width;
-          } else if (Math.floor(canvasBounds().width - (updatedPos.x + newWidth)) < 0) {
-            newWidth = canvasBounds().width - updatedPos.x;
-          }
-          if (updatedPos.y < 0) {
-            newHeight = p.height;
-          } else if (Math.floor(canvasBounds().height - (updatedPos.y + newHeight)) < 0) {
-            newHeight = canvasBounds().height - updatedPos.y;
-          }
-          return { width: newWidth, height: newHeight };
+        builder.updateComponentPosition(builder.componentState.selected!, updatedPos);
+        builder.updateComponentSize(builder.componentState.selected!, (p) => {
+          const restrictedSize = restrictSize(updatedPos, updatedSize, p);
+          return { width: restrictedSize.width, height: restrictedSize.height };
         });
-        builder.updateComponentPosition(selectedElement()!.id, updatedPos);
       } else if (transformOp() === 'drag' && selectedElement()!) {
         const newPos = {
           x: clamp(e.clientX - dragState.startPos.x, 0, canvasBounds().width - selectedElement()!.size.width),
