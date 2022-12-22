@@ -15,6 +15,8 @@ import { access } from '~/utils/common';
 import Layers from './Layers';
 import LayoutCanvas from './LayoutCanvas';
 
+export const MIN_LAYER = 4;
+
 export interface ILayoutComponent {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ export interface ILayoutComponent {
   size: Size;
   position: XYPosition;
   css?: string;
+  layer: number;
 }
 
 const DEFAULT_COMPONENTS = [
@@ -41,6 +44,7 @@ interface ComponentState {
   selected: string | undefined;
   displayBounds: XYPosition & Size;
   components: { [key: string]: ILayoutComponent };
+  maxLayer: number;
 }
 
 const BuilderContext = createContext();
@@ -48,16 +52,15 @@ const BuilderContext = createContext();
 const LayoutBuilder = () => {
   const [toolState, setToolState] = createStore<{
     selectedComponent: ILayoutComponent | undefined;
-    isDragging: boolean;
   }>({
     selectedComponent: undefined,
-    isDragging: false,
   });
 
   const [componentState, setComponentState] = createStore<ComponentState>({
     selected: undefined,
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
     components: {},
+    maxLayer: MIN_LAYER,
   });
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
@@ -72,12 +75,28 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    let restrictedSize = { ...newSize };
-
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
     }));
+  };
+
+  const bringToFront = (id: string) => {
+    const currentMaxLayer = componentState.maxLayer;
+    setComponentState('components', id, 'layer', currentMaxLayer + 1);
+    setComponentState('maxLayer', currentMaxLayer + 1);
+  };
+
+  const sendToBack = (id: string) => {
+    setComponentState('components', id, 'layer', MIN_LAYER - 1);
+  };
+
+  const bringForward = (id: string) => {
+    setComponentState('components', id, 'layer', (p) => p + 1);
+  };
+
+  const sendBackward = (id: string) => {
+    setComponentState('components', id, 'layer', (p) => p - 1);
   };
 
   const getSelectedComponent = createMemo(() => {
@@ -97,8 +116,6 @@ const LayoutBuilder = () => {
     setComponentState('selected', id);
   };
 
-  const setIsDragging = (val: boolean) => setToolState('isDragging', val);
-
   const isToolActive = createSelector(() => toolState.selectedComponent?.id);
 
   const createNewComponent = (component: ILayoutComponent) => {
@@ -115,8 +132,13 @@ const LayoutBuilder = () => {
     updateComponentSize,
     selectComponent,
     createNewComponent,
-    setIsDragging,
     getSelectedComponent,
+    layerControls: {
+      sendBackward,
+      sendToBack,
+      bringForward,
+      bringToFront,
+    },
   };
 
   return (
@@ -142,14 +164,18 @@ interface BuilderContextValues {
   componentState: ComponentState;
   toolState: {
     selectedComponent: ILayoutComponent | undefined;
-    isDragging: boolean;
   };
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   selectComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
-  setIsDragging: (val: boolean) => void;
   getSelectedComponent: Accessor<ILayoutComponent | undefined>;
+  layerControls: {
+    sendBackward: (id: string) => void;
+    sendToBack: (id: string) => void;
+    bringForward: (id: string) => void;
+    bringToFront: (id: string) => void;
+  };
 }
 
 export const useBuilderContext = () => {

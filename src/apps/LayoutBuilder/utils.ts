@@ -1,7 +1,7 @@
 import { createUniqueId } from 'solid-js';
 import { ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
-import { ILayoutComponent } from '.';
+import { ILayoutComponent, MIN_LAYER } from '.';
 
 export function calculateResize(currentSize: Size, currentPos: XYPosition, mousePos: XYPosition, handle: string) {
   let updatedSize = { ...currentSize };
@@ -57,7 +57,8 @@ export function createNewComponent(
   name: string,
   startPos: XYPosition,
   color?: string,
-  startSize: Size = ZERO_SIZE
+  startSize: Size = ZERO_SIZE,
+  layer: number = MIN_LAYER
 ): ILayoutComponent {
   const newId = createUniqueId();
   return {
@@ -66,6 +67,7 @@ export function createNewComponent(
     color: color,
     position: startPos,
     size: startSize,
+    layer: layer,
   };
 }
 

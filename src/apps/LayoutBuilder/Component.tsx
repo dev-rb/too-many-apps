@@ -2,22 +2,22 @@ import { mergeProps, createSignal, Show } from 'solid-js';
 import { ILayoutComponent, useBuilderContext } from '.';
 import { TransformOp } from './LayoutCanvas';
 
-const getBackgroundStyles = (color: string, opacity: string) =>
-  `bg-${color}/${opacity} border-${color}-4 border-1 rounded-sm lines-gradient to-${color}-4/50`;
+const styleTypes = {
+  lines: (color: string = 'blue', opacity: number = 100) =>
+    `bg-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
+  outline: (color: string = 'blue', opacity: number = 100) => `bg-${color}/${opacity} border-${color}-4 border-1`,
+};
 
 interface LayoutComponentProps extends ILayoutComponent {
   selectElement: (id: string) => void;
   active: boolean;
   setTransformOp: (op: TransformOp) => void;
   currentTransformOp: TransformOp;
+  variant: keyof typeof styleTypes;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
-  props = mergeProps({ color: 'white', size: { width: 96, height: 40 } }, props);
-
-  const builder = useBuilderContext();
-
-  const [isDragging, setIsDragging] = createSignal(false);
+  props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
 
   const selectElement = () => props.selectElement(props.id);
   const onMouseDown = (e: MouseEvent, type: 'drag' | 'resize') => {
@@ -27,27 +27,25 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     }
     selectElement();
     props.setTransformOp(type);
-
-    console.log(type);
   };
 
   const colorOpacity = () => (props.active ? 50 : 30);
 
+  const style = styleTypes[props.variant](props.color, colorOpacity());
+
   return (
     <div
-      class={`${getBackgroundStyles(
-        props.color!,
-        colorOpacity()!.toString()
-      )} flex items-center justify-center cursor-pointer select-none ${props.active ? 'z-10' : ''}`}
+      class={`${style} flex items-center justify-center cursor-pointer select-none`}
       style={{
         position: 'absolute',
         transform: `translate(${props.position.x}px, ${props.position.y}px)`,
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,
+        'z-index': props.layer,
       }}
       onMouseDown={(e) => onMouseDown(e, 'drag')}
     >
-      <div
+      {/* <div
         class="w-2 h-2 bg-red-7 rounded-full absolute"
         title="height"
         style={{ top: props.size.height + 'px', left: 0 + 'px' }}
@@ -65,7 +63,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       <div class="text-xl absolute top-50% left-50% -translate-x-50%  color-black w-full h-full">
         Width: {props.size.width} {'\n'}
         Height: {props.size.height}
-      </div>
+      </div> */}
       <Show when={props.active}>
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}

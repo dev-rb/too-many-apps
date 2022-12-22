@@ -43,13 +43,14 @@ const LayoutCanvas = () => {
           y: e.clientY,
         },
       });
-      console.log(transformOp());
       if (transformOp() === 'draw') {
         const startPosition = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
         const newComp = createNewComponent(
           builder.toolState.selectedComponent!.name,
           { ...startPosition },
-          builder.toolState.selectedComponent!.color
+          builder.toolState.selectedComponent!.color,
+          undefined,
+          selectedElement() ? selectedElement()!.layer + 1 : undefined
         );
 
         builder.createNewComponent(newComp);
@@ -184,10 +185,10 @@ const LayoutCanvas = () => {
       </div>
       {/* Display */}
       <div ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDragStart}>
-        <div
+        {/* <div
           class="absolute bg-violet-7 w-4 h-4 rounded-full"
           style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
-        />
+        /> */}
         <For each={Object.values(builder.componentState.components)}>
           {(comp) => (
             <LayoutComponent
@@ -196,6 +197,7 @@ const LayoutCanvas = () => {
               selectElement={builder.selectComponent}
               setTransformOp={setTransformOp}
               currentTransformOp={transformOp()}
+              variant="outline"
             />
           )}
         </For>
