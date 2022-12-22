@@ -1,11 +1,11 @@
-import { createEffect, createSignal, For, on, onMount } from 'solid-js';
+import { createEffect, createSignal, For, on } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import { Size, XYPosition } from '~/types';
+import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { useBuilderContext } from '.';
 import LayoutComponent from './Component';
-import { calculateResize, createNewComponent, isLeftClick, isPointInBounds } from './utils';
+import { calculateResize, createNewComponent, isLeftClick } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -18,11 +18,11 @@ const LayoutCanvas = () => {
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
 
-  const [dragState, setDragState] = createStore({
-    startPos: ZERO_POS,
+  const [transformState, setTransformState] = createStore({
+    startMousePos: ZERO_POS,
     startElPos: ZERO_POS,
     startSize: ZERO_SIZE,
-    isDragging: false,
+    isTransforming: false,
     activeHandle: 'top-left',
   });
 
@@ -56,22 +56,21 @@ const LayoutCanvas = () => {
     if (!isLeftClick(e)) return;
 
     if (builder.componentState.selected || builder.toolState.selectedComponent) {
-      setDragState({
-        isDragging: true,
-        startPos: {
+      setTransformState({
+        isTransforming: true,
+        startMousePos: {
           x: e.clientX,
           y: e.clientY,
         },
       });
       if (transformOp() === 'draw' || transformOp() === 'resize') {
-        let currentPos = selectedElement()?.position ?? ZERO_POS;
-        let currentSize = selectedElement()?.size ?? ZERO_SIZE;
-        const startPosition = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-        let handle = 'top-left';
+        let currentElementPosition = selectedElement()?.position ?? ZERO_POS;
+        let currentElementSize = selectedElement()?.size ?? ZERO_SIZE;
+        const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
         if (transformOp() === 'draw') {
           const newComp = createNewComponent(
             builder.toolState.selectedComponent!.name,
-            { ...startPosition },
+            { ...mousePos },
             builder.toolState.selectedComponent!.color,
             undefined,
             selectedElement() ? selectedElement()!.layer + 1 : undefined
@@ -79,31 +78,26 @@ const LayoutCanvas = () => {
 
           builder.createNewComponent(newComp);
           builder.selectComponent(newComp.id);
-          currentPos = startPosition;
-          currentSize = ZERO_SIZE;
+          currentElementPosition = mousePos;
+          currentElementSize = ZERO_SIZE;
         }
 
-        if (transformOp() === 'resize') {
-          handle = getActiveHandleByClick(startPosition, currentPos, currentSize);
-        }
+        const handle = getActiveHandleByClick(mousePos, currentElementPosition, currentElementSize);
 
-        setDragState((p) => ({
+        setTransformState((p) => ({
           ...p,
-          startElPos: currentPos,
-          startSize: currentSize,
-          startPos: {
-            x: e.clientX,
-            y: e.clientY,
-          },
+          startElPos: currentElementPosition,
+          startSize: currentElementSize,
           activeHandle: handle,
         }));
-        // setDragState((p) => ({ ...p, startElPos: startPosition }));
       } else if (transformOp() === 'drag' && selectedElement()) {
-        setDragState((p) => ({
+        setTransformState((p) => ({
           ...p,
-          startPos: { x: e.clientX - selectedElement()!.position.x, y: e.clientY - selectedElement()!.position.y },
+          startMousePos: { x: e.clientX - selectedElement()!.position.x, y: e.clientY - selectedElement()!.position.y },
         }));
       }
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', onMouseUp);
     }
   };
 
@@ -125,21 +119,27 @@ const LayoutCanvas = () => {
   };
 
   const onDrag = (e: MouseEvent) => {
-    if (dragState.isDragging) {
-      const { activeHandle, startElPos, startPos, startSize } = unwrap(dragState);
-      const newMousePos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
+    if (transformState.isTransforming) {
+      const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
+      const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
+
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
         builder.updateComponentPosition(builder.componentState.selected!, updatedPos);
+
         builder.updateComponentSize(builder.componentState.selected!, (p) => {
           const restrictedSize = restrictSize(updatedPos, updatedSize, p);
           return { width: restrictedSize.width, height: restrictedSize.height };
         });
       } else if (transformOp() === 'drag' && selectedElement()!) {
         const newPos = {
-          x: clamp(e.clientX - dragState.startPos.x, 0, canvasBounds().width - selectedElement()!.size.width),
-          y: clamp(e.clientY - dragState.startPos.y, 0, canvasBounds().height - selectedElement()!.size.height),
+          x: clamp(e.clientX - transformState.startMousePos.x, 0, canvasBounds().width - selectedElement()!.size.width),
+          y: clamp(
+            e.clientY - transformState.startMousePos.y,
+            0,
+            canvasBounds().height - selectedElement()!.size.height
+          ),
         };
         builder.updateComponentPosition(selectedElement()!.id, newPos);
       }
@@ -147,18 +147,13 @@ const LayoutCanvas = () => {
   };
 
   const onMouseUp = () => {
-    setDragState({
-      isDragging: false,
+    setTransformState({
+      isTransforming: false,
     });
     setTransformOp('draw');
-    // document.removeEventListener('mousemove', onDrag);
-    // document.removeEventListener('mouseup', onMouseUp);
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', onMouseUp);
   };
-
-  onMount(() => {
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', onMouseUp);
-  });
 
   createEffect(
     on(canvasRef, () => {
