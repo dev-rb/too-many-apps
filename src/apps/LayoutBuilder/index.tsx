@@ -101,6 +101,7 @@ const LayoutBuilder = () => {
       };
 
       if (component.id === id) {
+        // Check if any of the children of the selected element are now outside it.
         for (const child of component.children) {
           const childPos = componentState.components[child].position;
           const childSize = componentState.components[child].size;
@@ -120,7 +121,7 @@ const LayoutBuilder = () => {
         continue;
       }
 
-      // Check if outside parent.
+      // Check if any point of the selected/changed component is outside parent.
       if (componentState.components[id].parent && componentState.components[id].parent === component.id) {
         if (
           position.x <= component.position.x ||
@@ -133,13 +134,18 @@ const LayoutBuilder = () => {
         }
       }
 
-      // Inside check. Are all sides of the current component inside the selected/changed component?
+      // Inside check. Are all sides of the selected/changed component inside the current component?
       if (
         position.x >= component.position.x &&
         position.y >= component.position.y &&
         position.x + size.width <= component.position.x + component.size.width &&
         position.y + size.height <= component.position.y + component.size.height
       ) {
+        if (componentState.components[id].parent && component.id === componentState.components[id].parent) {
+          if (componentState.components[componentState.components[id].parent!].parent === id) {
+            setComponentState('components', componentState.components[id].parent!, 'parent', undefined);
+          }
+        }
         if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
           currentMin.x = Math.abs(minDistance.x);
           currentMin.y = Math.abs(minDistance.y);
@@ -164,12 +170,15 @@ const LayoutBuilder = () => {
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
     checkParent(id, access(newPosition, componentState.components[id].position), componentState.components[id].size);
-    setComponentState('components', id, (p) => ({
+    setComponentState('components', (p) => ({
       ...p,
-      position: {
-        ...p.position,
-        x: Math.max(0, access(newPosition, p.position).x),
-        y: Math.max(0, access(newPosition, p.position).y),
+      [id]: {
+        ...p[id],
+        position: {
+          ...p.position,
+          x: Math.max(0, access(newPosition, p.position).x),
+          y: Math.max(0, access(newPosition, p.position).y),
+        },
       },
     }));
   };

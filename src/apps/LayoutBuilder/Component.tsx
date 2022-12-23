@@ -65,6 +65,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         Width: {props.size.width} {'\n'}
         Height: {props.size.height}
       </div> */}
+      <div class="text-xl absolute bottom-0 right-0   color-black ">{props.id}</div>
       <div class="text-xl absolute top-50% left-50% -translate-x-50% -translate-y-50%  color-black w-full h-full">
         <p>
           Children: <For each={props.children}>{(child) => <>{child}</>}</For>
