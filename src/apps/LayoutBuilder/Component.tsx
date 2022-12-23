@@ -1,11 +1,12 @@
-import { mergeProps, createSignal, Show, For } from 'solid-js';
+import { mergeProps, createSignal, Show, For, createMemo } from 'solid-js';
 import { ILayoutComponent, useBuilderContext } from '.';
 import { TransformOp } from './LayoutCanvas';
 
 const styleTypes = {
   lines: (color: string = 'blue', opacity: number = 100) =>
     `bg-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
-  outline: (color: string = 'blue', opacity: number = 100) => `bg-${color}/${opacity} border-${color}-4 border-1`,
+  outline: (color: string = 'blue', opacity: number = 100) =>
+    `bg-${color}/${opacity} border-${color}-4 border-1 color-${color}-6`,
 };
 
 interface LayoutComponentProps extends ILayoutComponent {
@@ -29,14 +30,14 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     props.setTransformOp(type);
   };
 
-  const colorOpacity = () => (props.active ? 50 : 30);
+  const colorOpacity = createMemo(() => (props.active ? 40 : 30));
 
-  const style = styleTypes[props.variant](props.color, colorOpacity());
+  const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
 
   return (
     <div
       id={props.id}
-      class={`${style} flex items-center justify-center cursor-pointer select-none`}
+      class={`${style()} flex items-center justify-center cursor-pointer select-none`}
       style={{
         position: 'absolute',
         transform: `translate(${props.position.x}px, ${props.position.y}px)`,
@@ -90,7 +91,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           onMouseDown={(e) => onMouseDown(e, 'resize')}
         />
       </Show>
-      <p class="font-600 color-white"> {props.name} </p>
+      <p class="font-400 "> {props.name} </p>
     </div>
   );
 };

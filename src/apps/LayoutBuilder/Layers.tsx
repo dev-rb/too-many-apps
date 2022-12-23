@@ -24,19 +24,6 @@ const Layers = () => {
 
   const anySelected = () => builder.componentState.selected;
 
-  const resolvedLayers = createMemo(() => {
-    let layers: Record<string, NestedComponents> = {};
-
-    for (const component of Object.values(builder.componentState.components)) {
-      layers[component.id] = {
-        ...component,
-        children: Object.values(builder.componentState.components).filter((comp) => comp.parent === component.id),
-      };
-    }
-
-    return layers;
-  });
-
   return (
     <div class="flex flex-col bg-dark-5 min-w-60 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
@@ -101,7 +88,7 @@ const Layer = (props: LayerProps) => {
   return (
     <div class="flex flex-col mt-2" style={{ 'margin-left': `${12 * props.index}px` }}>
       <div
-        class="flex items-center p-2 rounded-sm relative cursor-pointer after:(content-empty w-full absolute -bottom-2 left-0 mt-2 h-[1px] border-t-dark-4 border-t-1)"
+        class="flex items-center justify-between p-2 rounded-sm relative cursor-pointer after:(content-empty w-full absolute -bottom-2 left-0 mt-2 h-[1px] border-t-dark-4 border-t-1)"
         classList={{
           ['bg-blue-7 hover:bg-blue-6']: isComponentActive(props.id),
           ['bg-dark-4 hover:bg-dark-4']: !isComponentActive(props.id),
@@ -111,9 +98,10 @@ const Layer = (props: LayerProps) => {
         onClick={() => props.selectLayer(props.id)}
       >
         <div class="flex-col gap-1">
-          <p>{props.name}</p>
+          {/* <p>{props.name}</p> */}
           <p class="text-sm">{props.layerValue}</p>
         </div>
+        <p> {props.id} </p>
       </div>
       <For each={getChildrenLayers()}>
         {(layer, index) => (
