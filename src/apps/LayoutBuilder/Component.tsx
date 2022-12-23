@@ -1,4 +1,4 @@
-import { mergeProps, createSignal, Show } from 'solid-js';
+import { mergeProps, createSignal, Show, For } from 'solid-js';
 import { ILayoutComponent, useBuilderContext } from '.';
 import { TransformOp } from './LayoutCanvas';
 
@@ -35,6 +35,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   return (
     <div
+      id={props.id}
       class={`${style} flex items-center justify-center cursor-pointer select-none`}
       style={{
         position: 'absolute',
@@ -64,6 +65,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         Width: {props.size.width} {'\n'}
         Height: {props.size.height}
       </div> */}
+      <div class="text-xl absolute top-50% left-50% -translate-x-50% -translate-y-50%  color-black w-full h-full">
+        <p>
+          Children: <For each={props.children}>{(child) => <>{child}</>}</For>
+        </p>
+        <p> Parent: {props.parent} </p>
+      </div>
       <Show when={props.active}>
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}

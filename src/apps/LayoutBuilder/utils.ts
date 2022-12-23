@@ -68,6 +68,7 @@ export function createNewComponent(
     position: startPos,
     size: startSize,
     layer: layer,
+    children: [],
   };
 }
 

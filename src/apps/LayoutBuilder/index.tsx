@@ -25,6 +25,8 @@ export interface ILayoutComponent {
   position: XYPosition;
   css?: string;
   layer: number;
+  children: string[];
+  parent?: string;
 }
 
 const DEFAULT_COMPONENTS = [
@@ -63,7 +65,105 @@ const LayoutBuilder = () => {
     maxLayer: MIN_LAYER,
   });
 
+  const addChild = (parentId: string, childId: string) => {
+    setComponentState('components', parentId, 'children', (p) => {
+      if (p.includes(childId)) {
+        return p;
+      }
+      setComponentState('components', childId, 'parent', parentId);
+      return [...p, childId];
+    });
+  };
+
+  const moveChildFromOther = (childId: string, toParent: string) => {
+    for (const component of Object.values(componentState.components)) {
+      if (component.id === childId || component.id === toParent) continue;
+
+      removeChild(component.id, childId);
+    }
+  };
+
+  const removeChild = (parentId: string, childId: string) => {
+    setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
+  };
+
+  const checkParent = (id: string, position: XYPosition, size: Size) => {
+    let currentMin = {
+      x: 99999,
+      y: 99999,
+    };
+    let parent = '';
+
+    for (const component of Object.values(componentState.components)) {
+      let minDistance = {
+        x: component.position.x - position.x,
+        y: component.position.y - position.y,
+      };
+
+      if (component.id === id) {
+        for (const child of component.children) {
+          const childPos = componentState.components[child].position;
+          const childSize = componentState.components[child].size;
+          if (
+            childPos.x <= component.position.x ||
+            childPos.y <= component.position.y ||
+            childPos.x + childSize.width >= component.position.x + component.size.width ||
+            childPos.y + childSize.height >= component.position.y + component.size.height
+          ) {
+            removeChild(id, child);
+            if (component.parent) {
+              addChild(component.parent, child);
+              setComponentState('components', child, 'parent', component.parent);
+            }
+          }
+        }
+        continue;
+      }
+
+      // Check if outside parent.
+      if (componentState.components[id].parent && componentState.components[id].parent === component.id) {
+        if (
+          position.x <= component.position.x ||
+          position.y <= component.position.y ||
+          position.x + size.width >= component.position.x + component.size.width ||
+          position.y + size.height >= component.position.y + component.size.height
+        ) {
+          setComponentState('components', id, 'parent', component.parent);
+          removeChild(component.id, id);
+        }
+      }
+
+      // Inside check. Are all sides of the current component inside the selected/changed component?
+      if (
+        position.x >= component.position.x &&
+        position.y >= component.position.y &&
+        position.x + size.width <= component.position.x + component.size.width &&
+        position.y + size.height <= component.position.y + component.size.height
+      ) {
+        if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
+          currentMin.x = Math.abs(minDistance.x);
+          currentMin.y = Math.abs(minDistance.y);
+          parent = component.id;
+        }
+      }
+      // Outside check. Are all sides of the selected/changed component outside the current component?
+      else if (
+        position.x <= component.position.x &&
+        position.y <= component.position.y &&
+        position.x + size.width >= component.position.x + component.size.width &&
+        position.y + size.height >= component.position.y + component.size.height
+      ) {
+        checkParent(component.id, component.position, component.size);
+      }
+    }
+    if (parent.length) {
+      addChild(parent, id);
+      moveChildFromOther(id, parent);
+    }
+  };
+
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
+    checkParent(id, access(newPosition, componentState.components[id].position), componentState.components[id].size);
     setComponentState('components', id, (p) => ({
       ...p,
       position: {
@@ -75,6 +175,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
+    checkParent(id, componentState.components[id].position, access(newSize, componentState.components[id].size));
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
