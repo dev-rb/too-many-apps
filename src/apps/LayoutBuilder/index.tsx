@@ -84,18 +84,6 @@ const LayoutBuilder = () => {
     setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
   };
 
-  /**
-   * Case 1: Updated component is inside another component now.
-   * [Solution]: Add component to children of other component. Set parent of component to other component.
-   * Case 2: Updated component is partially outside its parent.
-   * [Solution]: Set parent to grandparent up the tree. Add component to children of grandparent
-   * Case 3: Updated component is not capturing all children
-   * [Solution]: Recursively resolve all children as well with the same cases.
-   * Case 4: Another component is inside the updated component
-   * [Solution]: Move the
-   *
-   */
-
   const resolveChildren = (id: string, position: XYPosition, size: Size) => {
     const childrenOfComponent = componentState.components[id].children;
 
@@ -114,7 +102,7 @@ const LayoutBuilder = () => {
       ) {
         removeChild(id, child);
         // Resolve tree of child
-        resolveTree(child, childPos, childSize);
+        updateTree(child, childPos, childSize);
       }
     }
   };
@@ -126,10 +114,10 @@ const LayoutBuilder = () => {
       const parentComponent = componentState.components[parent];
 
       if (
-        position.x < parentComponent.position.x ||
-        position.y < parentComponent.position.y ||
-        position.x + size.width > parentComponent.position.x + parentComponent.size.width ||
-        position.y + size.height > parentComponent.position.y + parentComponent.size.height
+        position.x <= parentComponent.position.x ||
+        position.y <= parentComponent.position.y ||
+        position.x + size.width >= parentComponent.position.x + parentComponent.size.width ||
+        position.y + size.height >= parentComponent.position.y + parentComponent.size.height
       ) {
         // Remove this element from it's parent since it's outside it
         removeChild(parent, id);
@@ -148,7 +136,7 @@ const LayoutBuilder = () => {
     );
   };
 
-  const resolveTree = (id: string, position: XYPosition, size: Size) => {
+  const updateTree = (id: string, position: XYPosition, size: Size) => {
     checkInsideParent(id, position, size);
     resolveChildren(id, position, size);
     let currentMin = {
@@ -166,38 +154,41 @@ const LayoutBuilder = () => {
       };
       // Inside check. Are all sides of the selected/changed component inside the current component?
       if (isComponentInside(componentState.components[id], component)) {
-        // Change parents. Remove the selected/changed component from it's current parent.
-        // Then, add the selected/changed component to the children of the current component.
+        // Find the closest parent by distance
         if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
           currentMin.x = Math.abs(minDistance.x);
           currentMin.y = Math.abs(minDistance.y);
           closestParent = component.id;
         }
       }
-      // Outside check. Are all sides of the selected/changed component outside the current component?
+      // Outside check. Is the current component inside the selected/changed component?
       if (isComponentInside(component, componentState.components[id])) {
         // If component already has a parent, we don't need to change it's parent.
         if (!component.parent) {
-          resolveTree(component.id, component.position, component.size);
+          updateTree(component.id, component.position, component.size);
         }
       }
     }
 
     if (closestParent) {
+      for (const child of componentState.components[closestParent].children) {
+        if (isComponentInside(componentState.components[child], componentState.components[id])) {
+          if (componentState.components[child].parent) {
+            removeChild(componentState.components[child].parent!, child);
+          }
+          addChild(id, child);
+        }
+      }
       if (componentState.components[id].parent) {
         removeChild(componentState.components[id].parent!, id);
       }
+      updateParent(id, closestParent);
       addChild(closestParent, id);
-      // resolveChildren(
-      //   closestParent,
-      //   componentState.components[closestParent].position,
-      //   componentState.components[closestParent].size
-      // );
     }
   };
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    resolveTree(id, access(newPosition, componentState.components[id].position), componentState.components[id].size);
+    updateTree(id, access(newPosition, componentState.components[id].position), componentState.components[id].size);
     setComponentState('components', id, (p) => ({
       ...p,
       position: {
@@ -208,7 +199,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    resolveTree(id, componentState.components[id].position, access(newSize, componentState.components[id].size));
+    updateTree(id, componentState.components[id].position, access(newSize, componentState.components[id].size));
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
