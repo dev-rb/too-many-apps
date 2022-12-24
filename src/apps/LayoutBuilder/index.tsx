@@ -100,8 +100,10 @@ const LayoutBuilder = () => {
         childPos.x + childSize.width > position.x + size.width ||
         childPos.y + childSize.height > position.y + size.height
       ) {
+        // Update parent of child to grandparent.
+        updateParent(child, getComponent(id).parent);
         removeChild(id, child);
-        // Resolve tree of child
+        // Resolve tree for child changes
         updateTree(child, childPos, childSize);
       }
     }
@@ -113,12 +115,25 @@ const LayoutBuilder = () => {
     if (parent) {
       const parentComponent = componentState.components[parent];
 
-      if (
-        position.x <= parentComponent.position.x ||
-        position.y <= parentComponent.position.y ||
-        position.x + size.width >= parentComponent.position.x + parentComponent.size.width ||
-        position.y + size.height >= parentComponent.position.y + parentComponent.size.height
-      ) {
+      const componentBounds = {
+        top: position.y,
+        left: position.x,
+        right: position.x + size.width,
+        bottom: position.y + size.height,
+      };
+
+      const outTop =
+        componentBounds.top < parentComponent.position.y && componentBounds.bottom < parentComponent.position.y;
+      const outLeft =
+        componentBounds.left < parentComponent.position.x && componentBounds.right < parentComponent.position.x;
+      const outRight =
+        componentBounds.left > parentComponent.position.x + parentComponent.size.width &&
+        componentBounds.right > parentComponent.position.x + parentComponent.size.width;
+      const outBottom =
+        componentBounds.top > parentComponent.position.y + parentComponent.size.height &&
+        componentBounds.bottom > parentComponent.position.y + parentComponent.size.height;
+
+      if (outTop || outLeft || outRight || outBottom) {
         // Remove this element from it's parent since it's outside it
         removeChild(parent, id);
         // Set elements' parent to grandparent
@@ -127,25 +142,27 @@ const LayoutBuilder = () => {
     }
   };
 
-  const isComponentInside = (component: ILayoutComponent, other: ILayoutComponent) => {
+  const isComponentInside = (innerId: string, outerId: string) => {
+    const inner = getComponent(innerId);
+    const outer = getComponent(outerId);
     return (
-      other.position.x <= component.position.x &&
-      other.position.y <= component.position.y &&
-      other.position.x + other.size.width >= component.position.x + component.size.width &&
-      other.position.y + other.size.height >= component.position.y + component.size.height
+      outer.position.x <= inner.position.x &&
+      outer.position.y <= inner.position.y &&
+      outer.position.x + outer.size.width >= inner.position.x + inner.size.width &&
+      outer.position.y + outer.size.height >= inner.position.y + inner.size.height
     );
   };
 
-  const updateTree = (id: string, position: XYPosition, size: Size) => {
-    checkInsideParent(id, position, size);
-    resolveChildren(id, position, size);
+  const updateTree = (updatedComponentId: string, position: XYPosition, size: Size) => {
+    checkInsideParent(updatedComponentId, position, size);
+    resolveChildren(updatedComponentId, position, size);
     let currentMin = {
       x: 99999,
       y: 99999,
     };
     let closestParent: string | undefined = '';
     for (const component of Object.values(componentState.components)) {
-      if (component.id === id) {
+      if (component.id === updatedComponentId) {
         continue;
       }
       let minDistance = {
@@ -153,7 +170,7 @@ const LayoutBuilder = () => {
         y: component.position.y - position.y,
       };
       // Inside check. Are all sides of the selected/changed component inside the current component?
-      if (isComponentInside(componentState.components[id], component)) {
+      if (isComponentInside(updatedComponentId, component.id)) {
         // Find the closest parent by distance
         if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
           currentMin.x = Math.abs(minDistance.x);
@@ -162,8 +179,9 @@ const LayoutBuilder = () => {
         }
       }
       // Outside check. Is the current component inside the selected/changed component?
-      if (isComponentInside(component, componentState.components[id])) {
+      if (isComponentInside(component.id, updatedComponentId)) {
         // If component already has a parent, we don't need to change it's parent.
+        // If there is no parent, the component is a "root" component that the selected/changed component is covering/surrounding.
         if (!component.parent) {
           updateTree(component.id, component.position, component.size);
         }
@@ -171,24 +189,33 @@ const LayoutBuilder = () => {
     }
 
     if (closestParent) {
+      // If we have found the closest parent for this component, check if this component also covers any of the found parents children.
+      // Move the covered children to be children on this component and remove them from the previous parent.
       for (const child of componentState.components[closestParent].children) {
-        if (isComponentInside(componentState.components[child], componentState.components[id])) {
-          if (componentState.components[child].parent) {
-            removeChild(componentState.components[child].parent!, child);
+        const childComponent = getComponent(child);
+        if (isComponentInside(child, updatedComponentId)) {
+          if (childComponent.parent) {
+            removeChild(childComponent.parent, child);
           }
-          addChild(id, child);
+          addChild(updatedComponentId, child);
         }
       }
-      if (componentState.components[id].parent) {
-        removeChild(componentState.components[id].parent!, id);
+      if (getComponent(updatedComponentId).parent) {
+        removeChild(getComponent(updatedComponentId).parent!, updatedComponentId);
       }
-      updateParent(id, closestParent);
-      addChild(closestParent, id);
+      addChild(closestParent, updatedComponentId);
     }
   };
 
+  const getComponent = (id: string) => {
+    if (!componentState.components.hasOwnProperty(id)) {
+      throw new Error(`Component with id [${id}] does not exist in the component state.`);
+    }
+    return componentState.components[id];
+  };
+
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    updateTree(id, access(newPosition, componentState.components[id].position), componentState.components[id].size);
+    updateTree(id, access(newPosition, getComponent(id).position), getComponent(id).size);
     setComponentState('components', id, (p) => ({
       ...p,
       position: {
@@ -199,7 +226,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    updateTree(id, componentState.components[id].position, access(newSize, componentState.components[id].size));
+    updateTree(id, getComponent(id).position, access(newSize, getComponent(id).size));
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },

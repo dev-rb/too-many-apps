@@ -85,20 +85,32 @@ const Layer = (props: LayerProps) => {
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]);
   const builder = useBuilderContext();
   const isComponentActive = createSelector(() => builder.componentState.selected);
+
+  const lineHeight = createMemo(() => (props.children.length > 0 ? '8px' : '-50%'));
+
+  const depthMargin = 10 * props.index;
+
   return (
-    <div class="flex flex-col mt-2" style={{ 'margin-left': `${12 * props.index}px` }}>
+    <div
+      class="flex flex-col mt-2 relative"
+      classList={{
+        [`before:(content-empty h-[calc(100%)] absolute left-[${depthMargin}px] top-0 w-[1px] border-l-dark-2 border-l-1)`]:
+          true,
+      }}
+      style={{ 'margin-left': `${depthMargin - 2}px` }}
+    >
       <div
-        class="flex items-center justify-between p-2 rounded-sm relative cursor-pointer after:(content-empty w-full absolute -bottom-2 left-0 mt-2 h-[1px] border-t-dark-4 border-t-1)"
+        class="flex items-center justify-between p-2 rounded-sm relative cursor-pointer"
         classList={{
           ['bg-blue-7 hover:bg-blue-6']: isComponentActive(props.id),
           ['bg-dark-4 hover:bg-dark-4']: !isComponentActive(props.id),
-          ['before:(content-empty h-full absolute -left-2 top-0 w-[1px] border-l-dark-4 border-l-1 mt-1)']:
+          ['before:(content-empty h-50% absolute -left-2 top-0 w-[1px] border-l-dark-2 border-l-1) after:(content-empty w-[8px] absolute top-50% -translate-y-50% -left-2 h-[1px] border-t-dark-2 border-t-1)']:
             props.index > 0,
         }}
         onClick={() => props.selectLayer(props.id)}
       >
         <div class="flex-col gap-1">
-          {/* <p>{props.name}</p> */}
+          <p>{props.name}</p>
           <p class="text-sm">{props.layerValue}</p>
         </div>
         <p> {props.id} </p>
