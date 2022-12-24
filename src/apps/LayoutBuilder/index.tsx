@@ -15,6 +15,7 @@ import { access } from '~/utils/common';
 import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
+import { calculateDistances } from './snapping';
 
 export const MIN_LAYER = 4;
 
@@ -216,12 +217,31 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    updateTree(id, access(newPosition, getComponent(id).position), getComponent(id).size);
+    const currentPosition = getComponent(id).position;
+    let resolvedNewPos = { ...access(newPosition, currentPosition) };
+
+    const otherComponents = Object.values(componentState.components).filter((comp) => comp.id !== id);
+
+    const alignDistance = calculateDistances(
+      { ...currentPosition, ...getComponent(id).size },
+      otherComponents.map((v) => ({ ...v.position, ...v.size }))
+    );
+    const xDiff = Math.abs(resolvedNewPos.x - currentPosition.x);
+    if (Math.abs(xDiff + alignDistance.xAlign - 4) < 4) {
+      resolvedNewPos.x = currentPosition.x + alignDistance.xAlign;
+    }
+
+    const yDiff = Math.abs(resolvedNewPos.y - currentPosition.y);
+    if (Math.abs(yDiff + alignDistance.yAlign - 4) < 4) {
+      resolvedNewPos.y = currentPosition.y + alignDistance.yAlign;
+    }
+
+    updateTree(id, resolvedNewPos, getComponent(id).size);
     setComponentState('components', id, (p) => ({
       ...p,
       position: {
-        x: Math.max(0, access(newPosition, p.position).x),
-        y: Math.max(0, access(newPosition, p.position).y),
+        x: Math.max(0, resolvedNewPos.x),
+        y: Math.max(0, resolvedNewPos.y),
       },
     }));
   };

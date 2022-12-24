@@ -75,3 +75,13 @@ export function createNewComponent(
 export function isLeftClick(e: MouseEvent) {
   return e.buttons === 1;
 }
+
+export const closestZero = (nums: number[]) => {
+  return nums.reduce((acc, num) => {
+    if (Math.abs(num) < Math.abs(acc)) {
+      acc = num;
+    }
+
+    return acc;
+  }, Number.MAX_SAFE_INTEGER);
+};
