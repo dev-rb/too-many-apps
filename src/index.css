@@ -38,6 +38,21 @@ p {
   border-radius: 9999px;
 }
 
+.custom-v-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-v-scrollbar::-webkit-scrollbar-track {
+  background-color: var(--hope-colors-neutral1);
+  border-radius: 9999px;
+}
+
+.custom-v-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--hope-colors-neutral9);
+  border-radius: 9999px;
+}
+
 .lines-gradient {
   background-image: repeating-linear-gradient(
     -45deg,

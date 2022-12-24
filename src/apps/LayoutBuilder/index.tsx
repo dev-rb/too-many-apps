@@ -12,8 +12,9 @@ import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
-import Layers from './Layers';
+import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
+import Layers from './Layers';
 
 export const MIN_LAYER = 4;
 
@@ -299,6 +300,7 @@ const LayoutBuilder = () => {
         <div class="flex items-start">
           <Layers />
           <LayoutCanvas />
+          <Preview />
         </div>
         <div class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start">
           <For each={DEFAULT_COMPONENTS}>

@@ -155,16 +155,24 @@ const LayoutCanvas = () => {
     document.removeEventListener('mouseup', onMouseUp);
   };
 
+  const setUpCanvasBounds = () => {
+    const bounds = canvasRef()!.getBoundingClientRect();
+    setCanvasBounds({
+      x: bounds.left,
+      y: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    });
+  };
+
   createEffect(
     on(canvasRef, () => {
       if (canvasRef()) {
-        const bounds = canvasRef()!.getBoundingClientRect();
-        setCanvasBounds({
-          x: bounds.left,
-          y: bounds.top,
-          width: bounds.width,
-          height: bounds.height,
+        canvasRef()!.addEventListener('resize', () => {
+          setUpCanvasBounds();
         });
+
+        setUpCanvasBounds();
       }
     })
   );
