@@ -44,7 +44,7 @@ const Layers = () => {
       </div>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
       <div class="custom-v-scrollbar flex flex-col gap-2 mt-4 overflow-auto pr-2">
-        <For each={Object.values(builder.componentState.components)}>
+        <For each={Object.values(builder.componentState.components).sort((a, b) => b.layer - a.layer)}>
           {(component) => (
             <div class="flex flex-col">
               <Layer

@@ -234,6 +234,10 @@ const LayoutBuilder = () => {
     }));
   };
 
+  const getComponentWithLayer = (layer: number) => {
+    return Object.values(componentState.components).find((v) => v.layer === layer);
+  };
+
   const bringToFront = (id: string) => {
     const currentMaxLayer = componentState.maxLayer;
     setComponentState('components', id, 'layer', currentMaxLayer + 1);
@@ -245,11 +249,23 @@ const LayoutBuilder = () => {
   };
 
   const bringForward = (id: string) => {
-    setComponentState('components', id, 'layer', (p) => p + 1);
+    const current = getComponent(id);
+    const oneAhead = getComponentWithLayer(current.layer + 1);
+    // Swap layers with component that has layer one larger layer
+    if (oneAhead) {
+      setComponentState('components', oneAhead.id, 'layer', current.layer);
+      setComponentState('components', id, 'layer', (p) => p + 1);
+    }
   };
 
   const sendBackward = (id: string) => {
-    setComponentState('components', id, 'layer', (p) => p - 1);
+    const current = getComponent(id);
+    const oneBefore = getComponentWithLayer(current.layer - 1);
+    // Swap layers with component that has layer one less
+    if (oneBefore) {
+      setComponentState('components', oneBefore.id, 'layer', current.layer);
+      setComponentState('components', id, 'layer', (p) => p - 1);
+    }
   };
 
   const getSelectedComponent = createMemo(() => {
