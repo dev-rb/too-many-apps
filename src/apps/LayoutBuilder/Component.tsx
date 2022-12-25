@@ -12,22 +12,18 @@ const styleTypes = {
 interface LayoutComponentProps extends ILayoutComponent {
   selectElement: (id: string) => void;
   active: boolean;
-  setTransformOp: (op: TransformOp) => void;
-  currentTransformOp: TransformOp;
   variant: keyof typeof styleTypes;
+  onResizeStart: (e: MouseEvent) => void;
+  onDragStart: (e: MouseEvent) => void;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
   props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
 
   const selectElement = () => props.selectElement(props.id);
-  const onMouseDown = (e: MouseEvent, type: 'drag' | 'resize') => {
-    e.preventDefault();
-    if (props.currentTransformOp === 'resize') {
-      return;
-    }
+  const onMouseDown = (e: MouseEvent) => {
     selectElement();
-    props.setTransformOp(type);
+    props.onDragStart(e);
   };
 
   const colorOpacity = createMemo(() => (props.active ? 40 : 30));
@@ -45,26 +41,26 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         height: `${props.size!.height}px`,
         'z-index': props.layer,
       }}
-      onMouseDown={(e) => onMouseDown(e, 'drag')}
+      onMouseDown={onMouseDown}
     >
       <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
 
       <Show when={props.active}>
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={(e) => onMouseDown(e, 'resize')}
+          onMouseDown={props.onResizeStart}
         />
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -right-1.5 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={(e) => onMouseDown(e, 'resize')}
+          onMouseDown={props.onResizeStart}
         />
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -left-1.5 cursor-sw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={(e) => onMouseDown(e, 'resize')}
+          onMouseDown={props.onResizeStart}
         />
         <div
           class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -right-1.5 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={(e) => onMouseDown(e, 'resize')}
+          onMouseDown={props.onResizeStart}
         />
       </Show>
       <p class="font-400 "> {props.name} </p>

@@ -16,7 +16,7 @@ import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
 import { calculateDistances } from './snapping';
-import { BiRegularRectangle, BiSolidPointer } from 'solid-icons/bi';
+import Toolbar, { Tools } from './Toolbar';
 
 export const MIN_LAYER = 4;
 
@@ -52,13 +52,17 @@ interface ComponentState {
   maxLayer: number;
 }
 
+interface ToolState {
+  activeTool: Tools;
+  drawItem: string | undefined;
+}
+
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
-  const [toolState, setToolState] = createStore<{
-    selectedComponent: ILayoutComponent | undefined;
-  }>({
-    selectedComponent: undefined,
+  const [toolState, setToolState] = createStore<ToolState>({
+    activeTool: 'pointer',
+    drawItem: undefined,
   });
 
   const [componentState, setComponentState] = createStore<ComponentState>({
@@ -286,10 +290,14 @@ const LayoutBuilder = () => {
     }
   });
 
-  const selectTool = (id: string) => {
+  const getDrawable = (id: string) => {
+    return DEFAULT_COMPONENTS.find((v) => v.id === id);
+  };
+
+  const selectDrawItem = (id: string) => {
     const selected = DEFAULT_COMPONENTS.find((v) => v.id === id);
     if (selected) {
-      setToolState('selectedComponent', { ...selected });
+      setToolState('drawItem', selected.id);
     }
   };
 
@@ -297,7 +305,9 @@ const LayoutBuilder = () => {
     setComponentState('selected', id);
   };
 
-  const isToolActive = createSelector(() => toolState.selectedComponent?.id);
+  const clearSelection = () => setComponentState('selected', undefined);
+
+  const isDrawItemActive = createSelector(() => toolState.drawItem);
 
   const createNewComponent = (component: ILayoutComponent) => {
     setComponentState('components', (p) => ({
@@ -314,6 +324,8 @@ const LayoutBuilder = () => {
     selectComponent,
     createNewComponent,
     getSelectedComponent,
+    getDrawable,
+    clearSelection,
     layerControls: {
       sendBackward,
       sendToBack,
@@ -325,14 +337,7 @@ const LayoutBuilder = () => {
   return (
     <BuilderContext.Provider value={contextValues}>
       <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-        <div class="w-fit bg-dark-5 h-fit px-5 py-3 flex flex-wrap gap-6 content-start self-center rounded-md">
-          <button class="appearance-none border-none outline-none color-white text-2xl rounded-md bg-blue-7 hover:bg-blue-6 flex items-center justify-center p-2 cursor-pointer">
-            <BiSolidPointer />
-          </button>
-          <button class="appearance-none border-none outline-none color-dark-2 text-2xl rounded-md bg-dark-3/50 hover:bg-dark-3/80 flex items-center justify-center p-2 cursor-pointer">
-            <BiRegularRectangle />
-          </button>
-        </div>
+        <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
         <div class="flex items-start justify-evenly">
           <Layers />
           <LayoutCanvas />
@@ -340,7 +345,7 @@ const LayoutBuilder = () => {
         </div>
         <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
           <For each={DEFAULT_COMPONENTS}>
-            {(comp) => <ComponentDisplay {...comp} active={isToolActive(comp.id)} selectTool={selectTool} />}
+            {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
           </For>
         </div>
       </div>
@@ -352,14 +357,20 @@ export default LayoutBuilder;
 
 interface BuilderContextValues {
   componentState: ComponentState;
-  toolState: {
-    selectedComponent: ILayoutComponent | undefined;
-  };
+  toolState: ToolState;
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   selectComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   getSelectedComponent: Accessor<ILayoutComponent | undefined>;
+  clearSelection: () => void;
+  getDrawable: (id: string) =>
+    | {
+        id: string;
+        name: string;
+        color: string;
+      }
+    | undefined;
   layerControls: {
     sendBackward: (id: string) => void;
     sendToBack: (id: string) => void;

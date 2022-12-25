@@ -1,6 +1,6 @@
 import { createUniqueId } from 'solid-js';
 import { ZERO_SIZE } from '~/constants';
-import { Size, XYPosition } from '~/types';
+import { Bounds, Size, XYPosition } from '~/types';
 import { ILayoutComponent, MIN_LAYER } from '.';
 
 export function calculateResize(currentSize: Size, currentPos: XYPosition, mousePos: XYPosition, handle: string) {
@@ -90,3 +90,23 @@ export const closestZero = (nums: number[]) => {
     return acc;
   }, Number.MAX_SAFE_INTEGER);
 };
+
+export function closestCorner(mousePos: XYPosition, elBounds: Bounds) {
+  const distance = {
+    top: mousePos.y - elBounds.top,
+    left: mousePos.x - elBounds.left,
+    right: mousePos.x - elBounds.right,
+    bottom: mousePos.y - elBounds.bottom,
+  };
+
+  if (Math.abs(distance.top) < 10 && Math.abs(distance.left) < 10) {
+    return 'top-left';
+  } else if (Math.abs(distance.top) < 10 && Math.abs(distance.right) < 10) {
+    return 'top-right';
+  } else if (Math.abs(distance.bottom) < 10 && Math.abs(distance.left) < 10) {
+    return 'bottom-left';
+  } else if (Math.abs(distance.bottom) < 10 && Math.abs(distance.right) < 10) {
+    return 'bottom-right';
+  }
+  return undefined;
+}

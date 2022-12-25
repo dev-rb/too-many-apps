@@ -1,11 +1,11 @@
 import { createEffect, createSignal, For, on } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import type { Size, XYPosition } from '~/types';
+import type { Bounds, Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { useBuilderContext } from '.';
 import LayoutComponent from './Component';
-import { calculateResize, createNewComponent, isLeftClick } from './utils';
+import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -30,24 +30,67 @@ const LayoutCanvas = () => {
     return { x: position.x - canvasBounds().x, y: position.y - canvasBounds().y };
   };
 
-  const getActiveHandleByClick = (mousePos: XYPosition, elPosition: XYPosition, elSize: Size) => {
-    const distance = {
-      top: mousePos.y - elPosition.y,
-      left: mousePos.x - elPosition.x,
-      right: mousePos.x - elSize.width - elPosition.x,
-      bottom: mousePos.y - elSize.height - elPosition.y,
-    };
+  const onResizeStart = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isLeftClick(e)) return;
 
-    if (distance.top < 10 && distance.left < 10) {
-      return 'top-left';
-    } else if (distance.top < 10 && distance.right < 10) {
-      return 'top-right';
-    } else if (distance.bottom < 10 && distance.left < 10) {
-      return 'bottom-left';
-    } else if (distance.bottom < 10 && distance.right < 10) {
-      return 'bottom-right';
+    if (selectedElement()) {
+      setTransformOp('resize');
+      let currentElementPosition = { x: selectedElement()!.bounds.left, y: selectedElement()!.bounds.top };
+
+      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
+      const handle = closestCorner(mousePos, selectedElement()!.bounds);
+      if (handle) {
+        setTransformState({
+          isTransforming: true,
+          startMousePos: {
+            x: e.clientX,
+            y: e.clientY,
+          },
+          startElPos: currentElementPosition,
+          startSize: selectedElement()!.size,
+          activeHandle: handle,
+        });
+      }
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', onMouseUp);
     }
-    return 'top-left';
+  };
+
+  const onDrawStart = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isLeftClick(e)) return;
+    if (builder.toolState.activeTool === 'pointer' && selectedElement()) {
+      builder.clearSelection();
+    }
+    if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
+      setTransformOp('draw');
+      const drawable = builder.getDrawable(builder.toolState.drawItem!);
+      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
+      const newComp = createNewComponent(
+        drawable!.name,
+        { ...mousePos },
+        drawable!.color,
+        undefined,
+        selectedElement() ? selectedElement()!.layer + 1 : undefined
+      );
+
+      builder.createNewComponent(newComp);
+      builder.selectComponent(newComp.id);
+      setTransformState({
+        isTransforming: true,
+        startMousePos: {
+          x: e.clientX,
+          y: e.clientY,
+        },
+        startElPos: mousePos,
+        startSize: ZERO_SIZE,
+      });
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', onMouseUp);
+    }
   };
 
   const onDragStart = (e: MouseEvent) => {
@@ -55,52 +98,16 @@ const LayoutCanvas = () => {
     e.stopPropagation();
     if (!isLeftClick(e)) return;
 
-    if (builder.componentState.selected || builder.toolState.selectedComponent) {
+    if (builder.toolState.activeTool === 'pointer' && selectedElement()) {
+      setTransformOp('drag');
       setTransformState({
         isTransforming: true,
+
         startMousePos: {
-          x: e.clientX,
-          y: e.clientY,
+          x: e.clientX - selectedElement()!.bounds.left,
+          y: e.clientY - selectedElement()!.bounds.top,
         },
       });
-      if (transformOp() === 'draw' || transformOp() === 'resize') {
-        let currentElementPosition = selectedElement()?.bounds
-          ? { x: selectedElement()!.bounds.left, y: selectedElement()!.bounds.top }
-          : ZERO_POS;
-        let currentElementSize = selectedElement()?.size ?? ZERO_SIZE;
-        const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-        if (transformOp() === 'draw') {
-          const newComp = createNewComponent(
-            builder.toolState.selectedComponent!.name,
-            { ...mousePos },
-            builder.toolState.selectedComponent!.color,
-            undefined,
-            selectedElement() ? selectedElement()!.layer + 1 : undefined
-          );
-
-          builder.createNewComponent(newComp);
-          builder.selectComponent(newComp.id);
-          currentElementPosition = mousePos;
-          currentElementSize = ZERO_SIZE;
-        }
-
-        const handle = getActiveHandleByClick(mousePos, currentElementPosition, currentElementSize);
-
-        setTransformState((p) => ({
-          ...p,
-          startElPos: currentElementPosition,
-          startSize: currentElementSize,
-          activeHandle: handle,
-        }));
-      } else if (transformOp() === 'drag' && selectedElement()) {
-        setTransformState((p) => ({
-          ...p,
-          startMousePos: {
-            x: e.clientX - selectedElement()!.bounds.left,
-            y: e.clientY - selectedElement()!.bounds.top,
-          },
-        }));
-      }
       document.addEventListener('mousemove', onDrag);
       document.addEventListener('mouseup', onMouseUp);
     }
@@ -193,7 +200,7 @@ const LayoutCanvas = () => {
         </div>
       </div>
       {/* Display */}
-      <div ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDragStart}>
+      <div ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDrawStart}>
         {/* <div
           class="absolute bg-violet-7 w-4 h-4 rounded-full"
           style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
@@ -204,9 +211,9 @@ const LayoutCanvas = () => {
               {...comp}
               active={builder.componentState.selected === comp.id}
               selectElement={builder.selectComponent}
-              setTransformOp={setTransformOp}
-              currentTransformOp={transformOp()}
               variant="outline"
+              onResizeStart={onResizeStart}
+              onDragStart={onDragStart}
             />
           )}
         </For>
