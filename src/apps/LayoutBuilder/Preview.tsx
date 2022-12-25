@@ -10,7 +10,7 @@ const Preview = () => {
   const [activeView, setActiveView] = createSignal(0);
 
   return (
-    <div class="flex flex-col bg-dark-5 w-86 p-2 h-full max-h-xl mb-4">
+    <div class="flex flex-col bg-dark-5 w-86 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
         <h1 class="text-lg color-dark-2"> Preview </h1>
       </div>

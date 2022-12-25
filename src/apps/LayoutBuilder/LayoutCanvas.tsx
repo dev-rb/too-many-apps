@@ -183,7 +183,7 @@ const LayoutCanvas = () => {
   );
 
   return (
-    <div class="flex flex-col w-5xl h-xl mb-20 ">
+    <div class="flex flex-col w-6xl h-2xl ">
       {/* Display header */}
       <div class="w-full h-4 bg-dark-5 flex items-center">
         <div class="ml-auto flex gap-2 mr-2">

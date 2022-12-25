@@ -16,6 +16,7 @@ import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
 import { calculateDistances } from './snapping';
+import { BiRegularRectangle, BiSolidPointer } from 'solid-icons/bi';
 
 export const MIN_LAYER = 4;
 
@@ -323,13 +324,21 @@ const LayoutBuilder = () => {
 
   return (
     <BuilderContext.Provider value={contextValues}>
-      <div class="flex flex-col justify-center  w-full h-full overflow-y-hidden gap-4">
+      <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+        <div class="w-fit bg-dark-5 h-fit px-5 py-3 flex flex-wrap gap-6 content-start self-center rounded-md">
+          <button class="appearance-none border-none outline-none color-white text-2xl rounded-md bg-blue-7 hover:bg-blue-6 flex items-center justify-center p-2 cursor-pointer">
+            <BiSolidPointer />
+          </button>
+          <button class="appearance-none border-none outline-none color-dark-2 text-2xl rounded-md bg-dark-3/50 hover:bg-dark-3/80 flex items-center justify-center p-2 cursor-pointer">
+            <BiRegularRectangle />
+          </button>
+        </div>
         <div class="flex items-start justify-evenly">
           <Layers />
           <LayoutCanvas />
           <Preview />
         </div>
-        <div class="w-full bg-dark-5 h-xl -mb-44 p-5 flex flex-wrap gap-4 content-start">
+        <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
           <For each={DEFAULT_COMPONENTS}>
             {(comp) => <ComponentDisplay {...comp} active={isToolActive(comp.id)} selectTool={selectTool} />}
           </For>

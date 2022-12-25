@@ -20,7 +20,7 @@ const Layers = () => {
   const isComponentActive = createSelector(() => builder.componentState.selected);
   const anySelected = () => builder.componentState.selected;
   return (
-    <div class="flex flex-col bg-dark-5 w-60 p-2 h-full max-h-xl mb-4">
+    <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
         <h1 class="text-lg color-dark-2"> Layers </h1>
         <div class="flex gap-2 items-center">
