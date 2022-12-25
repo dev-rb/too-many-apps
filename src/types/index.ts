@@ -8,4 +8,9 @@ export interface Size {
   height: number;
 }
 
-export type Bounds = XYPosition & Size;
+export interface Bounds {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+}

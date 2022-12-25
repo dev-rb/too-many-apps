@@ -65,7 +65,12 @@ export function createNewComponent(
     id: newId,
     name: name,
     color: color,
-    position: startPos,
+    bounds: {
+      top: startPos.y,
+      left: startPos.x,
+      right: startPos.x + startSize.width,
+      bottom: startPos.y + startSize.height,
+    },
     size: startSize,
     layer: layer,
     children: [],

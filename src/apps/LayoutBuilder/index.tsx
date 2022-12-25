@@ -10,7 +10,7 @@ import {
 } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import { Size, XYPosition } from '~/types';
+import { Bounds, Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
 import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
@@ -23,8 +23,8 @@ export interface ILayoutComponent {
   id: string;
   name: string;
   color?: string;
+  bounds: Bounds;
   size: Size;
-  position: XYPosition;
   css?: string;
   layer: number;
   children: string[];
@@ -86,54 +86,40 @@ const LayoutBuilder = () => {
     setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
   };
 
-  const resolveChildren = (id: string, position: XYPosition, size: Size) => {
+  const resolveChildren = (id: string, bounds: Bounds) => {
     const childrenOfComponent = componentState.components[id].children;
 
     if (!childrenOfComponent.length) return;
 
     for (const child of childrenOfComponent) {
-      const childPos = componentState.components[child].position;
-      const childSize = componentState.components[child].size;
+      const childBounds = componentState.components[child].bounds;
 
       // If any side of the child is outside the current element
       if (
-        childPos.x < position.x ||
-        childPos.y < position.y ||
-        childPos.x + childSize.width > position.x + size.width ||
-        childPos.y + childSize.height > position.y + size.height
+        childBounds.left < bounds.left ||
+        childBounds.top < bounds.top ||
+        childBounds.right > bounds.right ||
+        childBounds.bottom > bounds.bottom
       ) {
         // Update parent of child to grandparent.
         updateParent(child, getComponent(id).parent);
         removeChild(id, child);
         // Resolve tree for child changes
-        updateTree(child, childPos, childSize);
+        updateTree(child, childBounds);
       }
     }
   };
 
-  const checkInsideParent = (id: string, position: XYPosition, size: Size) => {
+  const checkInsideParent = (id: string, bounds: Bounds) => {
     const parent = componentState.components[id].parent;
     if (!parent) return;
     if (parent) {
       const parentComponent = componentState.components[parent];
 
-      const componentBounds = {
-        top: position.y,
-        left: position.x,
-        right: position.x + size.width,
-        bottom: position.y + size.height,
-      };
-
-      const outTop =
-        componentBounds.top < parentComponent.position.y && componentBounds.bottom < parentComponent.position.y;
-      const outLeft =
-        componentBounds.left < parentComponent.position.x && componentBounds.right < parentComponent.position.x;
-      const outRight =
-        componentBounds.left > parentComponent.position.x + parentComponent.size.width &&
-        componentBounds.right > parentComponent.position.x + parentComponent.size.width;
-      const outBottom =
-        componentBounds.top > parentComponent.position.y + parentComponent.size.height &&
-        componentBounds.bottom > parentComponent.position.y + parentComponent.size.height;
+      const outTop = bounds.top < parentComponent.bounds.top && bounds.bottom < parentComponent.bounds.top;
+      const outLeft = bounds.left < parentComponent.bounds.left && bounds.right < parentComponent.bounds.left;
+      const outRight = bounds.left > parentComponent.bounds.right && bounds.right > parentComponent.bounds.right;
+      const outBottom = bounds.top > parentComponent.bounds.bottom && bounds.bottom > parentComponent.bounds.bottom;
 
       if (outTop || outLeft || outRight || outBottom) {
         // Remove this element from it's parent since it's outside it
@@ -148,16 +134,16 @@ const LayoutBuilder = () => {
     const inner = getComponent(innerId);
     const outer = getComponent(outerId);
     return (
-      outer.position.x <= inner.position.x &&
-      outer.position.y <= inner.position.y &&
-      outer.position.x + outer.size.width >= inner.position.x + inner.size.width &&
-      outer.position.y + outer.size.height >= inner.position.y + inner.size.height
+      outer.bounds.left <= inner.bounds.left &&
+      outer.bounds.top <= inner.bounds.top &&
+      outer.bounds.right >= inner.bounds.right &&
+      outer.bounds.bottom >= inner.bounds.bottom
     );
   };
 
-  const updateTree = (updatedComponentId: string, position: XYPosition, size: Size) => {
-    checkInsideParent(updatedComponentId, position, size);
-    resolveChildren(updatedComponentId, position, size);
+  const updateTree = (updatedComponentId: string, bounds: Bounds) => {
+    checkInsideParent(updatedComponentId, bounds);
+    resolveChildren(updatedComponentId, bounds);
     let currentMin = {
       x: 99999,
       y: 99999,
@@ -168,8 +154,8 @@ const LayoutBuilder = () => {
         continue;
       }
       let minDistance = {
-        x: component.position.x - position.x,
-        y: component.position.y - position.y,
+        x: component.bounds.left - bounds.left,
+        y: component.bounds.top - bounds.top,
       };
       // Inside check. Are all sides of the selected/changed component inside the current component?
       if (isComponentInside(updatedComponentId, component.id)) {
@@ -185,7 +171,7 @@ const LayoutBuilder = () => {
         // If component already has a parent, we don't need to change it's parent.
         // If there is no parent, the component is a "root" component that the selected/changed component is covering/surrounding.
         if (!component.parent) {
-          updateTree(component.id, component.position, component.size);
+          updateTree(component.id, component.bounds);
         }
       }
     }
@@ -217,37 +203,40 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    const currentPosition = getComponent(id).position;
-    let resolvedNewPos = { ...access(newPosition, currentPosition) };
+    const currentBounds = getComponent(id).bounds;
+    let resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
     const otherComponents = Object.values(componentState.components).filter((comp) => comp.id !== id);
 
     const alignDistance = calculateDistances(
-      { ...currentPosition, ...getComponent(id).size },
-      otherComponents.map((v) => ({ ...v.position, ...v.size }))
+      currentBounds,
+      otherComponents.map((v) => v.bounds)
     );
-    const xDiff = Math.abs(resolvedNewPos.x - currentPosition.x);
+    const xDiff = Math.abs(resolvedNewPos.x - currentBounds.left);
     if (Math.abs(xDiff + alignDistance.xAlign - 4) < 4) {
-      resolvedNewPos.x = currentPosition.x + alignDistance.xAlign;
+      resolvedNewPos.x = currentBounds.left + alignDistance.xAlign;
     }
 
-    const yDiff = Math.abs(resolvedNewPos.y - currentPosition.y);
+    const yDiff = Math.abs(resolvedNewPos.y - currentBounds.top);
     if (Math.abs(yDiff + alignDistance.yAlign - 4) < 4) {
-      resolvedNewPos.y = currentPosition.y + alignDistance.yAlign;
+      resolvedNewPos.y = currentBounds.top + alignDistance.yAlign;
     }
 
-    updateTree(id, resolvedNewPos, getComponent(id).size);
+    updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
     setComponentState('components', id, (p) => ({
       ...p,
-      position: {
-        x: Math.max(0, resolvedNewPos.x),
-        y: Math.max(0, resolvedNewPos.y),
+      bounds: {
+        ...p.bounds,
+        left: Math.max(0, resolvedNewPos.x),
+        top: Math.max(0, resolvedNewPos.y),
+        right: Math.max(0, resolvedNewPos.x) + p.size.width,
+        bottom: Math.max(0, resolvedNewPos.y) + p.size.height,
       },
     }));
   };
 
   const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    updateTree(id, getComponent(id).position, access(newSize, getComponent(id).size));
+    updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },

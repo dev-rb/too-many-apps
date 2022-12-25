@@ -40,7 +40,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       class={`${style()} flex items-center justify-center cursor-pointer select-none`}
       style={{
         position: 'absolute',
-        transform: `translate(${props.position.x}px, ${props.position.y}px)`,
+        transform: `translate(${props.bounds.left}px, ${props.bounds.top}px)`,
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,
         'z-index': props.layer,
@@ -98,7 +98,7 @@ const DebugInfo = (props: DebugInfoProps) => {
         <div
           class="w-4 h-4 bg-blue-7 rounded-full absolute"
           title="x position"
-          style={{ top: 0 + 'px', left: props.position.x + 'px' }}
+          style={{ top: 0 + 'px', left: props.bounds.left + 'px' }}
         />
       </Show>
       <Show when={props.showSize}>

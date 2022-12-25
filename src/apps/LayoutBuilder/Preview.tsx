@@ -50,7 +50,7 @@ const Preview = () => {
                 depth={0}
                 layerValue={component().layer}
                 name={component().name}
-                selectLayer={(id: string) => builder.selectComponent(id)}
+                selectComponent={(id: string) => builder.selectComponent(id)}
               />
             </div>
           )}
@@ -67,7 +67,7 @@ export default Preview;
 
 interface TreeViewProps {
   id: string;
-  selectLayer: (compId: string) => void;
+  selectComponent: (compId: string) => void;
   name: string;
   layerValue: number;
   allLayers: Record<string, ILayoutComponent>;
@@ -99,11 +99,11 @@ const TreeView = (props: TreeViewProps) => {
           ['after:(content-empty w-[8px] absolute top-50% -translate-y-50% -left-2 h-[1px] border-t-dark-2 border-t-1)']:
             props.depth > 0,
         }}
-        onClick={() => props.selectLayer(props.id)}
+        onClick={() => props.selectComponent(props.id)}
       >
         <div class="flex-col gap-1">
           <p>{props.name}</p>
-          <p class="text-sm">{props.layerValue}</p>
+          {/* <p class="text-sm">{props.layerValue}</p> */}
         </div>
         <p> {props.id} </p>
       </div>
@@ -116,7 +116,7 @@ const TreeView = (props: TreeViewProps) => {
             depth={props.depth + 1}
             layerValue={layer.layer}
             name={layer.name}
-            selectLayer={props.selectLayer}
+            selectComponent={props.selectComponent}
           />
         )}
       </For>
@@ -144,7 +144,7 @@ const HtmlView = (props: TreeViewProps) => {
           [`bg-transparent`]: !isComponentActive(props.id),
         }}
       >
-        <p class="hover:bg-dark-4" onClick={() => props.selectLayer(props.id)}>
+        <p class="hover:bg-dark-4" onClick={() => props.selectComponent(props.id)}>
           <span class="color-red-5">&lt;div </span>{' '}
           <span class="color-purple-3">
             id=<span class="color-green-2">"{props.id}"</span>
@@ -164,11 +164,11 @@ const HtmlView = (props: TreeViewProps) => {
               depth={props.depth + 1}
               layerValue={layer.layer}
               name={layer.name}
-              selectLayer={props.selectLayer}
+              selectComponent={props.selectComponent}
             />
           )}
         </For>
-        <p class="color-red-5 hover:bg-dark-4" onClick={() => props.selectLayer(props.id)}>
+        <p class="color-red-5 hover:bg-dark-4" onClick={() => props.selectComponent(props.id)}>
           {`</div>`}
         </p>
       </div>

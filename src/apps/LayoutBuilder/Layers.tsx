@@ -82,7 +82,7 @@ const Layer = (props: LayerProps) => {
     >
       <div class="flex-col gap-1">
         <p>{props.name}</p>
-        <p class="text-sm">{props.layerValue}</p>
+        {/* <p class="text-sm">{props.layerValue}</p> */}
       </div>
       <p> {props.id} </p>
     </div>

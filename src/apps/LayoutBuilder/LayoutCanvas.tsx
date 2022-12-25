@@ -64,7 +64,9 @@ const LayoutCanvas = () => {
         },
       });
       if (transformOp() === 'draw' || transformOp() === 'resize') {
-        let currentElementPosition = selectedElement()?.position ?? ZERO_POS;
+        let currentElementPosition = selectedElement()?.bounds
+          ? { x: selectedElement()!.bounds.left, y: selectedElement()!.bounds.top }
+          : ZERO_POS;
         let currentElementSize = selectedElement()?.size ?? ZERO_SIZE;
         const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
         if (transformOp() === 'draw') {
@@ -93,7 +95,10 @@ const LayoutCanvas = () => {
       } else if (transformOp() === 'drag' && selectedElement()) {
         setTransformState((p) => ({
           ...p,
-          startMousePos: { x: e.clientX - selectedElement()!.position.x, y: e.clientY - selectedElement()!.position.y },
+          startMousePos: {
+            x: e.clientX - selectedElement()!.bounds.left,
+            y: e.clientY - selectedElement()!.bounds.top,
+          },
         }));
       }
       document.addEventListener('mousemove', onDrag);
