@@ -206,7 +206,9 @@ const LayoutBuilder = () => {
     const currentBounds = getComponent(id).bounds;
     let resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
-    const otherComponents = Object.values(componentState.components).filter((comp) => comp.id !== id);
+    const otherComponents = Object.values(componentState.components).filter(
+      (comp) => comp.id !== id && comp.parent === getComponent(id).parent
+    );
 
     const alignDistance = calculateDistances(
       currentBounds,
@@ -322,7 +324,7 @@ const LayoutBuilder = () => {
   return (
     <BuilderContext.Provider value={contextValues}>
       <div class="flex flex-col justify-center  w-full h-full overflow-y-hidden gap-4">
-        <div class="flex items-start">
+        <div class="flex items-start justify-evenly">
           <Layers />
           <LayoutCanvas />
           <Preview />

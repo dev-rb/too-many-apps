@@ -1,10 +1,5 @@
 import { A } from '@solidjs/router';
-import {
-  BiSolidColor,
-  BiSolidLayout,
-  BiSolidNote,
-  BiSolidRuler,
-} from 'solid-icons/bi';
+import { BiSolidColor, BiSolidLayout, BiSolidNote, BiSolidRuler } from 'solid-icons/bi';
 import { createSelector, createSignal, For } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
@@ -17,8 +12,6 @@ const NAV_ITEMS = [
 
 const AppNav = () => {
   const [active, setActive] = createSignal('Converters');
-
-  const selected = createSelector(active);
 
   return (
     <div class="flex flex-col gap-6 mr-2 pr-8 pl-4 pt-5 border-r-dark-7 border-r-1 select-none">

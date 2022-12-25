@@ -1,6 +1,7 @@
 import { css } from '@hope-ui/solid';
 import { Route, Router, Routes } from '@solidjs/router';
-import { ColorConvert } from './apps/ColorConvert';
+import ConvertersPage from './apps/Converters';
+import { ColorConvert } from './apps/Converters/ColorConvert';
 import LayoutBuilder from './apps/LayoutBuilder';
 import AppNav from './components/AppNav';
 
@@ -24,7 +25,8 @@ const App = () => {
         <AppNav />
         <main class={'flex flex-col px-5 color-white w-screen overflow-x-hidden'}>
           <Routes>
-            <Route path="/" component={ColorConvert} />
+            <Route path="/" component={ConvertersPage} />
+            <Route path="/color" component={ColorConvert} />
             <Route path="/layout" component={LayoutBuilder} />
           </Routes>
         </main>
