@@ -2,7 +2,11 @@ import { createSelector, createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '.';
 
-const views = [() => TreeView, () => HtmlView];
+const views = [
+  { name: 'Tree', view: () => TreeView },
+  { name: 'HTML', view: () => HtmlView },
+  { name: 'CSS', view: () => HtmlView },
+];
 
 interface PreviewProps {
   components: { [key: string]: ILayoutComponent };
@@ -14,6 +18,8 @@ const Preview = (props: PreviewProps) => {
 
   const [activeView, setActiveView] = createSignal(0);
 
+  const translateHighlight = () => `translate-x-${activeView() * 101}%`;
+
   return (
     <div class="flex flex-col bg-dark-5 w-86 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
@@ -21,24 +27,18 @@ const Preview = (props: PreviewProps) => {
       </div>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
       <div
-        class="flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative after:(content-empty bg-blue-7 rounded-sm absolute top-0 h-full w-50% transition-transform)"
-        classList={{
-          ['after:(translate-x-0)']: activeView() === 0,
-          ['after:(translate-x-full)']: activeView() === 1,
-        }}
+        class={`flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative after:(content-empty bg-blue-7 rounded-sm absolute top-0 h-full w-33% transition-transform) after:${translateHighlight()}`}
       >
-        <button
-          class="appearance-none border-none bg-transparent outline-none p-2 color-white cursor-pointer w-full rounded-sm transition-colors z-2"
-          onClick={() => setActiveView(0)}
-        >
-          Tree
-        </button>
-        <button
-          class="appearance-none border-none bg-transparent outline-none p-2 color-white cursor-pointer w-full rounded-sm transition-colors z-2"
-          onClick={() => setActiveView(1)}
-        >
-          HTML
-        </button>
+        <For each={views}>
+          {(view, index) => (
+            <button
+              class="appearance-none border-none bg-transparent outline-none p-2 color-white cursor-pointer w-full rounded-sm transition-colors z-2 select-none"
+              onClick={() => setActiveView(index())}
+            >
+              {view.name}
+            </button>
+          )}
+        </For>
       </div>
       <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto pr-2 select-none h-full">
         <Show when={activeView() === 1}>
@@ -48,7 +48,7 @@ const Preview = (props: PreviewProps) => {
           {(component) => (
             <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
               <Dynamic
-                component={views[activeView()]()}
+                component={views[activeView()].view()}
                 allLayers={props.components}
                 children={component().children}
                 id={component().id}

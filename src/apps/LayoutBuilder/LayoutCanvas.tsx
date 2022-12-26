@@ -73,13 +73,17 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformOp('draw');
       const drawable = builder.getDrawable(builder.toolState.drawItem!);
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const newComp = createNewComponent(
-        drawable!.name,
-        { ...mousePos },
-        drawable!.color,
-        undefined,
-        props.selectedComponent ? props.selectedComponent!.layer + 1 : undefined
-      );
+      const newComp = createNewComponent({
+        name: drawable?.name,
+        bounds: {
+          top: mousePos.y,
+          left: mousePos.x,
+          right: mousePos.x,
+          bottom: mousePos.y,
+        },
+        color: drawable?.color,
+        layer: props.selectedComponent ? props.selectedComponent!.layer + 1 : undefined,
+      });
 
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);

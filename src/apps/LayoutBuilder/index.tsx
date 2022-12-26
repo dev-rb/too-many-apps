@@ -1,13 +1,4 @@
-import {
-  Accessor,
-  createContext,
-  createMemo,
-  createSelector,
-  createUniqueId,
-  For,
-  mergeProps,
-  useContext,
-} from 'solid-js';
+import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
@@ -15,7 +6,6 @@ import { access } from '~/utils/common';
 import Preview from './Preview';
 import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
-import { calculateDistances } from './snapping';
 import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
 
@@ -27,7 +17,7 @@ export interface ILayoutComponent {
   color?: string;
   bounds: Bounds;
   size: Size;
-  css?: string;
+  css?: JSX.CSSProperties;
   layer: number;
   children: string[];
   parent?: string;

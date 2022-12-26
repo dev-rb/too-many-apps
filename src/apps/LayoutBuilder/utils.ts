@@ -53,26 +53,18 @@ export function isPointInBounds(point: XYPosition, bounds: XYPosition) {
   return { x: inX, y: inY };
 }
 
-export function createNewComponent(
-  name: string,
-  startPos: XYPosition,
-  color?: string,
-  startSize: Size = ZERO_SIZE,
-  layer: number = MIN_LAYER
-): ILayoutComponent {
-  const newId = createUniqueId();
+const defaults = {
+  name: '',
+  bounds: { top: 0, left: 0, right: 0, bottom: 0 },
+  size: ZERO_SIZE,
+  layer: 4,
+};
+
+export function createNewComponent(options: Partial<ILayoutComponent>): ILayoutComponent {
   return {
-    id: newId,
-    name: name,
-    color: color,
-    bounds: {
-      top: startPos.y,
-      left: startPos.x,
-      right: startPos.x + startSize.width,
-      bottom: startPos.y + startSize.height,
-    },
-    size: startSize,
-    layer: layer,
+    ...defaults,
+    ...options,
+    id: createUniqueId(),
     children: [],
   };
 }

@@ -1,11 +1,10 @@
 import { mergeProps, Show, For, createMemo } from 'solid-js';
 import { ILayoutComponent, useBuilder } from '.';
 
+//prettier-ignore
 const styleTypes = {
-  lines: (color: string = 'blue', opacity: number = 100) =>
-    `bg-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
-  outline: (color: string = 'blue', opacity: number = 100) =>
-    `bg-${color}/${opacity} border-${color}-4 border-1 color-${color}-6`,
+  lines: (color: string = 'blue', opacity: number = 100) =>`bg-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
+  outline: (color: string = 'blue', opacity: number = 100) =>`bg-${color}/${opacity} border-${color}-4 border-1 color-${color}-6`,
 };
 
 interface LayoutComponentProps extends ILayoutComponent {
