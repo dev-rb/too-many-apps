@@ -110,3 +110,12 @@ export function closestCorner(mousePos: XYPosition, elBounds: Bounds) {
   }
   return undefined;
 }
+
+export function isInside(innerBounds: Bounds, outerBounds: Bounds) {
+  return (
+    outerBounds.left <= innerBounds.left &&
+    outerBounds.top <= innerBounds.top &&
+    outerBounds.right >= innerBounds.right &&
+    outerBounds.bottom >= innerBounds.bottom
+  );
+}

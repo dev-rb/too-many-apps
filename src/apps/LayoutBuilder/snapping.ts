@@ -14,9 +14,18 @@ function calculateDistances(currentBound: Bounds, otherBounds: Bounds[]) {
       const leftRightDiff = other.left - currentBound.right;
       const rightLeftDiff = other.right - currentBound.left;
 
-      const xAlign = closestZero([leftDiff, rightDiff, leftRightDiff, rightLeftDiff]);
+      const currentCenterY = (currentBound.top + currentBound.bottom) / 2;
+      const currentCenterX = (currentBound.left + currentBound.right) / 2;
 
-      const yAlign = closestZero([topDiff, bottomDiff, topBottomDiff, bottomTopDiff]);
+      const otherCenterY = (other.top + other.bottom) / 2;
+      const otherCenterX = (other.left + other.right) / 2;
+
+      const centerXDiff = otherCenterX - currentCenterX;
+      const centerYDiff = otherCenterY - currentCenterY;
+
+      const xAlign = closestZero([leftDiff, rightDiff, leftRightDiff, rightLeftDiff, centerXDiff]);
+
+      const yAlign = closestZero([topDiff, bottomDiff, topBottomDiff, bottomTopDiff, centerYDiff]);
 
       if (Math.abs(xAlign) < Math.abs(acc.xAlign)) {
         acc.xAlign = xAlign;

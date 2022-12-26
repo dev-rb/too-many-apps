@@ -1,24 +1,29 @@
 import { BiRegularLayerMinus, BiRegularLayerPlus } from 'solid-icons/bi';
 import { createSelector, For } from 'solid-js';
-import { useBuilderContext } from '.';
+import { ILayoutComponent, useBuilder } from '.';
 
-const Layers = () => {
-  const builder = useBuilderContext();
+interface LayersProps {
+  components: { [key: string]: ILayoutComponent };
+  selectedComponent: ILayoutComponent | undefined;
+}
+
+const Layers = (props: LayersProps) => {
+  const builder = useBuilder();
 
   const sendBackward = () => {
-    if (builder.componentState.selected) {
-      builder.layerControls.sendBackward(builder.componentState.selected);
+    if (props.selectedComponent) {
+      builder.layerControls.sendBackward(props.selectedComponent.id);
     }
   };
 
   const bringForward = () => {
-    if (builder.componentState.selected) {
-      builder.layerControls.bringForward(builder.componentState.selected);
+    if (props.selectedComponent) {
+      builder.layerControls.bringForward(props.selectedComponent.id);
     }
   };
 
-  const isComponentActive = createSelector(() => builder.componentState.selected);
-  const anySelected = () => builder.componentState.selected;
+  const isComponentActive = createSelector(() => props.selectedComponent?.id);
+  const anySelected = () => props.selectedComponent;
   return (
     <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
@@ -44,7 +49,7 @@ const Layers = () => {
       </div>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
       <div class="custom-v-scrollbar flex flex-col gap-2 mt-4 overflow-auto pr-2">
-        <For each={Object.values(builder.componentState.components).sort((a, b) => b.layer - a.layer)}>
+        <For each={Object.values(props.components).sort((a, b) => b.layer - a.layer)}>
           {(component) => (
             <div class="flex flex-col">
               <Layer

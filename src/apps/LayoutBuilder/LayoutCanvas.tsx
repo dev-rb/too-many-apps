@@ -1,20 +1,24 @@
-import { createEffect, createSignal, For, on } from 'solid-js';
+import { createEffect, createSignal, For, on, onCleanup, onMount } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import type { Bounds, Size, XYPosition } from '~/types';
+import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
-import { useBuilderContext } from '.';
+import { ILayoutComponent, useBuilder } from '.';
 import LayoutComponent from './Component';
+import { calculateDistances } from './snapping';
 import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
-const LayoutCanvas = () => {
+interface LayoutCanvasProps {
+  components: { [key: string]: ILayoutComponent };
+  selectedComponent: ILayoutComponent | undefined;
+}
+
+const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<HTMLDivElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
-  const builder = useBuilderContext();
-
-  const selectedElement = builder.getSelectedComponent;
+  const builder = useBuilder();
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
 
@@ -35,12 +39,14 @@ const LayoutCanvas = () => {
     e.stopPropagation();
     if (!isLeftClick(e)) return;
 
-    if (selectedElement()) {
+    const selected = props.selectedComponent;
+
+    if (selected) {
       setTransformOp('resize');
-      let currentElementPosition = { x: selectedElement()!.bounds.left, y: selectedElement()!.bounds.top };
+      let currentElementPosition = { x: selected.bounds.left, y: selected.bounds.top };
 
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const handle = closestCorner(mousePos, selectedElement()!.bounds);
+      const handle = closestCorner(mousePos, selected.bounds);
       if (handle) {
         setTransformState({
           isTransforming: true,
@@ -49,12 +55,10 @@ const LayoutCanvas = () => {
             y: e.clientY,
           },
           startElPos: currentElementPosition,
-          startSize: selectedElement()!.size,
+          startSize: selected.size,
           activeHandle: handle,
         });
       }
-      document.addEventListener('mousemove', onDrag);
-      document.addEventListener('mouseup', onMouseUp);
     }
   };
 
@@ -62,7 +66,7 @@ const LayoutCanvas = () => {
     e.preventDefault();
     e.stopPropagation();
     if (!isLeftClick(e)) return;
-    if (builder.toolState.activeTool === 'pointer' && selectedElement()) {
+    if (builder.toolState.activeTool === 'pointer' && props.selectedComponent) {
       builder.clearSelection();
     }
     if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
@@ -74,7 +78,7 @@ const LayoutCanvas = () => {
         { ...mousePos },
         drawable!.color,
         undefined,
-        selectedElement() ? selectedElement()!.layer + 1 : undefined
+        props.selectedComponent ? props.selectedComponent!.layer + 1 : undefined
       );
 
       builder.createNewComponent(newComp);
@@ -88,8 +92,6 @@ const LayoutCanvas = () => {
         startElPos: mousePos,
         startSize: ZERO_SIZE,
       });
-      document.addEventListener('mousemove', onDrag);
-      document.addEventListener('mouseup', onMouseUp);
     }
   };
 
@@ -98,18 +100,17 @@ const LayoutCanvas = () => {
     e.stopPropagation();
     if (!isLeftClick(e)) return;
 
-    if (builder.toolState.activeTool === 'pointer' && selectedElement()) {
+    const selected = props.selectedComponent;
+    if (builder.toolState.activeTool === 'pointer' && selected) {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
 
         startMousePos: {
-          x: e.clientX - selectedElement()!.bounds.left,
-          y: e.clientY - selectedElement()!.bounds.top,
+          x: e.clientX - selected.bounds.left,
+          y: e.clientY - selected.bounds.top,
         },
       });
-      document.addEventListener('mousemove', onDrag);
-      document.addEventListener('mouseup', onMouseUp);
     }
   };
 
@@ -131,29 +132,43 @@ const LayoutCanvas = () => {
   };
 
   const onDrag = (e: MouseEvent) => {
-    if (transformState.isTransforming) {
+    const selected = props.selectedComponent;
+    if (transformState.isTransforming && selected) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
       const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
-        builder.updateComponentPosition(builder.componentState.selected!, updatedPos);
+        builder.updateComponentPosition(selected.id, updatedPos);
 
-        builder.updateComponentSize(builder.componentState.selected!, (p) => {
+        builder.updateComponentSize(selected.id, (p) => {
           const restrictedSize = restrictSize(updatedPos, updatedSize, p);
           return { width: restrictedSize.width, height: restrictedSize.height };
         });
-      } else if (transformOp() === 'drag' && selectedElement()!) {
-        const newPos = {
-          x: clamp(e.clientX - transformState.startMousePos.x, 0, canvasBounds().width - selectedElement()!.size.width),
-          y: clamp(
-            e.clientY - transformState.startMousePos.y,
-            0,
-            canvasBounds().height - selectedElement()!.size.height
-          ),
+      } else if (transformOp() === 'drag' && selected) {
+        let newPos = {
+          x: clamp(e.clientX - transformState.startMousePos.x, 0, canvasBounds().width - selected.size.width),
+          y: clamp(e.clientY - transformState.startMousePos.y, 0, canvasBounds().height - selected.size.height),
         };
-        builder.updateComponentPosition(selectedElement()!.id, newPos);
+
+        const currentBounds = selected.bounds;
+        const otherComponents = Object.values(props.components).filter((comp) => comp.id !== selected.id);
+
+        const alignDistance = calculateDistances(
+          currentBounds,
+          otherComponents.map((v) => v.bounds)
+        );
+        const xDiff = Math.abs(newPos.x - currentBounds.left);
+        if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
+          newPos.x = currentBounds.left + alignDistance.xAlign;
+        }
+
+        const yDiff = Math.abs(newPos.y - currentBounds.top);
+        if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
+          newPos.y = currentBounds.top + alignDistance.yAlign;
+        }
+        builder.updateComponentPosition(selected.id, newPos);
       }
     }
   };
@@ -163,8 +178,6 @@ const LayoutCanvas = () => {
       isTransforming: false,
     });
     setTransformOp('draw');
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('mouseup', onMouseUp);
   };
 
   const setUpCanvasBounds = () => {
@@ -176,6 +189,15 @@ const LayoutCanvas = () => {
       height: bounds.height,
     });
   };
+
+  onMount(() => {
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', onMouseUp);
+    onCleanup(() => {
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', onMouseUp);
+    });
+  });
 
   createEffect(
     on(canvasRef, () => {
@@ -205,7 +227,7 @@ const LayoutCanvas = () => {
           class="absolute bg-violet-7 w-4 h-4 rounded-full"
           style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
         /> */}
-        <For each={Object.values(builder.componentState.components)}>
+        <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent
               {...comp}

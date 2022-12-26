@@ -1,6 +1,5 @@
-import { mergeProps, createSignal, Show, For, createMemo } from 'solid-js';
-import { ILayoutComponent, useBuilderContext } from '.';
-import { TransformOp } from './LayoutCanvas';
+import { mergeProps, Show, For, createMemo } from 'solid-js';
+import { ILayoutComponent, useBuilder } from '.';
 
 const styleTypes = {
   lines: (color: string = 'blue', opacity: number = 100) =>
@@ -19,9 +18,10 @@ interface LayoutComponentProps extends ILayoutComponent {
 
 const LayoutComponent = (props: LayoutComponentProps) => {
   props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
-
+  const builder = useBuilder();
   const selectElement = () => props.selectElement(props.id);
   const onMouseDown = (e: MouseEvent) => {
+    if (builder.toolState.activeTool === 'draw') return;
     selectElement();
     props.onDragStart(e);
   };

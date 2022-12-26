@@ -1,11 +1,16 @@
 import { createSelector, createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { ILayoutComponent, useBuilderContext } from '.';
+import { ILayoutComponent, useBuilder } from '.';
 
 const views = [() => TreeView, () => HtmlView];
 
-const Preview = () => {
-  const builder = useBuilderContext();
+interface PreviewProps {
+  components: { [key: string]: ILayoutComponent };
+  selectedComponent: ILayoutComponent | undefined;
+}
+
+const Preview = (props: PreviewProps) => {
+  const builder = useBuilder();
 
   const [activeView, setActiveView] = createSignal(0);
 
@@ -39,12 +44,12 @@ const Preview = () => {
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <Index each={Object.values(builder.componentState.components).filter((v) => v.parent === undefined)}>
+        <Index each={Object.values(props.components).filter((v) => v.parent === undefined)}>
           {(component) => (
             <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
               <Dynamic
                 component={views[activeView()]()}
-                allLayers={builder.componentState.components}
+                allLayers={props.components}
                 children={component().children}
                 id={component().id}
                 depth={0}
@@ -77,7 +82,7 @@ interface TreeViewProps {
 
 const TreeView = (props: TreeViewProps) => {
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]);
-  const builder = useBuilderContext();
+  const builder = useBuilder();
   const isComponentActive = createSelector(() => builder.componentState.selected);
 
   const depthMargin = 12 * props.depth;
@@ -125,7 +130,7 @@ const TreeView = (props: TreeViewProps) => {
 };
 
 const HtmlView = (props: TreeViewProps) => {
-  const builder = useBuilderContext();
+  const builder = useBuilder();
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]);
   const isComponentActive = createSelector(() => builder.componentState.selected);
   const depthMargin = 12 * props.depth;

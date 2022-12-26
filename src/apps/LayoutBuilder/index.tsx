@@ -17,6 +17,7 @@ import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
 import { calculateDistances } from './snapping';
 import Toolbar, { Tools } from './Toolbar';
+import { isInside } from './utils';
 
 export const MIN_LAYER = 4;
 
@@ -50,6 +51,7 @@ interface ComponentState {
   displayBounds: XYPosition & Size;
   components: { [key: string]: ILayoutComponent };
   maxLayer: number;
+  selectedComponent: ILayoutComponent | undefined;
 }
 
 interface ToolState {
@@ -70,6 +72,9 @@ const LayoutBuilder = () => {
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
     components: {},
     maxLayer: MIN_LAYER,
+    get selectedComponent() {
+      return this.components[this.selected];
+    },
   });
 
   const updateParent = (childId: string, newParentId: string | undefined) => {
@@ -91,7 +96,7 @@ const LayoutBuilder = () => {
     setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
   };
 
-  const resolveChildren = (id: string, bounds: Bounds) => {
+  const areChildrenOutside = (id: string, bounds: Bounds) => {
     const childrenOfComponent = componentState.components[id].children;
 
     if (!childrenOfComponent.length) return;
@@ -115,7 +120,7 @@ const LayoutBuilder = () => {
     }
   };
 
-  const checkInsideParent = (id: string, bounds: Bounds) => {
+  const isOutsideParent = (id: string, bounds: Bounds) => {
     const parent = componentState.components[id].parent;
     if (!parent) return;
     if (parent) {
@@ -135,20 +140,9 @@ const LayoutBuilder = () => {
     }
   };
 
-  const isComponentInside = (innerId: string, outerId: string) => {
-    const inner = getComponent(innerId);
-    const outer = getComponent(outerId);
-    return (
-      outer.bounds.left <= inner.bounds.left &&
-      outer.bounds.top <= inner.bounds.top &&
-      outer.bounds.right >= inner.bounds.right &&
-      outer.bounds.bottom >= inner.bounds.bottom
-    );
-  };
-
   const updateTree = (updatedComponentId: string, bounds: Bounds) => {
-    checkInsideParent(updatedComponentId, bounds);
-    resolveChildren(updatedComponentId, bounds);
+    isOutsideParent(updatedComponentId, bounds);
+    areChildrenOutside(updatedComponentId, bounds);
     let currentMin = {
       x: 99999,
       y: 99999,
@@ -163,7 +157,7 @@ const LayoutBuilder = () => {
         y: component.bounds.top - bounds.top,
       };
       // Inside check. Are all sides of the selected/changed component inside the current component?
-      if (isComponentInside(updatedComponentId, component.id)) {
+      if (isInside(bounds, component.bounds)) {
         // Find the closest parent by distance
         if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
           currentMin.x = Math.abs(minDistance.x);
@@ -172,7 +166,7 @@ const LayoutBuilder = () => {
         }
       }
       // Outside check. Is the current component inside the selected/changed component?
-      if (isComponentInside(component.id, updatedComponentId)) {
+      if (isInside(component.bounds, bounds)) {
         // If component already has a parent, we don't need to change it's parent.
         // If there is no parent, the component is a "root" component that the selected/changed component is covering/surrounding.
         if (!component.parent) {
@@ -186,7 +180,7 @@ const LayoutBuilder = () => {
       // Move the covered children to be children on this component and remove them from the previous parent.
       for (const child of componentState.components[closestParent].children) {
         const childComponent = getComponent(child);
-        if (isComponentInside(child, updatedComponentId)) {
+        if (isInside(childComponent.bounds, bounds)) {
           if (childComponent.parent) {
             removeChild(childComponent.parent, child);
           }
@@ -209,25 +203,7 @@ const LayoutBuilder = () => {
 
   const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
     const currentBounds = getComponent(id).bounds;
-    let resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
-
-    const otherComponents = Object.values(componentState.components).filter(
-      (comp) => comp.id !== id && comp.parent === getComponent(id).parent
-    );
-
-    const alignDistance = calculateDistances(
-      currentBounds,
-      otherComponents.map((v) => v.bounds)
-    );
-    const xDiff = Math.abs(resolvedNewPos.x - currentBounds.left);
-    if (Math.abs(xDiff + alignDistance.xAlign - 4) < 4) {
-      resolvedNewPos.x = currentBounds.left + alignDistance.xAlign;
-    }
-
-    const yDiff = Math.abs(resolvedNewPos.y - currentBounds.top);
-    if (Math.abs(yDiff + alignDistance.yAlign - 4) < 4) {
-      resolvedNewPos.y = currentBounds.top + alignDistance.yAlign;
-    }
+    const resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
     updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
     setComponentState('components', id, (p) => ({
@@ -284,12 +260,6 @@ const LayoutBuilder = () => {
     }
   };
 
-  const getSelectedComponent = createMemo(() => {
-    if (componentState.selected) {
-      return componentState.components[componentState.selected];
-    }
-  });
-
   const getDrawable = (id: string) => {
     return DEFAULT_COMPONENTS.find((v) => v.id === id);
   };
@@ -323,7 +293,6 @@ const LayoutBuilder = () => {
     updateComponentSize,
     selectComponent,
     createNewComponent,
-    getSelectedComponent,
     getDrawable,
     clearSelection,
     layerControls: {
@@ -339,9 +308,9 @@ const LayoutBuilder = () => {
       <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
         <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
         <div class="flex items-start justify-evenly">
-          <Layers />
-          <LayoutCanvas />
-          <Preview />
+          <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
+          <LayoutCanvas components={componentState.components} selectedComponent={componentState.selectedComponent} />
+          <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
         </div>
         <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
           <For each={DEFAULT_COMPONENTS}>
@@ -362,7 +331,6 @@ interface BuilderContextValues {
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   selectComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
-  getSelectedComponent: Accessor<ILayoutComponent | undefined>;
   clearSelection: () => void;
   getDrawable: (id: string) =>
     | {
@@ -379,7 +347,7 @@ interface BuilderContextValues {
   };
 }
 
-export const useBuilderContext = () => {
+export const useBuilder = () => {
   const ctx = useContext(BuilderContext);
 
   if (!ctx) {
