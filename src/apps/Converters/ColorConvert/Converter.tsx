@@ -2,18 +2,9 @@ import { copyToClipboard, makeClipboard } from '@solid-primitives/clipboard';
 import { BiRegularX, BiSolidCheckCircle } from 'solid-icons/bi';
 import { Show, For, mergeProps, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
-import {
-  hsvaToRgba,
-  hsvaToHex,
-  hsvaToHsl,
-} from '~/components/ColorPicker/converters/hsvaConvert';
+import { hsvaToRgba, hsvaToHex, hsvaToHsl } from '~/components/ColorPicker/converters/hsvaConvert';
 import InfoCard from '~/components/InfoCard';
-import {
-  COLOR_FORMATS,
-  ColorFormat,
-  identifyFormat,
-  parseColor,
-} from '~/utils/colors';
+import { COLOR_FORMATS, ColorFormat, identifyFormat, parseColor } from '~/utils/colors';
 import ColorInput from './ColorInput';
 
 interface ColorConverterState {
@@ -46,6 +37,7 @@ const ColorConverter = (props: ColorConverterProps) => {
   };
 
   const formatColor = (format: ColorFormat, color: string) => {
+    if (color.length === 0) return '';
     const hsva = parseColor(color);
     const hasAlpha = format.endsWith('a') || format === 'hex';
 
@@ -73,8 +65,7 @@ const ColorConverter = (props: ColorConverterProps) => {
     }, 2000);
   };
 
-  const toFormats = () =>
-    COLOR_FORMATS.filter((val) => val !== state.activeFormat);
+  const toFormats = () => COLOR_FORMATS.filter((val) => val !== state.activeFormat);
 
   return (
     <div class="relative">
@@ -91,19 +82,12 @@ const ColorConverter = (props: ColorConverterProps) => {
                   classList={{
                     ['rounded-r-2']: index() === toFormats().length - 1,
                   }}
-                  onClick={() =>
-                    copyToClipboard(format, formatColor(format, state.value))
-                  }
+                  onClick={() => copyToClipboard(format, formatColor(format, state.value))}
                 >
                   <div class="flex justify-between">
-                    <h1 class="text-4 color-dark-3 uppercase w-fit">
-                      {format}
-                    </h1>
+                    <h1 class="text-4 color-dark-3 uppercase w-fit">{format}</h1>
                     <div class="text-3 font-bold color-dark-2">
-                      <Show
-                        when={copied() && copied() === format}
-                        fallback={<> COPY </>}
-                      >
+                      <Show when={copied() && copied() === format} fallback={<> COPY </>}>
                         <div class="flex items-center gap-1 color-green">
                           <BiSolidCheckCircle size={15} />
                           COPIED
