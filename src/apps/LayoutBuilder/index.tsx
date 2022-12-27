@@ -23,16 +23,24 @@ export interface ILayoutComponent {
   parent?: string;
 }
 
-const DEFAULT_COMPONENTS = [
+const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'>[] = [
   {
     id: createUniqueId(),
     name: 'Row',
     color: 'pink',
+    css: {
+      display: 'flex',
+      'flex-direction': 'row',
+    },
   },
   {
     id: createUniqueId(),
     name: 'Column',
     color: 'blue',
+    css: {
+      display: 'flex',
+      'flex-direction': 'column',
+    },
   },
 ];
 
@@ -322,13 +330,7 @@ interface BuilderContextValues {
   selectComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;
-  getDrawable: (id: string) =>
-    | {
-        id: string;
-        name: string;
-        color: string;
-      }
-    | undefined;
+  getDrawable: (id: string) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
   layerControls: {
     sendBackward: (id: string) => void;
     sendToBack: (id: string) => void;

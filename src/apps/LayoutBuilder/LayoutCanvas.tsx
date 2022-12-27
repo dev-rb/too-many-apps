@@ -83,6 +83,9 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         },
         color: drawable?.color,
         layer: props.selectedComponent ? props.selectedComponent!.layer + 1 : undefined,
+        css: {
+          ...drawable?.css,
+        },
       });
 
       builder.createNewComponent(newComp);

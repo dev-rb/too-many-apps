@@ -1,3 +1,4 @@
+import { JSX, Match, onMount, Switch } from 'solid-js';
 import { createSelector, createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '.';
@@ -5,7 +6,7 @@ import { ILayoutComponent, useBuilder } from '.';
 const views = [
   { name: 'Tree', view: () => TreeView },
   { name: 'HTML', view: () => HtmlView },
-  { name: 'CSS', view: () => HtmlView },
+  { name: 'CSS', view: () => CssView },
 ];
 
 interface PreviewProps {
@@ -44,22 +45,36 @@ const Preview = (props: PreviewProps) => {
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <Index each={Object.values(props.components).filter((v) => v.parent === undefined)}>
-          {(component) => (
-            <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
-              <Dynamic
-                component={views[activeView()].view()}
-                allLayers={props.components}
-                children={component().children}
-                id={component().id}
-                depth={0}
-                layerValue={component().layer}
-                name={component().name}
-                selectComponent={(id: string) => builder.selectComponent(id)}
-              />
-            </div>
-          )}
-        </Index>
+        <Switch>
+          <Match when={activeView() < 2}>
+            <Index each={Object.values(props.components).filter((v) => v.parent === undefined)}>
+              {(component) => (
+                <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
+                  <Dynamic
+                    component={views[activeView()].view()}
+                    allLayers={props.components}
+                    children={component().children}
+                    id={component().id}
+                    depth={0}
+                    layerValue={component().layer}
+                    name={component().name}
+                    selectComponent={(id: string) => builder.selectComponent(id)}
+                  />
+                </div>
+              )}
+            </Index>
+          </Match>
+          <Match when={activeView() === 2}>
+            <Index each={Object.values(props.components)}>
+              {(component) => (
+                <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
+                  <CssView {...component()} />
+                </div>
+              )}
+            </Index>
+          </Match>
+        </Switch>
+
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'</div>'} </p>
         </Show>
@@ -176,6 +191,47 @@ const HtmlView = (props: TreeViewProps) => {
         <p class="color-red-5 hover:bg-dark-4" onClick={() => props.selectComponent(props.id)}>
           {`</div>`}
         </p>
+      </div>
+    </div>
+  );
+};
+
+interface CssViewProps {
+  id: string;
+  name: string;
+  css?: JSX.CSSProperties;
+}
+
+const CssView = (props: CssViewProps) => {
+  const builder = useBuilder();
+  const isComponentActive = createSelector(() => builder.componentState.selected);
+  const resolvedCss = () => {
+    const entries = Object.entries(JSON.parse(JSON.stringify(props.css)));
+    let str = `#${props.id} {`;
+    for (const [key, val] of entries) {
+      str += `<p style="margin-left:12px;">${key}: ${val};</p>`;
+    }
+
+    str += '}';
+
+    return str;
+  };
+
+  return (
+    <div
+      class="flex flex-col relative"
+      // classList={{
+      //   [`before:(content-empty h-full absolute -left-1 top-0 w-[1px] border-l-dark-2 border-l-1)`]: props.depth > 0,
+      // }}
+    >
+      <div
+        class="flex flex-col cursor-pointer relative text-sm whitespace-nowrap rounded-sm"
+        classList={{
+          ['bg-dark-4']: isComponentActive(props.id),
+          [`bg-transparent`]: !isComponentActive(props.id),
+        }}
+      >
+        <div innerHTML={resolvedCss()}></div>
       </div>
     </div>
   );
