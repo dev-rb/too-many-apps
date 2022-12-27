@@ -66,6 +66,7 @@ export function createNewComponent(options: Partial<ILayoutComponent>): ILayoutC
     ...options,
     id: createUniqueId(),
     children: [],
+    layer: options.layer ?? defaults.layer,
   };
 }
 
