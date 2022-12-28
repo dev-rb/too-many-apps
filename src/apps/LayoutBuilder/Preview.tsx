@@ -1,4 +1,4 @@
-import { JSX, Match, onMount, Switch } from 'solid-js';
+import { createMemo, JSX, Match, onMount, Switch } from 'solid-js';
 import { createSelector, createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '.';
@@ -20,6 +20,10 @@ const Preview = (props: PreviewProps) => {
   const [activeView, setActiveView] = createSignal(0);
 
   const translateHighlight = () => `translate-x-${activeView() * 101}%`;
+
+  const noParentComponents = createMemo(() => {
+    return Object.values(props.components).filter((v) => v.parent === undefined);
+  });
 
   return (
     <div class="flex flex-col bg-dark-5 w-86 p-2 h-full mb-4">
@@ -47,7 +51,7 @@ const Preview = (props: PreviewProps) => {
         </Show>
         <Switch>
           <Match when={activeView() < 2}>
-            <Index each={Object.values(props.components).filter((v) => v.parent === undefined)}>
+            <Index each={noParentComponents()}>
               {(component) => (
                 <div class="flex flex-col " classList={{ ['ml-4']: activeView() === 1 }}>
                   <Dynamic
@@ -96,7 +100,7 @@ interface TreeViewProps {
 }
 
 const TreeView = (props: TreeViewProps) => {
-  const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]);
+  const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]).filter(Boolean);
   const builder = useBuilder();
   const isComponentActive = createSelector(() => builder.componentState.selected);
 
@@ -209,21 +213,16 @@ const CssView = (props: CssViewProps) => {
     const entries = Object.entries(JSON.parse(JSON.stringify(props.css)));
     let str = `#${props.id} {`;
     for (const [key, val] of entries) {
-      str += `<p style="margin-left:12px;">${key}: ${val};</p>`;
+      str += `\n    ${key}: ${val};`;
     }
 
-    str += '}';
+    str += '\n}';
 
     return str;
   };
 
   return (
-    <div
-      class="flex flex-col relative"
-      // classList={{
-      //   [`before:(content-empty h-full absolute -left-1 top-0 w-[1px] border-l-dark-2 border-l-1)`]: props.depth > 0,
-      // }}
-    >
+    <div class="flex flex-col relative">
       <div
         class="flex flex-col cursor-pointer relative text-sm whitespace-nowrap rounded-sm"
         classList={{
@@ -231,7 +230,7 @@ const CssView = (props: CssViewProps) => {
           [`bg-transparent`]: !isComponentActive(props.id),
         }}
       >
-        <div innerHTML={resolvedCss()}></div>
+        <div class="whitespace-pre-wrap">{resolvedCss()}</div>
       </div>
     </div>
   );

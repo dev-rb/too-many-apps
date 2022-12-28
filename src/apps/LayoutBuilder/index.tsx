@@ -1,5 +1,5 @@
 import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
@@ -8,6 +8,8 @@ import LayoutCanvas from './LayoutCanvas';
 import Layers from './Layers';
 import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
+import { MenuProvider } from '~/components/Menu/MenuProvider';
+import { Menu } from '~/components/Menu/Menu';
 
 export const MIN_LAYER = 4;
 
@@ -273,6 +275,28 @@ const LayoutBuilder = () => {
     setComponentState('selected', id);
   };
 
+  const deleteComponent = (id: string) => {
+    let newState = Object.fromEntries(
+      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== id)
+    );
+
+    const selfParent = componentState.components[id].parent;
+    const selfChildren = componentState.components[id].children;
+
+    if (selfParent) {
+      removeChild(selfParent, id);
+    }
+
+    for (const child of selfChildren) {
+      updateParent(child, selfParent);
+      if (selfParent) {
+        addChild(selfParent, child);
+      }
+    }
+
+    setComponentState('components', reconcile(newState));
+  };
+
   const clearSelection = () => setComponentState('selected', undefined);
 
   const isDrawItemActive = createSelector(() => toolState.drawItem);
@@ -290,6 +314,7 @@ const LayoutBuilder = () => {
     updateComponentPosition,
     updateComponentSize,
     selectComponent,
+    deleteComponent,
     createNewComponent,
     getDrawable,
     clearSelection,
@@ -302,21 +327,24 @@ const LayoutBuilder = () => {
   };
 
   return (
-    <BuilderContext.Provider value={contextValues}>
-      <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-        <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-        <div class="flex items-start justify-evenly">
-          <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
-          <LayoutCanvas components={componentState.components} selectedComponent={componentState.selectedComponent} />
-          <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+    <MenuProvider>
+      <BuilderContext.Provider value={contextValues}>
+        <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+          <Menu />
+          <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
+          <div class="flex items-start justify-evenly">
+            <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
+            <LayoutCanvas components={componentState.components} selectedComponent={componentState.selectedComponent} />
+            <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+          </div>
+          <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
+            <For each={DEFAULT_COMPONENTS}>
+              {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
+            </For>
+          </div>
         </div>
-        <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
-          <For each={DEFAULT_COMPONENTS}>
-            {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
-          </For>
-        </div>
-      </div>
-    </BuilderContext.Provider>
+      </BuilderContext.Provider>
+    </MenuProvider>
   );
 };
 
@@ -328,6 +356,7 @@ interface BuilderContextValues {
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   selectComponent: (id: string) => void;
+  deleteComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;
   getDrawable: (id: string) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
