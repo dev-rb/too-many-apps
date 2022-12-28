@@ -226,6 +226,10 @@ const LayoutBuilder = () => {
     }));
   };
 
+  const updateComponentName = (id: string, newName: string) => {
+    setComponentState('components', id, 'name', newName);
+  };
+
   const getComponentWithLayer = (layer: number) => {
     return Object.values(componentState.components).find((v) => v.layer === layer);
   };
@@ -313,6 +317,7 @@ const LayoutBuilder = () => {
     toolState,
     updateComponentPosition,
     updateComponentSize,
+    updateComponentName,
     selectComponent,
     deleteComponent,
     createNewComponent,
@@ -355,6 +360,7 @@ interface BuilderContextValues {
   toolState: ToolState;
   updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
+  updateComponentName: (id: string, newName: string) => void;
   selectComponent: (id: string) => void;
   deleteComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;

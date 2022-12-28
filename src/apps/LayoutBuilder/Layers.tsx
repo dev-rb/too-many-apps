@@ -6,7 +6,8 @@ import {
   BiSolidColor,
   BiSolidTrash,
 } from 'solid-icons/bi';
-import { createMemo, createSelector, createSignal, For } from 'solid-js';
+import { JSX } from 'solid-js';
+import { createMemo, createSelector, createSignal, For, Show } from 'solid-js';
 import { useMenu } from '~/components/Menu/MenuProvider';
 import { ILayoutComponent, useBuilder } from '.';
 
@@ -87,7 +88,11 @@ interface LayerProps {
 }
 
 const Layer = (props: LayerProps) => {
+  const [currentName, setCurrentName] = createSignal(props.name);
+  const [editName, setEditName] = createSignal(false);
+
   const [layerRef, setLayerRef] = createSignal<HTMLDivElement>();
+  const [inputRef, setInputRef] = createSignal<HTMLInputElement>();
   const builder = useBuilder();
   const menu = useMenu();
 
@@ -99,7 +104,16 @@ const Layer = (props: LayerProps) => {
           y: e.clientY,
         },
         options: [
-          { icon: BiRegularText, label: 'Rename', onClick() {} },
+          {
+            icon: BiRegularText,
+            label: 'Rename',
+            onClick() {
+              setEditName(true);
+              if (inputRef()) {
+                inputRef()!.focus();
+              }
+            },
+          },
           {
             icon: BiSolidTrash,
             label: 'Delete',
@@ -112,18 +126,41 @@ const Layer = (props: LayerProps) => {
     }
   };
 
+  const onNameChange: JSX.EventHandler<HTMLInputElement, Event> = (e) => {
+    setCurrentName(e.currentTarget.value);
+  };
+
+  const updateName = () => {
+    builder.updateComponentName(props.id, currentName());
+    setEditName(false);
+  };
+
+  const onLayerClick = () => {
+    setEditName(false);
+    props.selectLayer(props.id);
+  };
+
   return (
     <div
       ref={setLayerRef}
-      class="flex items-center justify-between p-2 rounded-sm relative cursor-pointer"
+      class="flex items-center justify-between p-2 rounded-sm relative cursor-pointer select-none"
       classList={{
         ['bg-blue-7 hover:bg-blue-6']: props.active,
         ['bg-dark-4 hover:bg-dark-4']: !props.active,
       }}
-      onClick={() => props.selectLayer(props.id)}
+      onClick={onLayerClick}
     >
       <div class="flex-col gap-1">
-        <p>{props.name}</p>
+        <Show when={editName()} fallback={<p>{currentName()}</p>}>
+          <input
+            ref={setInputRef}
+            class="appearance-none border-none bg-blue-8 outline-none rounded-sm p-1 color-white text-base"
+            value={currentName()}
+            onChange={onNameChange}
+            onBlur={updateName}
+          />
+        </Show>
+
         {/* <p class="text-sm">{props.layerValue}</p> */}
         <p class="text-xs"> {props.id} </p>
       </div>
