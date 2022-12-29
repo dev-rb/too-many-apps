@@ -1,14 +1,15 @@
 /* @refresh reload */
-import { HopeProvider } from '@hope-ui/solid';
 import { render } from 'solid-js/web';
 import App from './App';
 import 'uno.css';
 import initUnocssRuntime from '@unocss/runtime';
 import './index.css';
-import config from '../unocss.config';
+import presetWind from 'unocss/preset-wind';
 
 initUnocssRuntime({
-  defaults: config,
+  defaults: {
+    presets: [presetWind()],
+  },
 });
 
 function Index() {

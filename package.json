@@ -10,10 +10,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^18.11.9",
+    "@unocss/transformer-variant-group": "^v0.47.6",
     "eslint": "^8.30.0",
     "prettier": "^2.8.0",
     "typescript": "^4.8.2",
-    "unocss": "^0.47.6",
+    "unocss": "^v0.47.6",
     "vite": "^3.0.9",
     "vite-plugin-solid": "^2.3.0"
   },
@@ -22,6 +23,7 @@
     "@solid-primitives/clipboard": "^1.4.5",
     "@solidjs/router": "^0.5.1",
     "@stitches/core": "^1.2.8",
+    "@unocss/reset": "^v0.47.6",
     "@unocss/runtime": "^0.47.6",
     "solid-icons": "^1.0.4",
     "solid-js": "^1.5.1",
