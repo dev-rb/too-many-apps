@@ -10,6 +10,8 @@ import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
+import { HighlighterProvider } from './Highlighter/HighlighterProvider';
+import { Highlighter } from './Highlighter/Highlighter';
 
 export const MIN_LAYER = 4;
 
@@ -334,20 +336,31 @@ const LayoutBuilder = () => {
   return (
     <MenuProvider>
       <BuilderContext.Provider value={contextValues}>
-        <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-          <Menu />
-          <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-          <div class="flex items-start justify-evenly">
-            <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
-            <LayoutCanvas components={componentState.components} selectedComponent={componentState.selectedComponent} />
-            <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+        <HighlighterProvider>
+          <Highlighter />
+          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+            <Menu />
+            <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
+            <div class="flex items-start justify-evenly">
+              <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
+              <LayoutCanvas
+                components={componentState.components}
+                selectedComponent={componentState.selectedComponent}
+              />
+              <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+            </div>
+            <div
+              class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <For each={DEFAULT_COMPONENTS}>
+                {(comp) => (
+                  <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />
+                )}
+              </For>
+            </div>
           </div>
-          <div class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md">
-            <For each={DEFAULT_COMPONENTS}>
-              {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
-            </For>
-          </div>
-        </div>
+        </HighlighterProvider>
       </BuilderContext.Provider>
     </MenuProvider>
   );

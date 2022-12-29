@@ -63,13 +63,13 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const onDrawStart = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
     if (!isLeftClick(e)) return;
     if (builder.toolState.activeTool === 'pointer' && props.selectedComponent) {
       builder.clearSelection();
     }
     if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
+      e.preventDefault();
+      e.stopPropagation();
       setTransformOp('draw');
       const drawable = builder.getDrawable(builder.toolState.drawItem!);
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
