@@ -1,12 +1,7 @@
-import { mergeProps, Show, For, createMemo, createSignal, onMount } from 'solid-js';
-import { ILayoutComponent, useBuilder } from '.';
-import { useHighlighter } from './Highlighter/HighlighterProvider';
-
-//prettier-ignore
-const styleTypes = {
-  lines: (color: string = 'blue', opacity: number = 100) =>`bg-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
-  outline: (color: string = 'blue', opacity: number = 100) =>`bg-${color}/${opacity} border-${color}-4 border-1 color-${color}-6`,
-};
+import { mergeProps, Show, For, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
+import { ILayoutComponent, useBuilder } from '..';
+import { DebugInfo } from './DebugInfo';
+import { styleTypes } from './styles';
 
 interface LayoutComponentProps extends ILayoutComponent {
   selectElement: (id: string) => void;
@@ -18,13 +13,20 @@ interface LayoutComponentProps extends ILayoutComponent {
 
 const LayoutComponent = (props: LayoutComponentProps) => {
   props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
-  const [ref, setRef] = createSignal<HTMLDivElement>();
+
   const builder = useBuilder();
-  const highlighter = useHighlighter();
   const selectElement = () => props.selectElement(props.id);
+
+  const [shift, setShift] = createSignal(false);
+
   const onMouseDown = (e: MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (builder.toolState.activeTool === 'draw') return;
+    if (shift()) {
+      builder.unselectComponent(props.id);
+      return;
+    }
     selectElement();
     props.onDragStart(e);
   };
@@ -34,14 +36,15 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
 
   onMount(() => {
-    if (ref()) {
-      highlighter.observe(ref()!);
-    }
+    document.addEventListener('keydown', (e) => setShift(e.shiftKey));
+    document.addEventListener('keyup', (e) => setShift(false));
+    onCleanup(() => {
+      document.removeEventListener('keydown', (e) => setShift(e.shiftKey));
+    });
   });
 
   return (
     <div
-      ref={setRef}
       id={props.id}
       class={`${style()} flex items-center justify-center cursor-pointer select-none`}
       style={{
@@ -79,51 +82,3 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 };
 
 export default LayoutComponent;
-
-interface DebugInfoProps extends ILayoutComponent {
-  showSize: boolean;
-  showPositionPoints: boolean;
-  showId: boolean;
-  showHierarchy: boolean;
-}
-
-const DebugInfo = (props: DebugInfoProps) => {
-  return (
-    <>
-      <Show when={props.showPositionPoints}>
-        <div
-          class="w-2 h-2 bg-red-7 rounded-full absolute"
-          title="height"
-          style={{ top: props.size.height + 'px', left: 0 + 'px' }}
-        />
-        <div
-          class="w-2 h-2 bg-green-7 rounded-full absolute"
-          title="width"
-          style={{ top: 0 + 'px', left: props.size.width + 'px' }}
-        />
-        <div
-          class="w-4 h-4 bg-blue-7 rounded-full absolute"
-          title="x position"
-          style={{ top: 0 + 'px', left: props.bounds.left + 'px' }}
-        />
-      </Show>
-      <Show when={props.showSize}>
-        <div class="text-xl absolute top-50% left-50% -translate-x-50%  color-black w-full h-full">
-          Width: {props.size.width} {'\n'}
-          Height: {props.size.height}
-        </div>
-      </Show>
-      <Show when={props.showId}>
-        <div class="text-xl absolute bottom-0 right-0   color-black ">{props.id}</div>
-      </Show>
-      <Show when={props.showHierarchy}>
-        <div class="text-xl absolute top-50% left-50% -translate-x-50% -translate-y-50%  color-black w-full h-full">
-          <p>
-            Children: <For each={props.children}>{(child) => <>{child}</>}</For>
-          </p>
-          <p> Parent: {props.parent} </p>
-        </div>
-      </Show>
-    </>
-  );
-};

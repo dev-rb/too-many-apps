@@ -1,26 +1,16 @@
-import {
-  createContext,
-  createEffect,
-  createSelector,
-  createUniqueId,
-  For,
-  JSX,
-  mergeProps,
-  useContext,
-} from 'solid-js';
+import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
-import Preview from './Preview';
+import Preview from './Preview/Preview';
 import LayoutCanvas from './LayoutCanvas';
-import Layers from './Layers';
+import Layers from './Layers/Layers';
 import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
-import { HighlighterProvider } from './Highlighter/HighlighterProvider';
-import { Highlighter } from './Highlighter/Highlighter';
+import { Highlighter } from './Highlighter';
 
 export const MIN_LAYER = 4;
 
@@ -93,11 +83,12 @@ const LayoutBuilder = () => {
     },
   });
 
-  const updateParent = (childId: string, newParentId: string | undefined) => {
+  /** HIERARCHY  */
+  const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
     setComponentState('components', childId, 'parent', newParentId);
   };
 
-  const addChild = (parentId: string, childId: string) => {
+  const addChild = (parentId: ComponentID, childId: ComponentID) => {
     setComponentState('components', parentId, 'children', (p) => {
       // If the child already exists, we can skip adding it.
       if (p.includes(childId)) {
@@ -108,11 +99,11 @@ const LayoutBuilder = () => {
     });
   };
 
-  const removeChild = (parentId: string, childId: string) => {
+  const removeChild = (parentId: ComponentID, childId: ComponentID) => {
     setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
   };
 
-  const areChildrenOutside = (id: string, bounds: Bounds) => {
+  const areChildrenOutside = (id: ComponentID, bounds: Bounds) => {
     const childrenOfComponent = componentState.components[id].children;
 
     if (!childrenOfComponent.length) return;
@@ -136,7 +127,7 @@ const LayoutBuilder = () => {
     }
   };
 
-  const isOutsideParent = (id: string, bounds: Bounds) => {
+  const isOutsideParent = (id: ComponentID, bounds: Bounds) => {
     const parent = componentState.components[id].parent;
     if (!parent) return;
     if (parent) {
@@ -156,7 +147,7 @@ const LayoutBuilder = () => {
     }
   };
 
-  const updateTree = (updatedComponentId: string, bounds: Bounds) => {
+  const updateTree = (updatedComponentId: ComponentID, bounds: Bounds) => {
     isOutsideParent(updatedComponentId, bounds);
     areChildrenOutside(updatedComponentId, bounds);
     let currentMin = {
@@ -210,14 +201,18 @@ const LayoutBuilder = () => {
     }
   };
 
-  const getComponent = (id: string) => {
+  /** COMPONENT STATE  */
+  const getComponent = (id: ComponentID) => {
     if (!componentState.components.hasOwnProperty(id)) {
       throw new Error(`Component with id [${id}] does not exist in the component state.`);
     }
     return componentState.components[id];
   };
 
-  const updateComponentPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
+  const updateComponentPosition = (
+    id: ComponentID,
+    newPosition: XYPosition | ((previous: XYPosition) => XYPosition)
+  ) => {
     const currentBounds = getComponent(id).bounds;
     const resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
@@ -234,7 +229,7 @@ const LayoutBuilder = () => {
     }));
   };
 
-  const updateComponentSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
+  const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
     updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
@@ -242,25 +237,26 @@ const LayoutBuilder = () => {
     }));
   };
 
-  const updateComponentName = (id: string, newName: string) => {
+  const updateComponentName = (id: ComponentID, newName: ComponentID) => {
     setComponentState('components', id, 'name', newName);
   };
 
+  /** LAYERS  */
   const getComponentWithLayer = (layer: number) => {
     return Object.values(componentState.components).find((v) => v.layer === layer);
   };
 
-  const bringToFront = (id: string) => {
+  const bringToFront = (id: ComponentID) => {
     const currentMaxLayer = componentState.maxLayer;
     setComponentState('components', id, 'layer', currentMaxLayer + 1);
     setComponentState('maxLayer', currentMaxLayer + 1);
   };
 
-  const sendToBack = (id: string) => {
+  const sendToBack = (id: ComponentID) => {
     setComponentState('components', id, 'layer', MIN_LAYER - 1);
   };
 
-  const bringForward = (id: string) => {
+  const bringForward = (id: ComponentID) => {
     const current = getComponent(id);
     const oneAhead = getComponentWithLayer(current.layer + 1);
     // Swap layers with component that has layer one larger layer
@@ -270,7 +266,7 @@ const LayoutBuilder = () => {
     }
   };
 
-  const sendBackward = (id: string) => {
+  const sendBackward = (id: ComponentID) => {
     const current = getComponent(id);
     const oneBefore = getComponentWithLayer(current.layer - 1);
     // Swap layers with component that has layer one less
@@ -280,6 +276,7 @@ const LayoutBuilder = () => {
     }
   };
 
+  /** DRAWABLE  */
   const getDrawable = (id: DrawableID) => {
     return DEFAULT_COMPONENTS.find((v) => v.id === id);
   };
@@ -291,17 +288,43 @@ const LayoutBuilder = () => {
     }
   };
 
-  const selectComponent = (id: string) => {
+  const isDrawItemActive = createSelector(() => toolState.drawItem);
+
+  /** SELECTION
+   * @param ids - Id(s) for components to select
+   * @description
+   * When an array of ids is passed, they will be selected. They can not be all unselected.
+   *
+   * If single id is passed, if the component is already selected it will remove it from the selection.
+   * Otherwise, it will add it to the selection.
+   */
+  const toggleSelect = (ids: ComponentID | ComponentID[]) => {
+    if (Array.isArray(ids)) {
+      setComponentState('selected', ids);
+    } else {
+      setComponentState('selected', (p) => {
+        if (p.includes(ids)) {
+          return p.filter((v) => v !== ids);
+        }
+
+        return [...p, ids];
+      });
+    }
+  };
+
+  const selectComponent = (id: ComponentID) => {
     setComponentState('selected', (p) => [id]);
   };
 
-  const selectMultipleComponents = (ids: string[]) => {
+  const selectMultipleComponents = (ids: ComponentID[]) => {
     setComponentState('selected', ids);
   };
 
-  const unselectComponent = (id: string) => {};
+  const unselectComponent = (id: ComponentID) => {
+    setComponentState('selected', (p) => p.filter((selected) => selected !== id));
+  };
 
-  const deleteComponent = (id: string) => {
+  const deleteComponent = (id: ComponentID) => {
     let newState = Object.fromEntries(
       Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== id)
     );
@@ -325,8 +348,6 @@ const LayoutBuilder = () => {
 
   const clearSelection = () => setComponentState('selected', []);
 
-  const isDrawItemActive = createSelector(() => toolState.drawItem);
-
   const createNewComponent = (component: ILayoutComponent) => {
     setComponentState('components', (p) => ({
       ...p,
@@ -341,6 +362,7 @@ const LayoutBuilder = () => {
     updateComponentSize,
     updateComponentName,
     selectComponent,
+    unselectComponent,
     selectMultipleComponents,
     deleteComponent,
     createNewComponent,
@@ -357,31 +379,27 @@ const LayoutBuilder = () => {
   return (
     <MenuProvider>
       <BuilderContext.Provider value={contextValues}>
-        <HighlighterProvider>
-          <Highlighter />
-          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-            <Menu />
-            <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-            <div class="flex items-start justify-evenly">
-              <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
-              <LayoutCanvas
-                components={componentState.components}
-                selectedComponents={componentState.selectedComponent}
-              />
-              <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
-            </div>
-            <div
-              class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <For each={DEFAULT_COMPONENTS}>
-                {(comp) => (
-                  <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />
-                )}
-              </For>
-            </div>
+        <Highlighter />
+        <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+          <Menu />
+          <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
+          <div class="flex items-start justify-evenly">
+            <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
+            <LayoutCanvas
+              components={componentState.components}
+              selectedComponents={componentState.selectedComponent}
+            />
+            <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
           </div>
-        </HighlighterProvider>
+          <div
+            class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <For each={DEFAULT_COMPONENTS}>
+              {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
+            </For>
+          </div>
+        </div>
       </BuilderContext.Provider>
     </MenuProvider>
   );
@@ -392,20 +410,21 @@ export default LayoutBuilder;
 interface BuilderContextValues {
   componentState: ComponentState;
   toolState: ToolState;
-  updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
-  updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
-  updateComponentName: (id: string, newName: string) => void;
-  selectComponent: (id: string) => void;
-  selectMultipleComponents: (ids: string[]) => void;
-  deleteComponent: (id: string) => void;
+  updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+  updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
+  updateComponentName: (id: ComponentID, newName: ComponentID) => void;
+  selectComponent: (id: ComponentID) => void;
+  unselectComponent: (id: ComponentID) => void;
+  selectMultipleComponents: (ids: ComponentID[]) => void;
+  deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;
-  getDrawable: (id: string) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
+  getDrawable: (id: DrawableID) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
   layerControls: {
-    sendBackward: (id: string) => void;
-    sendToBack: (id: string) => void;
-    bringForward: (id: string) => void;
-    bringToFront: (id: string) => void;
+    sendBackward: (id: ComponentID) => void;
+    sendToBack: (id: ComponentID) => void;
+    bringForward: (id: ComponentID) => void;
+    bringToFront: (id: ComponentID) => void;
   };
 }
 

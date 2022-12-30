@@ -1,17 +1,21 @@
-import { createSignal, onCleanup, onMount, ParentComponent } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds } from '~/types';
-import { ILayoutComponent, useBuilder } from '..';
-import { calculateResize, isInside } from '../utils';
+import { useBuilder } from '.';
+import { calculateResize, isInside } from './utils';
 
 export const Highlighter = () => {
   const builder = useBuilder();
   const [ref, setRef] = createSignal<HTMLDivElement>();
 
-  const [position, setPosition] = createSignal(ZERO_POS);
-  const [size, setSize] = createSignal(ZERO_SIZE);
-  const [visible, setVisible] = createSignal(false);
+  const [selfState, setSelfState] = createStore({
+    visible: false,
+    position: ZERO_POS,
+    size: ZERO_SIZE,
+    offsetPosition: ZERO_POS,
+  });
+
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
 
   const [dragState, setDragState] = createStore({
@@ -25,7 +29,7 @@ export const Highlighter = () => {
     if (e.defaultPrevented) return;
     e.preventDefault();
     e.stopPropagation();
-    console.log('highlighter');
+
     setDragState({
       isDragging: true,
       startMousePos: {
@@ -33,16 +37,20 @@ export const Highlighter = () => {
         y: e.clientY,
       },
       startElPos: {
-        x: e.clientX - ref()!.getBoundingClientRect().left,
-        y: e.clientY - ref()!.getBoundingClientRect().top,
+        x: e.clientX - selfState.offsetPosition.x,
+        y: e.clientY - selfState.offsetPosition.y,
       },
       size: ZERO_SIZE,
     });
-    setPosition({
-      x: e.clientX - ref()!.getBoundingClientRect().left,
-      y: e.clientY - ref()!.getBoundingClientRect().top,
+
+    setSelfState({
+      visible: true,
+      position: {
+        x: e.clientX - selfState.offsetPosition.x,
+        y: e.clientY - selfState.offsetPosition.y,
+      },
     });
-    setVisible(true);
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
@@ -51,28 +59,29 @@ export const Highlighter = () => {
     e.stopPropagation();
     if (dragState.isDragging) {
       const newMousePos = { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y };
+
       const { updatedPos, updatedSize } = calculateResize(
         dragState.size,
         dragState.startElPos,
         newMousePos,
         'top-left'
       );
-      setPosition({ ...updatedPos });
-      setSize({ width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) });
-      const canvasRight = canvasBounds().width;
-      const canvasBottom = canvasBounds().height;
-      const selfRight = updatedPos.x - canvasBounds().x;
-      const selfBottom = updatedPos.y - canvasBounds().y;
+
+      setSelfState((p) => ({
+        ...p,
+        position: updatedPos,
+        size: { width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) },
+      }));
+
       const bounds: Bounds = {
         top: updatedPos.y - canvasBounds().y,
-        left: updatedPos.x - canvasBounds().x,
-        right: canvasBounds().x + (updatedPos.x - updatedSize.width),
-        bottom: canvasBounds().y + (updatedPos.y - updatedSize.height),
+        left: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x,
+        right: dragState.startMousePos.x + Math.abs(updatedSize.width) - canvasBounds().x,
+        bottom: dragState.startMousePos.y + Math.abs(updatedSize.height) - canvasBounds().y,
       };
+
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
-        console.log(comp.bounds, bounds);
         if (isInside(comp.bounds, bounds)) {
-          console.log('inside');
           acc.push(comp.id);
         }
         return acc;
@@ -89,9 +98,11 @@ export const Highlighter = () => {
       startElPos: ZERO_POS,
       size: ZERO_SIZE,
     });
-    setPosition(ZERO_POS);
-    setSize(ZERO_SIZE);
-    setVisible(false);
+    setSelfState({
+      position: ZERO_POS,
+      size: ZERO_SIZE,
+      visible: false,
+    });
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   };
@@ -101,13 +112,23 @@ export const Highlighter = () => {
   };
 
   onMount(() => {
-    const bounds = document.getElementById('canvas')!.getBoundingClientRect();
+    const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
+
     setCanvasBounds({
-      x: bounds.left,
-      y: bounds.top,
-      width: bounds.width,
-      height: bounds.height,
+      x: canvasBounds.left,
+      y: canvasBounds.top,
+      width: canvasBounds.width,
+      height: canvasBounds.height,
     });
+
+    if (ref()) {
+      const bounds = ref()!.getBoundingClientRect();
+      setSelfState('offsetPosition', {
+        x: bounds.left,
+        y: bounds.top,
+      });
+    }
+
     document.addEventListener('mousedown', onMouseDown);
 
     onCleanup(() => {
@@ -116,7 +137,7 @@ export const Highlighter = () => {
   });
 
   const translate = () => {
-    return `translate(${position().x}px, ${position().y}px)`;
+    return `translate(${selfState.position.x}px, ${selfState.position.y}px)`;
   };
 
   return (
@@ -124,12 +145,12 @@ export const Highlighter = () => {
       ref={setRef}
       class="bg-blue-7/40 border-blue-5 border-1 fixed"
       classList={{
-        'opacity-0': !visible(),
+        'opacity-0': !selfState.visible,
       }}
       style={{
         transform: translate(),
-        width: `${size().width}px`,
-        height: `${size().height}px`,
+        width: `${selfState.size.width}px`,
+        height: `${selfState.size.height}px`,
       }}
     ></div>
   );
