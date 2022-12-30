@@ -1,4 +1,4 @@
-import { mergeProps, Show, For, createMemo, createSignal, onMount } from 'solid-js';
+import { mergeProps, Show, For, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
 import { ILayoutComponent, useBuilder } from '.';
 import { useHighlighter } from './Highlighter/HighlighterProvider';
 
@@ -22,9 +22,17 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const builder = useBuilder();
   const highlighter = useHighlighter();
   const selectElement = () => props.selectElement(props.id);
+
+  const [shift, setShift] = createSignal(false);
+
   const onMouseDown = (e: MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (builder.toolState.activeTool === 'draw') return;
+    if (shift()) {
+      builder.unselectComponent(props.id);
+      return;
+    }
     selectElement();
     props.onDragStart(e);
   };
@@ -37,6 +45,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     if (ref()) {
       highlighter.observe(ref()!);
     }
+
+    document.addEventListener('keydown', (e) => setShift(e.shiftKey));
+    document.addEventListener('keyup', (e) => setShift(false));
+    onCleanup(() => {
+      document.removeEventListener('keydown', (e) => setShift(e.shiftKey));
+    });
   });
 
   return (

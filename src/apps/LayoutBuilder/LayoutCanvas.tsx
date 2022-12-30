@@ -211,6 +211,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     });
   });
 
+  createEffect(() => {
+    console.log(props.selectedComponents);
+  });
+
   createEffect(
     on(canvasRef, () => {
       if (canvasRef()) {

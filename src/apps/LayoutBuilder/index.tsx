@@ -299,7 +299,9 @@ const LayoutBuilder = () => {
     setComponentState('selected', ids);
   };
 
-  const unselectComponent = (id: string) => {};
+  const unselectComponent = (id: string) => {
+    setComponentState('selected', (p) => p.filter((selected) => selected !== id));
+  };
 
   const deleteComponent = (id: string) => {
     let newState = Object.fromEntries(
@@ -341,6 +343,7 @@ const LayoutBuilder = () => {
     updateComponentSize,
     updateComponentName,
     selectComponent,
+    unselectComponent,
     selectMultipleComponents,
     deleteComponent,
     createNewComponent,
@@ -396,6 +399,7 @@ interface BuilderContextValues {
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: string, newName: string) => void;
   selectComponent: (id: string) => void;
+  unselectComponent: (id: string) => void;
   selectMultipleComponents: (ids: string[]) => void;
   deleteComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
