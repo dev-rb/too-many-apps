@@ -83,6 +83,7 @@ const LayoutBuilder = () => {
     },
   });
 
+  /** HIERARCHY  */
   const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
     setComponentState('components', childId, 'parent', newParentId);
   };
@@ -200,6 +201,7 @@ const LayoutBuilder = () => {
     }
   };
 
+  /** COMPONENT STATE  */
   const getComponent = (id: ComponentID) => {
     if (!componentState.components.hasOwnProperty(id)) {
       throw new Error(`Component with id [${id}] does not exist in the component state.`);
@@ -239,6 +241,7 @@ const LayoutBuilder = () => {
     setComponentState('components', id, 'name', newName);
   };
 
+  /** LAYERS  */
   const getComponentWithLayer = (layer: number) => {
     return Object.values(componentState.components).find((v) => v.layer === layer);
   };
@@ -273,6 +276,7 @@ const LayoutBuilder = () => {
     }
   };
 
+  /** DRAWABLE  */
   const getDrawable = (id: DrawableID) => {
     return DEFAULT_COMPONENTS.find((v) => v.id === id);
   };
@@ -281,6 +285,30 @@ const LayoutBuilder = () => {
     const selected = DEFAULT_COMPONENTS.find((v) => v.id === id);
     if (selected) {
       setToolState('drawItem', selected.id);
+    }
+  };
+
+  const isDrawItemActive = createSelector(() => toolState.drawItem);
+
+  /** SELECTION
+   * @param ids - Id(s) for components to select
+   * @description
+   * When an array of ids is passed, they will be selected. They can not be all unselected.
+   *
+   * If single id is passed, if the component is already selected it will remove it from the selection.
+   * Otherwise, it will add it to the selection.
+   */
+  const toggleSelect = (ids: ComponentID | ComponentID[]) => {
+    if (Array.isArray(ids)) {
+      setComponentState('selected', ids);
+    } else {
+      setComponentState('selected', (p) => {
+        if (p.includes(ids)) {
+          return p.filter((v) => v !== ids);
+        }
+
+        return [...p, ids];
+      });
     }
   };
 
@@ -319,8 +347,6 @@ const LayoutBuilder = () => {
   };
 
   const clearSelection = () => setComponentState('selected', []);
-
-  const isDrawItemActive = createSelector(() => toolState.drawItem);
 
   const createNewComponent = (component: ILayoutComponent) => {
     setComponentState('components', (p) => ({
