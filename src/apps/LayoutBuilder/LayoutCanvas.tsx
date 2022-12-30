@@ -145,8 +145,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const onDrag = (e: MouseEvent) => {
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
+
     if (transformState.isTransforming && !Array.isArray(selected)) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
+
       const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
@@ -239,10 +241,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <div id="canvas" ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDrawStart}>
-        {/* <div
-          class="absolute bg-violet-7 w-4 h-4 rounded-full"
-          style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
-        /> */}
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent

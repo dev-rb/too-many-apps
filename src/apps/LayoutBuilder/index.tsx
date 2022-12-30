@@ -384,21 +384,21 @@ export default LayoutBuilder;
 interface BuilderContextValues {
   componentState: ComponentState;
   toolState: ToolState;
-  updateComponentPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
-  updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
-  updateComponentName: (id: string, newName: string) => void;
-  selectComponent: (id: string) => void;
-  unselectComponent: (id: string) => void;
-  selectMultipleComponents: (ids: string[]) => void;
-  deleteComponent: (id: string) => void;
+  updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+  updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
+  updateComponentName: (id: ComponentID, newName: ComponentID) => void;
+  selectComponent: (id: ComponentID) => void;
+  unselectComponent: (id: ComponentID) => void;
+  selectMultipleComponents: (ids: ComponentID[]) => void;
+  deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;
-  getDrawable: (id: string) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
+  getDrawable: (id: DrawableID) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
   layerControls: {
-    sendBackward: (id: string) => void;
-    sendToBack: (id: string) => void;
-    bringForward: (id: string) => void;
-    bringToFront: (id: string) => void;
+    sendBackward: (id: ComponentID) => void;
+    sendToBack: (id: ComponentID) => void;
+    bringForward: (id: ComponentID) => void;
+    bringToFront: (id: ComponentID) => void;
   };
 }
 
