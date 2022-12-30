@@ -59,15 +59,21 @@ export const Highlighter = () => {
       );
       setPosition({ ...updatedPos });
       setSize({ width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) });
-      const canvasRight = canvasBounds().width;
-      const canvasBottom = canvasBounds().height;
-      const selfRight = updatedPos.x - canvasBounds().x;
-      const selfBottom = updatedPos.y - canvasBounds().y;
+      const canvasRight = canvasBounds().x + canvasBounds().width;
+      const canvasBottom = canvasBounds().y + canvasBounds().height;
+      const selfRight = e.clientX - canvasBounds().x;
+      const selfBottom = e.clientY - canvasBounds().y;
+      // const bounds: Bounds = {
+      //   top: dragState.startMousePos.y - canvasBounds().y,
+      //   left: dragState.startMousePos.x - canvasBounds().x,
+      //   right: e.clientX - canvasRight,
+      //   bottom: e.clientY - canvasBottom,
+      // };
       const bounds: Bounds = {
         top: updatedPos.y - canvasBounds().y,
         left: updatedPos.x - canvasBounds().x,
-        right: canvasBounds().x + (updatedPos.x - updatedSize.width),
-        bottom: canvasBounds().y + (updatedPos.y - updatedSize.height),
+        right: selfRight + Math.abs(updatedSize.width),
+        bottom: selfBottom + Math.abs(updatedSize.height),
       };
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
         console.log(comp.bounds, bounds);
@@ -102,6 +108,7 @@ export const Highlighter = () => {
 
   onMount(() => {
     const bounds = document.getElementById('canvas')!.getBoundingClientRect();
+    console.log(bounds);
     setCanvasBounds({
       x: bounds.left,
       y: bounds.top,
