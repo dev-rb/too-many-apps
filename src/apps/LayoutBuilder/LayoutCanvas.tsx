@@ -12,7 +12,7 @@ export type TransformOp = 'draw' | 'resize' | 'drag';
 
 interface LayoutCanvasProps {
   components: { [key: string]: ILayoutComponent };
-  selectedComponent: ILayoutComponent | undefined;
+  selectedComponents: ILayoutComponent[];
 }
 
 const LayoutCanvas = (props: LayoutCanvasProps) => {
@@ -39,9 +39,9 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     e.stopPropagation();
     if (!isLeftClick(e)) return;
 
-    const selected = props.selectedComponent;
+    const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
 
-    if (selected) {
+    if (!Array.isArray(selected)) {
       setTransformOp('resize');
       let currentElementPosition = { x: selected.bounds.left, y: selected.bounds.top };
 
@@ -59,46 +59,51 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           activeHandle: handle,
         });
       }
+    } else {
     }
   };
 
   const onDrawStart = (e: MouseEvent) => {
     if (!isLeftClick(e)) return;
-    if (builder.toolState.activeTool === 'pointer' && props.selectedComponent) {
+    if (builder.toolState.activeTool === 'pointer' && props.selectedComponents) {
       builder.clearSelection();
     }
     if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
       e.preventDefault();
       e.stopPropagation();
       setTransformOp('draw');
+      const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
       const drawable = builder.getDrawable(builder.toolState.drawItem!);
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const newComp = createNewComponent({
-        name: drawable?.name,
-        bounds: {
-          top: mousePos.y,
-          left: mousePos.x,
-          right: mousePos.x,
-          bottom: mousePos.y,
-        },
-        color: drawable?.color,
-        layer: props.selectedComponent ? props.selectedComponent!.layer + 1 : undefined,
-        css: {
-          ...drawable?.css,
-        },
-      });
+      if (!Array.isArray(selected)) {
+        builder.clearSelection();
+        const newComp = createNewComponent({
+          name: drawable?.name,
+          bounds: {
+            top: mousePos.y,
+            left: mousePos.x,
+            right: mousePos.x,
+            bottom: mousePos.y,
+          },
+          color: drawable?.color,
+          layer: selected ? selected!.layer + 1 : undefined,
+          css: {
+            ...drawable?.css,
+          },
+        });
 
-      builder.createNewComponent(newComp);
-      builder.selectComponent(newComp.id);
-      setTransformState({
-        isTransforming: true,
-        startMousePos: {
-          x: e.clientX,
-          y: e.clientY,
-        },
-        startElPos: mousePos,
-        startSize: ZERO_SIZE,
-      });
+        builder.createNewComponent(newComp);
+        builder.selectComponent(newComp.id);
+        setTransformState({
+          isTransforming: true,
+          startMousePos: {
+            x: e.clientX,
+            y: e.clientY,
+          },
+          startElPos: mousePos,
+          startSize: ZERO_SIZE,
+        });
+      }
     }
   };
 
@@ -107,8 +112,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     e.stopPropagation();
     if (!isLeftClick(e)) return;
 
-    const selected = props.selectedComponent;
-    if (builder.toolState.activeTool === 'pointer' && selected) {
+    const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
+    if (builder.toolState.activeTool === 'pointer' && !Array.isArray(selected)) {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
@@ -139,8 +144,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const onDrag = (e: MouseEvent) => {
-    const selected = props.selectedComponent;
-    if (transformState.isTransforming && selected) {
+    const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
+    if (transformState.isTransforming && !Array.isArray(selected)) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
       const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
 
@@ -229,7 +234,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         </div>
       </div>
       {/* Display */}
-      <div ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDrawStart}>
+      <div id="canvas" ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDrawStart}>
         {/* <div
           class="absolute bg-violet-7 w-4 h-4 rounded-full"
           style={{ top: canvasBounds().y + 'px', left: canvasBounds().x + 'px' }}
@@ -238,7 +243,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           {(comp) => (
             <LayoutComponent
               {...comp}
-              active={builder.componentState.selected === comp.id}
+              active={builder.componentState.selected?.includes(comp.id)}
               selectElement={builder.selectComponent}
               variant="outline"
               onResizeStart={onResizeStart}

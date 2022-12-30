@@ -11,7 +11,7 @@ const views = [
 
 interface PreviewProps {
   components: { [key: string]: ILayoutComponent };
-  selectedComponent: ILayoutComponent | undefined;
+  selectedComponent: ILayoutComponent[];
 }
 
 const Preview = (props: PreviewProps) => {
@@ -102,7 +102,7 @@ interface TreeViewProps {
 const TreeView = (props: TreeViewProps) => {
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]).filter(Boolean);
   const builder = useBuilder();
-  const isComponentActive = createSelector(() => builder.componentState.selected);
+  const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
 
   const depthMargin = 12 * props.depth;
 
@@ -151,7 +151,7 @@ const TreeView = (props: TreeViewProps) => {
 const HtmlView = (props: TreeViewProps) => {
   const builder = useBuilder();
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]);
-  const isComponentActive = createSelector(() => builder.componentState.selected);
+  const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
   const depthMargin = 12 * props.depth;
   return (
     <div
@@ -208,7 +208,7 @@ interface CssViewProps {
 
 const CssView = (props: CssViewProps) => {
   const builder = useBuilder();
-  const isComponentActive = createSelector(() => builder.componentState.selected);
+  const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
   const resolvedCss = () => {
     const entries = Object.entries(JSON.parse(JSON.stringify(props.css)));
     let str = `#${props.id} {`;

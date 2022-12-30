@@ -1,17 +1,18 @@
 import { createSignal, onCleanup, onMount, ParentComponent } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import { calculateResize } from '../utils';
-import { useHighlighter } from './HighlighterProvider';
+import { Bounds } from '~/types';
+import { ILayoutComponent, useBuilder } from '..';
+import { calculateResize, isInside } from '../utils';
 
 export const Highlighter = () => {
-  const highlighter = useHighlighter();
-
+  const builder = useBuilder();
   const [ref, setRef] = createSignal<HTMLDivElement>();
 
   const [position, setPosition] = createSignal(ZERO_POS);
   const [size, setSize] = createSignal(ZERO_SIZE);
   const [visible, setVisible] = createSignal(false);
+  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
 
   const [dragState, setDragState] = createStore({
     isDragging: false,
@@ -49,14 +50,35 @@ export const Highlighter = () => {
   const onMouseMove = (e: MouseEvent) => {
     e.stopPropagation();
     if (dragState.isDragging) {
+      const newMousePos = { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y };
       const { updatedPos, updatedSize } = calculateResize(
         dragState.size,
         dragState.startElPos,
-        { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y },
-        'bottom-right'
+        newMousePos,
+        'top-left'
       );
       setPosition({ ...updatedPos });
       setSize({ width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) });
+      const canvasRight = canvasBounds().width;
+      const canvasBottom = canvasBounds().height;
+      const selfRight = updatedPos.x - canvasBounds().x;
+      const selfBottom = updatedPos.y - canvasBounds().y;
+      const bounds: Bounds = {
+        top: updatedPos.y - canvasBounds().y,
+        left: updatedPos.x - canvasBounds().x,
+        right: canvasBounds().x + (updatedPos.x - updatedSize.width),
+        bottom: canvasBounds().y + (updatedPos.y - updatedSize.height),
+      };
+      const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
+        console.log(comp.bounds, bounds);
+        if (isInside(comp.bounds, bounds)) {
+          console.log('inside');
+          acc.push(comp.id);
+        }
+        return acc;
+      }, [] as string[]);
+
+      builder.selectMultipleComponents(insideComponents);
     }
   };
 
@@ -79,10 +101,13 @@ export const Highlighter = () => {
   };
 
   onMount(() => {
-    if (ref()) {
-      highlighter.createObserver(ref()!);
-    }
-
+    const bounds = document.getElementById('canvas')!.getBoundingClientRect();
+    setCanvasBounds({
+      x: bounds.left,
+      y: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+    });
     document.addEventListener('mousedown', onMouseDown);
 
     onCleanup(() => {

@@ -1,5 +1,6 @@
-import { mergeProps, Show, For, createMemo } from 'solid-js';
+import { mergeProps, Show, For, createMemo, createSignal, onMount } from 'solid-js';
 import { ILayoutComponent, useBuilder } from '.';
+import { useHighlighter } from './Highlighter/HighlighterProvider';
 
 //prettier-ignore
 const styleTypes = {
@@ -17,9 +18,12 @@ interface LayoutComponentProps extends ILayoutComponent {
 
 const LayoutComponent = (props: LayoutComponentProps) => {
   props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
+  const [ref, setRef] = createSignal<HTMLDivElement>();
   const builder = useBuilder();
+  const highlighter = useHighlighter();
   const selectElement = () => props.selectElement(props.id);
   const onMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
     if (builder.toolState.activeTool === 'draw') return;
     selectElement();
     props.onDragStart(e);
@@ -29,8 +33,15 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
 
+  onMount(() => {
+    if (ref()) {
+      highlighter.observe(ref()!);
+    }
+  });
+
   return (
     <div
+      ref={setRef}
       id={props.id}
       class={`${style()} flex items-center justify-center cursor-pointer select-none`}
       style={{

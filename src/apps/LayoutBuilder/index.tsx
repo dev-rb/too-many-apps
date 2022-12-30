@@ -1,4 +1,13 @@
-import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
+import {
+  createContext,
+  createEffect,
+  createSelector,
+  createUniqueId,
+  For,
+  JSX,
+  mergeProps,
+  useContext,
+} from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
@@ -15,8 +24,11 @@ import { Highlighter } from './Highlighter/Highlighter';
 
 export const MIN_LAYER = 4;
 
+type ComponentID = string;
+type DrawableID = string;
+
 export interface ILayoutComponent {
-  id: string;
+  id: ComponentID;
   name: string;
   color?: string;
   bounds: Bounds;
@@ -49,16 +61,16 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
 ];
 
 interface ComponentState {
-  selected: string | undefined;
+  selected: ComponentID[];
   displayBounds: XYPosition & Size;
-  components: { [key: string]: ILayoutComponent };
+  components: { [key: ComponentID]: ILayoutComponent };
   maxLayer: number;
-  selectedComponent: ILayoutComponent | undefined;
+  selectedComponent: ILayoutComponent[];
 }
 
 interface ToolState {
   activeTool: Tools;
-  drawItem: string | undefined;
+  drawItem: DrawableID | undefined;
 }
 
 const BuilderContext = createContext();
@@ -70,12 +82,14 @@ const LayoutBuilder = () => {
   });
 
   const [componentState, setComponentState] = createStore<ComponentState>({
-    selected: undefined,
+    selected: [],
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
     components: {},
     maxLayer: MIN_LAYER,
     get selectedComponent() {
-      return this.components[this.selected];
+      return (Object.values(this.components) as ILayoutComponent[]).filter((comp: ILayoutComponent) =>
+        this.selected.includes(comp.id)
+      );
     },
   });
 
@@ -266,11 +280,11 @@ const LayoutBuilder = () => {
     }
   };
 
-  const getDrawable = (id: string) => {
+  const getDrawable = (id: DrawableID) => {
     return DEFAULT_COMPONENTS.find((v) => v.id === id);
   };
 
-  const selectDrawItem = (id: string) => {
+  const selectDrawItem = (id: DrawableID) => {
     const selected = DEFAULT_COMPONENTS.find((v) => v.id === id);
     if (selected) {
       setToolState('drawItem', selected.id);
@@ -278,8 +292,14 @@ const LayoutBuilder = () => {
   };
 
   const selectComponent = (id: string) => {
-    setComponentState('selected', id);
+    setComponentState('selected', (p) => [id]);
   };
+
+  const selectMultipleComponents = (ids: string[]) => {
+    setComponentState('selected', ids);
+  };
+
+  const unselectComponent = (id: string) => {};
 
   const deleteComponent = (id: string) => {
     let newState = Object.fromEntries(
@@ -303,7 +323,7 @@ const LayoutBuilder = () => {
     setComponentState('components', reconcile(newState));
   };
 
-  const clearSelection = () => setComponentState('selected', undefined);
+  const clearSelection = () => setComponentState('selected', []);
 
   const isDrawItemActive = createSelector(() => toolState.drawItem);
 
@@ -321,6 +341,7 @@ const LayoutBuilder = () => {
     updateComponentSize,
     updateComponentName,
     selectComponent,
+    selectMultipleComponents,
     deleteComponent,
     createNewComponent,
     getDrawable,
@@ -342,10 +363,10 @@ const LayoutBuilder = () => {
             <Menu />
             <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
             <div class="flex items-start justify-evenly">
-              <Layers components={componentState.components} selectedComponent={componentState.selectedComponent} />
+              <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
               <LayoutCanvas
                 components={componentState.components}
-                selectedComponent={componentState.selectedComponent}
+                selectedComponents={componentState.selectedComponent}
               />
               <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
             </div>
@@ -375,6 +396,7 @@ interface BuilderContextValues {
   updateComponentSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: string, newName: string) => void;
   selectComponent: (id: string) => void;
+  selectMultipleComponents: (ids: string[]) => void;
   deleteComponent: (id: string) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;

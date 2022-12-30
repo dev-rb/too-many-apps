@@ -13,26 +13,26 @@ import { ILayoutComponent, useBuilder } from '.';
 
 interface LayersProps {
   components: { [key: string]: ILayoutComponent };
-  selectedComponent: ILayoutComponent | undefined;
+  selectedComponents: ILayoutComponent[];
 }
 
 const Layers = (props: LayersProps) => {
   const builder = useBuilder();
 
   const sendBackward = () => {
-    if (props.selectedComponent) {
-      builder.layerControls.sendBackward(props.selectedComponent.id);
+    if (props.selectedComponents?.length === 1) {
+      builder.layerControls.sendBackward(props.selectedComponents[0].id);
     }
   };
 
   const bringForward = () => {
-    if (props.selectedComponent) {
-      builder.layerControls.bringForward(props.selectedComponent.id);
+    if (props.selectedComponents) {
+      builder.layerControls.bringForward(props.selectedComponents[0].id);
     }
   };
 
-  const isComponentActive = createSelector(() => props.selectedComponent?.id);
-  const anySelected = () => props.selectedComponent;
+  const isComponentActive = (id: string) => builder.componentState.selected?.includes(id);
+  const anySelected = () => props.selectedComponents;
 
   const sortedComponents = createMemo(() => Object.values(props.components).sort((a, b) => b.layer - a.layer));
 
