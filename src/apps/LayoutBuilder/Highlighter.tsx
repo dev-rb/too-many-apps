@@ -2,8 +2,8 @@ import { createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds } from '~/types';
-import { useBuilder } from '..';
-import { calculateResize, isInside } from '../utils';
+import { useBuilder } from '.';
+import { calculateResize, isInside } from './utils';
 
 export const Highlighter = () => {
   const builder = useBuilder();

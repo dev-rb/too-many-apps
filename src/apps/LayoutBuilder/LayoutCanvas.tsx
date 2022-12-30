@@ -4,7 +4,7 @@ import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '.';
-import LayoutComponent from './Component';
+import LayoutComponent from './LayoutComponent/LayoutComponent';
 import { calculateDistances } from './snapping';
 import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
 
