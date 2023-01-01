@@ -15,6 +15,14 @@ interface LayoutCanvasProps {
   selectedComponents: ILayoutComponent[];
 }
 
+interface TransformState {
+  startMousePos: XYPosition | XYPosition[];
+  startElPos: XYPosition;
+  startSize: Size;
+  isTransforming: boolean;
+  activeHandle: string;
+}
+
 const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<HTMLDivElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
@@ -24,7 +32,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [ctrl, setCtrl] = createSignal(false);
 
-  const [transformState, setTransformState] = createStore({
+  const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
     startElPos: ZERO_POS,
     startSize: ZERO_SIZE,
@@ -123,6 +131,18 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           y: e.clientY - selected.bounds.top,
         },
       });
+    } else if (builder.toolState.activeTool === 'pointer' && Array.isArray(selected)) {
+      setTransformOp('drag');
+      setTransformState({
+        isTransforming: true,
+
+        startMousePos: [
+          ...selected.map((comp) => ({
+            x: e.clientX - comp.bounds.left,
+            y: e.clientY - comp.bounds.top,
+          })),
+        ],
+      });
     }
   };
 
@@ -146,12 +166,15 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   const onDrag = (e: MouseEvent) => {
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
 
-    if (transformState.isTransforming && !Array.isArray(selected)) {
+    if (transformState.isTransforming) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
 
-      const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-
-      if (transformOp() === 'draw' || transformOp() === 'resize') {
+      if (
+        (transformOp() === 'draw' || transformOp() === 'resize') &&
+        !Array.isArray(selected) &&
+        !Array.isArray(startMousePos)
+      ) {
+        const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
         builder.updateComponentPosition(selected.id, updatedPos);
@@ -160,10 +183,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           const restrictedSize = restrictSize(updatedPos, updatedSize, p);
           return { width: restrictedSize.width, height: restrictedSize.height };
         });
-      } else if (transformOp() === 'drag' && selected) {
+      } else if (transformOp() === 'drag' && selected && !Array.isArray(selected) && !Array.isArray(startMousePos)) {
         let newPos = {
-          x: clamp(e.clientX - transformState.startMousePos.x, 0, canvasBounds().width - selected.size.width),
-          y: clamp(e.clientY - transformState.startMousePos.y, 0, canvasBounds().height - selected.size.height),
+          x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selected.size.width),
+          y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selected.size.height),
         };
 
         const currentBounds = selected.bounds;
@@ -183,6 +206,32 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           newPos.y = currentBounds.top + alignDistance.yAlign;
         }
         builder.updateComponentPosition(selected.id, newPos);
+      } else if (transformOp() === 'drag' && selected && Array.isArray(selected) && Array.isArray(startMousePos)) {
+        for (let i = 0; i < selected.length; i++) {
+          const comp = selected[i];
+          let newPos = {
+            x: clamp(e.clientX - startMousePos[i].x, 0, canvasBounds().width - comp.size.width),
+            y: clamp(e.clientY - startMousePos[i].y, 0, canvasBounds().height - comp.size.height),
+          };
+
+          const currentBounds = comp.bounds;
+          const otherComponents = Object.values(props.components).filter((comp) => comp.id !== comp.id);
+
+          const alignDistance = calculateDistances(
+            currentBounds,
+            otherComponents.map((v) => v.bounds)
+          );
+          const xDiff = Math.abs(newPos.x - currentBounds.left);
+          if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
+            newPos.x = currentBounds.left + alignDistance.xAlign;
+          }
+
+          const yDiff = Math.abs(newPos.y - currentBounds.top);
+          if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
+            newPos.y = currentBounds.top + alignDistance.yAlign;
+          }
+          builder.updateComponentPosition(comp.id, newPos);
+        }
       }
     }
   };
