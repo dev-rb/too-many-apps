@@ -9,6 +9,7 @@ interface LayoutComponentProps extends ILayoutComponent {
   variant: keyof typeof styleTypes;
   onResizeStart: (e: MouseEvent) => void;
   onDragStart: (e: MouseEvent) => void;
+  passThrough: boolean;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
@@ -19,12 +20,13 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const [shift, setShift] = createSignal(false);
 
-  const onMouseDown = (e: MouseEvent) => {
+  const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
-    e.stopPropagation();
+
     if (builder.toolState.activeTool === 'draw') return;
+    e.stopPropagation();
     if (shift()) {
-      builder.unselectComponent(props.id);
+      builder.toggleSelect(props.id);
       return;
     }
     selectElement();
@@ -36,25 +38,38 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
 
   onMount(() => {
-    document.addEventListener('keydown', (e) => setShift(e.shiftKey));
-    document.addEventListener('keyup', (e) => setShift(false));
+    document.addEventListener('keydown', (e) => {
+      if (e.shiftKey) {
+        setShift(e.shiftKey);
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift') {
+        setShift(false);
+      }
+    });
     onCleanup(() => {
-      document.removeEventListener('keydown', (e) => setShift(e.shiftKey));
+      document.removeEventListener('keydown', (e) => {
+        if (e.shiftKey) {
+          setShift(e.shiftKey);
+        }
+      });
     });
   });
 
   return (
     <div
       id={props.id}
-      class={`${style()} flex items-center justify-center cursor-pointer select-none`}
+      class={`${style()} flex items-center justify-center cursor-pointer select-none hover:border-${props.color}-8/60`}
       style={{
         position: 'absolute',
         transform: `translate(${props.bounds.left}px, ${props.bounds.top}px)`,
         width: `${props.size!.width}px`,
         height: `${props.size!.height}px`,
         'z-index': props.layer,
+        'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
       }}
-      onMouseDown={onMouseDown}
+      onPointerDown={onPointerDown}
     >
       <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
 
