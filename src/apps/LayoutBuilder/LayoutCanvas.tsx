@@ -22,6 +22,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
 
+  const [ctrl, setCtrl] = createSignal(false);
+
   const [transformState, setTransformState] = createStore({
     startMousePos: ZERO_POS,
     startElPos: ZERO_POS,
@@ -203,16 +205,22 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   onMount(() => {
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', onMouseUp);
-    onCleanup(() => {
-      document.removeEventListener('mousemove', onDrag);
-      document.removeEventListener('mouseup', onMouseUp);
+    document.addEventListener('pointermove', onDrag);
+    document.addEventListener('pointerup', onMouseUp);
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey) {
+        setCtrl(true);
+      }
     });
-  });
-
-  createEffect(() => {
-    console.log(props.selectedComponents);
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Control') {
+        setCtrl(false);
+      }
+    });
+    onCleanup(() => {
+      document.removeEventListener('pointermove', onDrag);
+      document.removeEventListener('pointerup', onMouseUp);
+    });
   });
 
   createEffect(
@@ -238,7 +246,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         </div>
       </div>
       {/* Display */}
-      <div id="canvas" ref={setCanvasRef} class="bg-white w-full h-full " onMouseDown={onDrawStart}>
+      <div id="canvas" ref={setCanvasRef} class="bg-white w-full h-full " onPointerDown={onDrawStart}>
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent
@@ -248,6 +256,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
               variant="outline"
               onResizeStart={onResizeStart}
               onDragStart={onDragStart}
+              passThrough={ctrl()}
             />
           )}
         </For>
