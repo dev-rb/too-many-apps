@@ -24,7 +24,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     e.stopPropagation();
     if (builder.toolState.activeTool === 'draw') return;
     if (shift()) {
-      builder.unselectComponent(props.id);
+      builder.toggleSelect(props.id);
       return;
     }
     selectElement();

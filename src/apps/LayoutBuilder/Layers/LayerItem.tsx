@@ -85,7 +85,7 @@ const Layer = (props: LayerProps) => {
           />
         </Show>
 
-        {/* <p class="text-sm">{props.layerValue}</p> */}
+        <p class="text-sm">{props.layerValue}</p>
         <p class="text-xs"> {props.id} </p>
       </div>
       <button

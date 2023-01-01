@@ -75,35 +75,33 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
       const drawable = builder.getDrawable(builder.toolState.drawItem!);
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      if (!Array.isArray(selected)) {
-        builder.clearSelection();
-        const newComp = createNewComponent({
-          name: drawable?.name,
-          bounds: {
-            top: mousePos.y,
-            left: mousePos.x,
-            right: mousePos.x,
-            bottom: mousePos.y,
-          },
-          color: drawable?.color,
-          layer: selected ? selected!.layer + 1 : undefined,
-          css: {
-            ...drawable?.css,
-          },
-        });
+      builder.clearSelection();
+      const newComp = createNewComponent({
+        name: drawable?.name,
+        bounds: {
+          top: mousePos.y,
+          left: mousePos.x,
+          right: mousePos.x,
+          bottom: mousePos.y,
+        },
+        layer: builder.componentState.maxLayer + 1,
+        color: drawable?.color,
+        css: {
+          ...drawable?.css,
+        },
+      });
 
-        builder.createNewComponent(newComp);
-        builder.selectComponent(newComp.id);
-        setTransformState({
-          isTransforming: true,
-          startMousePos: {
-            x: e.clientX,
-            y: e.clientY,
-          },
-          startElPos: mousePos,
-          startSize: ZERO_SIZE,
-        });
-      }
+      builder.createNewComponent(newComp);
+      builder.selectComponent(newComp.id);
+      setTransformState({
+        isTransforming: true,
+        startMousePos: {
+          x: e.clientX,
+          y: e.clientY,
+        },
+        startElPos: mousePos,
+        startSize: ZERO_SIZE,
+      });
     }
   };
 

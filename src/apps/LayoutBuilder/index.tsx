@@ -290,7 +290,9 @@ const LayoutBuilder = () => {
 
   const isDrawItemActive = createSelector(() => toolState.drawItem);
 
-  /** SELECTION
+  /** SELECTION */
+
+  /**
    * @param ids - Id(s) for components to select
    * @description
    * When an array of ids is passed, they will be selected. They can not be all unselected.
@@ -349,6 +351,7 @@ const LayoutBuilder = () => {
   const clearSelection = () => setComponentState('selected', []);
 
   const createNewComponent = (component: ILayoutComponent) => {
+    setComponentState('maxLayer', component.layer);
     setComponentState('components', (p) => ({
       ...p,
       [component.id]: { ...component },
@@ -361,6 +364,7 @@ const LayoutBuilder = () => {
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
+    toggleSelect,
     selectComponent,
     unselectComponent,
     selectMultipleComponents,
@@ -413,6 +417,7 @@ interface BuilderContextValues {
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: ComponentID, newName: ComponentID) => void;
+  toggleSelect: (ids: ComponentID | ComponentID[]) => void;
   selectComponent: (id: ComponentID) => void;
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
