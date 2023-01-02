@@ -1,4 +1,4 @@
-import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
+import { batch, createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
@@ -454,12 +454,11 @@ interface ComponentDisplayProps {
 const ComponentDisplay = (props: ComponentDisplayProps) => {
   props = mergeProps({ color: 'white' }, props);
 
-  const getBackgroundStyles = () =>
-    `bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50`;
-
   return (
     <div
-      class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none w-24 h-10 ${
+      class={`comp-lined-${
+        props.color
+      }-30 flex items-center rounded-sm  justify-center cursor-pointer select-none w-24 h-10 ${
         props.active ? 'ring-blue-7 ring-4' : ''
       }`}
       onClick={(e) => {

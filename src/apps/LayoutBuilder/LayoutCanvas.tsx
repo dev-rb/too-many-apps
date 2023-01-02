@@ -25,10 +25,12 @@ interface TransformState {
 
 const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
+  const [selectionRef, setSelectionRef] = createSignal<SVGGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
+  const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
 
   const [ctrl, setCtrl] = createSignal(false);
 
@@ -77,6 +79,11 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (!isLeftClick(e)) return;
     if (builder.toolState.activeTool === 'pointer' && props.selectedComponents) {
       builder.clearSelection();
+      if (selectionRef()) {
+        for (const child of Array.from(selectionRef()!.children)) {
+          canvasRef()!.appendChild(child);
+        }
+      }
     }
     if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
       e.preventDefault();
@@ -136,12 +143,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformState({
         isTransforming: true,
 
-        startMousePos: [
-          ...selected.map((comp) => ({
-            x: e.clientX - comp.bounds.left,
-            y: e.clientY - comp.bounds.top,
-          })),
-        ],
+        startMousePos: {
+          x: e.clientX - selectionPosition().x,
+          y: e.clientY - selectionPosition().y,
+        },
       });
     }
   };
@@ -206,32 +211,37 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           newPos.y = currentBounds.top + alignDistance.yAlign;
         }
         builder.updateComponentPosition(selected.id, newPos);
-      } else if (transformOp() === 'drag' && selected && Array.isArray(selected) && Array.isArray(startMousePos)) {
-        for (let i = 0; i < selected.length; i++) {
-          const comp = selected[i];
-          let newPos = {
-            x: clamp(e.clientX - startMousePos[i].x, 0, canvasBounds().width - comp.size.width),
-            y: clamp(e.clientY - startMousePos[i].y, 0, canvasBounds().height - comp.size.height),
-          };
+      } else if (transformOp() === 'drag' && selected && Array.isArray(selected) && !Array.isArray(startMousePos)) {
+        let newPos = {
+          x: e.clientX - startMousePos.x,
+          y: e.clientY - startMousePos.y,
+        };
+        setSelectionPosition({ ...newPos });
+        // for (let i = 0; i < selected.length; i++) {
+        //   const comp = selected[i];
+        //   let newPos = {
+        //     x: clamp(e.clientX - startMousePos[i].x, 0, canvasBounds().width - comp.size.width),
+        //     y: clamp(e.clientY - startMousePos[i].y, 0, canvasBounds().height - comp.size.height),
+        //   };
 
-          const currentBounds = comp.bounds;
-          const otherComponents = Object.values(props.components).filter((comp) => comp.id !== comp.id);
+        //   const currentBounds = comp.bounds;
+        //   const otherComponents = Object.values(props.components).filter((comp) => comp.id !== comp.id);
 
-          const alignDistance = calculateDistances(
-            currentBounds,
-            otherComponents.map((v) => v.bounds)
-          );
-          const xDiff = Math.abs(newPos.x - currentBounds.left);
-          if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
-            newPos.x = currentBounds.left + alignDistance.xAlign;
-          }
+        //   const alignDistance = calculateDistances(
+        //     currentBounds,
+        //     otherComponents.map((v) => v.bounds)
+        //   );
+        //   const xDiff = Math.abs(newPos.x - currentBounds.left);
+        //   if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
+        //     newPos.x = currentBounds.left + alignDistance.xAlign;
+        //   }
 
-          const yDiff = Math.abs(newPos.y - currentBounds.top);
-          if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
-            newPos.y = currentBounds.top + alignDistance.yAlign;
-          }
-          builder.updateComponentPosition(comp.id, newPos);
-        }
+        //   const yDiff = Math.abs(newPos.y - currentBounds.top);
+        //   if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
+        //     newPos.y = currentBounds.top + alignDistance.yAlign;
+        //   }
+        //   builder.updateComponentPosition(comp.id, newPos);
+        // }
       }
     }
   };
@@ -241,6 +251,17 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       isTransforming: false,
     });
     setTransformOp('draw');
+  };
+
+  const selectElement = (id: string) => {
+    builder.selectComponent(id);
+    if (selectionRef()) {
+      const element = canvasRef()!.getElementById(id);
+      if (element) {
+        selectionRef()!.appendChild(element);
+        // canvasRef()!.removeChild(element);
+      }
+    }
   };
 
   const setUpCanvasBounds = () => {
@@ -296,12 +317,15 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
+        <svg width="100%" height="100%" x={selectionPosition().x} y={selectionPosition().y}>
+          <g ref={setSelectionRef} style={{ outline: '1px solid red' }}></g>
+        </svg>
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent
               {...comp}
               active={builder.componentState.selected?.includes(comp.id)}
-              selectElement={builder.selectComponent}
+              selectElement={selectElement}
               variant="outline"
               onResizeStart={onResizeStart}
               onDragStart={onDragStart}

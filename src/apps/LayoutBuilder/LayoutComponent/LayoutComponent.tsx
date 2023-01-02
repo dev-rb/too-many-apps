@@ -35,10 +35,6 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     props.onDragStart(e);
   };
 
-  const colorOpacity = createMemo(() => (props.active ? 40 : 30));
-
-  const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
-
   onMount(() => {
     document.addEventListener('keydown', (e) => {
       if (e.shiftKey) {
@@ -61,20 +57,19 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   return (
     <g
-      class="w-fit h-fit"
+      id={props.id}
+      class="w-fit h-fit cursor-pointer select-none"
       style={{
         transform: `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`,
         'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
+        'will-change': 'transform',
       }}
       onPointerDown={onPointerDown}
     >
       {/* <svg class="w-fit h-fit" style={{ display: 'block', overflow: 'visible' }}> */}
       <g>
         <rect
-          id={props.id}
-          class={`${style()} flex items-center justify-center cursor-pointer select-none hover:border-${
-            props.color
-          }-8/60`}
+          class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
           x={0}
           y={0}
           width={`${props.size!.width}`}
@@ -104,28 +99,28 @@ const LayoutComponent = (props: LayoutComponentProps) => {
             cx={0}
             cy={0}
             r={6}
-            class={`fill-${props.color}-5/40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
+            class={`comp-handle-${props.color}-40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
             onPointerDown={props.onResizeStart}
           />
           <circle
             cx={props.size.width}
             cy={0}
             r={6}
-            class={`fill-${props.color}-5/40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
+            class={`comp-handle-${props.color}-40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
             onPointerDown={props.onResizeStart}
           />
           <circle
             cx={0}
             cy={props.size.height}
             r={6}
-            class={`fill-${props.color}-5/40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
+            class={`comp-handle-${props.color}-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
             onPointerDown={props.onResizeStart}
           />
           <circle
             cx={props.size.width}
             cy={props.size.height}
             r={6}
-            class={`fill-${props.color}-5/40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
+            class={`comp-handle-${props.color}-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
             onPointerDown={props.onResizeStart}
           />
         </Show>
