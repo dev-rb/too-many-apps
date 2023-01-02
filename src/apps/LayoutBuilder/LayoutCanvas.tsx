@@ -24,7 +24,7 @@ interface TransformState {
 }
 
 const LayoutCanvas = (props: LayoutCanvasProps) => {
-  const [canvasRef, setCanvasRef] = createSignal<HTMLDivElement>();
+  const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
 
@@ -295,7 +295,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         </div>
       </div>
       {/* Display */}
-      <div id="canvas" ref={setCanvasRef} class="bg-white w-full h-full " onPointerDown={onDrawStart}>
+      <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent
@@ -309,7 +309,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
             />
           )}
         </For>
-      </div>
+      </svg>
     </div>
   );
 };

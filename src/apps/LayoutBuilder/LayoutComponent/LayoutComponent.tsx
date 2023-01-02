@@ -60,41 +60,78 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   });
 
   return (
-    <div
-      id={props.id}
-      class={`${style()} flex items-center justify-center cursor-pointer select-none hover:border-${props.color}-8/60`}
+    <g
+      class="w-fit h-fit"
       style={{
-        position: 'absolute',
         transform: `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`,
-        width: `${props.size!.width}px`,
-        height: `${props.size!.height}px`,
-        'z-index': props.layer,
         'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
       }}
       onPointerDown={onPointerDown}
     >
-      <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
-
-      <Show when={props.active}>
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onPointerDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -right-1.5 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onPointerDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -left-1.5 cursor-sw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onPointerDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -right-1.5 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onPointerDown={props.onResizeStart}
-        />
-      </Show>
-      <p class="font-400 "> {props.name} </p>
-    </div>
+      {/* <svg class="w-fit h-fit" style={{ display: 'block', overflow: 'visible' }}> */}
+      <g>
+        <rect
+          id={props.id}
+          class={`${style()} flex items-center justify-center cursor-pointer select-none hover:border-${
+            props.color
+          }-8/60`}
+          x={0}
+          y={0}
+          width={`${props.size!.width}`}
+          height={`${props.size!.height}`}
+          // style={{
+          //   position: 'absolute',
+          //   transform: `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`,
+          //   width: `${props.size!.width}px`,
+          //   height: `${props.size!.height}px`,
+          //   'z-index': props.layer,
+          //   'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
+          // }}
+        >
+          {/* <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} /> */}
+        </rect>
+        <text
+          class={`font-400 fill-${props.color}-6`}
+          x={props.size.width / 2}
+          y={props.size.height / 2}
+          text-anchor="middle"
+          dominant-baseline="central"
+        >
+          {props.name}
+        </text>
+        <Show when={props.active}>
+          <circle
+            cx={0}
+            cy={0}
+            r={6}
+            class={`fill-${props.color}-5/40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
+            onPointerDown={props.onResizeStart}
+          />
+          <circle
+            cx={props.size.width}
+            cy={0}
+            r={6}
+            class={`fill-${props.color}-5/40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
+            onPointerDown={props.onResizeStart}
+          />
+          <circle
+            cx={0}
+            cy={props.size.height}
+            r={6}
+            class={`fill-${props.color}-5/40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
+            onPointerDown={props.onResizeStart}
+          />
+          <circle
+            cx={props.size.width}
+            cy={props.size.height}
+            r={6}
+            class={`fill-${props.color}-5/40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
+            onPointerDown={props.onResizeStart}
+          />
+        </Show>
+      </g>
+      {/* </svg> */}
+    </g>
   );
 };
 
