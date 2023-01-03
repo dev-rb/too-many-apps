@@ -55,12 +55,18 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     });
   });
 
+  const translate = () => {
+    return !props.active
+      ? `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`
+      : 'translate3d(0px, 0px, 0px)';
+  };
+
   return (
     <g
       id={props.id}
       class="w-fit h-fit cursor-pointer select-none"
       style={{
-        transform: `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`,
+        transform: translate(),
         'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
         'will-change': 'transform',
       }}
@@ -94,7 +100,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         >
           {props.name}
         </text>
-        <Show when={props.active}>
+        {/* <Show when={props.active}>
           <circle
             cx={0}
             cy={0}
@@ -123,7 +129,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
             class={`comp-handle-${props.color}-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
             onPointerDown={props.onResizeStart}
           />
-        </Show>
+        </Show> */}
       </g>
       {/* </svg> */}
     </g>

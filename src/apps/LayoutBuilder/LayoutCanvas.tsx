@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, on, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
@@ -6,7 +6,7 @@ import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '.';
 import LayoutComponent from './LayoutComponent/LayoutComponent';
 import { calculateDistances } from './snapping';
-import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
+import { calculateResize, closestCorner, createNewComponent, isLeftClick, screenToSVG } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -16,7 +16,7 @@ interface LayoutCanvasProps {
 }
 
 interface TransformState {
-  startMousePos: XYPosition | XYPosition[];
+  startMousePos: XYPosition;
   startElPos: XYPosition;
   startSize: Size;
   isTransforming: boolean;
@@ -31,6 +31,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
+  const [selectionSize, setSelectionSize] = createSignal(ZERO_SIZE, { equals: false });
 
   const [ctrl, setCtrl] = createSignal(false);
 
@@ -81,7 +82,9 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       builder.clearSelection();
       if (selectionRef()) {
         for (const child of Array.from(selectionRef()!.children)) {
-          canvasRef()!.appendChild(child);
+          if (child.id) {
+            canvasRef()!.appendChild(child);
+          }
         }
       }
     }
@@ -108,6 +111,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         },
       });
 
+      setSelectionPosition({ ...screenToSVG(mousePos.x, mousePos.y, canvasRef()!) });
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);
       setTransformState({
@@ -128,24 +132,14 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (!isLeftClick(e)) return;
 
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
-    if (builder.toolState.activeTool === 'pointer' && !Array.isArray(selected)) {
+    if (builder.toolState.activeTool === 'pointer' && selected) {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
 
         startMousePos: {
-          x: e.clientX - selected.bounds.left,
-          y: e.clientY - selected.bounds.top,
-        },
-      });
-    } else if (builder.toolState.activeTool === 'pointer' && Array.isArray(selected)) {
-      setTransformOp('drag');
-      setTransformState({
-        isTransforming: true,
-
-        startMousePos: {
-          x: e.clientX - selectionPosition().x,
-          y: e.clientY - selectionPosition().y,
+          x: e.clientX - (selectionRef()?.getBoundingClientRect().x ?? 0),
+          y: e.clientY - (selectionRef()?.getBoundingClientRect().y ?? 0),
         },
       });
     }
@@ -182,20 +176,30 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
         const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
+        setSelectionPosition({ ...updatedPos });
         builder.updateComponentPosition(selected.id, updatedPos);
 
         builder.updateComponentSize(selected.id, (p) => {
           const restrictedSize = restrictSize(updatedPos, updatedSize, p);
+          setSelectionSize({ ...restrictedSize });
           return { width: restrictedSize.width, height: restrictedSize.height };
         });
-      } else if (transformOp() === 'drag' && selected && !Array.isArray(selected) && !Array.isArray(startMousePos)) {
+      } else if (transformOp() === 'drag' && selected) {
+        let newPoint = screenToSVG(e.clientX - startMousePos.x, e.clientY - startMousePos.y, canvasRef()!);
         let newPos = {
-          x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selected.size.width),
-          y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selected.size.height),
+          x: clamp(newPoint.x, 0, canvasBounds().width - selectionSize().width),
+          y: clamp(newPoint.y, 0, canvasBounds().height - selectionSize().height),
         };
 
-        const currentBounds = selected.bounds;
-        const otherComponents = Object.values(props.components).filter((comp) => comp.id !== selected.id);
+        const currentBounds = {
+          left: selectionPosition().x,
+          top: selectionPosition().y,
+          bottom: selectionPosition().y + selectionSize().height,
+          right: selectionPosition().x + selectionSize().width,
+        };
+        const otherComponents = Object.values(props.components).filter((comp) =>
+          Array.isArray(selected) ? selected.includes(comp) : selected.id !== comp.id
+        );
 
         const alignDistance = calculateDistances(
           currentBounds,
@@ -210,38 +214,15 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
           newPos.y = currentBounds.top + alignDistance.yAlign;
         }
-        builder.updateComponentPosition(selected.id, newPos);
-      } else if (transformOp() === 'drag' && selected && Array.isArray(selected) && !Array.isArray(startMousePos)) {
-        let newPos = {
-          x: e.clientX - startMousePos.x,
-          y: e.clientY - startMousePos.y,
-        };
-        setSelectionPosition({ ...newPos });
-        // for (let i = 0; i < selected.length; i++) {
-        //   const comp = selected[i];
-        //   let newPos = {
-        //     x: clamp(e.clientX - startMousePos[i].x, 0, canvasBounds().width - comp.size.width),
-        //     y: clamp(e.clientY - startMousePos[i].y, 0, canvasBounds().height - comp.size.height),
-        //   };
 
-        //   const currentBounds = comp.bounds;
-        //   const otherComponents = Object.values(props.components).filter((comp) => comp.id !== comp.id);
-
-        //   const alignDistance = calculateDistances(
-        //     currentBounds,
-        //     otherComponents.map((v) => v.bounds)
-        //   );
-        //   const xDiff = Math.abs(newPos.x - currentBounds.left);
-        //   if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
-        //     newPos.x = currentBounds.left + alignDistance.xAlign;
-        //   }
-
-        //   const yDiff = Math.abs(newPos.y - currentBounds.top);
-        //   if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
-        //     newPos.y = currentBounds.top + alignDistance.yAlign;
-        //   }
-        //   builder.updateComponentPosition(comp.id, newPos);
-        // }
+        setSelectionPosition(newPos);
+        if (Array.isArray(selected)) {
+          for (const comp of selected) {
+            builder.updateComponentPosition(comp.id, newPos);
+          }
+        } else {
+          builder.updateComponentPosition(selected.id, newPos);
+        }
       }
     }
   };
@@ -255,14 +236,67 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const selectElement = (id: string) => {
     builder.selectComponent(id);
-    if (selectionRef()) {
-      const element = canvasRef()!.getElementById(id);
-      if (element) {
-        selectionRef()!.appendChild(element);
-        // canvasRef()!.removeChild(element);
-      }
-    }
   };
+
+  createEffect(
+    on(
+      () => props.selectedComponents,
+      (newSelection, oldSelection) => {
+        if (selectionRef()) {
+          const selected = newSelection.length > 1 ? newSelection : newSelection[0];
+          if (Array.isArray(selected)) {
+            const newBounds = selected.reduce(
+              (acc, curr) => {
+                if (curr.bounds.left < acc.x) {
+                  acc.x = curr.bounds.left;
+                }
+
+                if (curr.bounds.top < acc.y) {
+                  acc.y = curr.bounds.top;
+                }
+
+                if (curr.size.width > acc.width) {
+                  acc.width = curr.size.width;
+                }
+
+                if (curr.size.height > acc.height) {
+                  acc.height = curr.size.height;
+                }
+
+                return acc;
+              },
+              { ...selectionPosition(), ...ZERO_SIZE }
+            );
+            setSelectionPosition({ x: newBounds.x, y: newBounds.y });
+            setSelectionSize({ width: newBounds.width, height: newBounds.height });
+          } else if (selected && !Array.isArray(selected)) {
+            setSelectionPosition({ x: selected.bounds.left, y: selected.bounds.top });
+            setSelectionSize({ width: selected.size.width, height: selected.size.height });
+          }
+          for (const comp of newSelection) {
+            const id = comp.id;
+            const canvasElement = canvasRef()!.getElementById(id);
+            if (canvasElement) {
+              selectionRef()!.appendChild(canvasElement);
+            }
+          }
+
+          if (oldSelection) {
+            for (const comp of oldSelection) {
+              const id = comp.id;
+
+              if (!newSelection.find((v) => v.id === id)) {
+                const selectionElement = selectionRef()!.querySelector(`#${id}`);
+                if (selectionElement) {
+                  canvasRef()?.appendChild(selectionElement);
+                }
+              }
+            }
+          }
+        }
+      }
+    )
+  );
 
   const setUpCanvasBounds = () => {
     const bounds = canvasRef()!.getBoundingClientRect();
@@ -317,9 +351,49 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <svg width="100%" height="100%" x={selectionPosition().x} y={selectionPosition().y}>
-          <g ref={setSelectionRef} style={{ outline: '1px solid red' }}></g>
-        </svg>
+        <g ref={setSelectionRef} transform={`translate(${selectionPosition().x} ${selectionPosition().y})`}>
+          <g>
+            <Show when={props.selectedComponents.length}>
+              <rect
+                x={0}
+                y={0}
+                width={selectionSize().width}
+                height={selectionSize().height}
+                class="outline-blue-6 outline-1 outline-solid"
+                fill="none"
+              />
+              <circle
+                cx={0}
+                cy={0}
+                r={6}
+                class={`comp-handle-blue-40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={selectionSize().width}
+                cy={0}
+                r={6}
+                class={`comp-handle-blue-40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={0}
+                cy={selectionSize().height}
+                r={6}
+                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={selectionSize().width}
+                cy={selectionSize().height}
+                r={6}
+                class={`comp-handle-blue-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
+                onPointerDown={onResizeStart}
+              />
+            </Show>
+          </g>
+        </g>
+
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent

@@ -112,3 +112,28 @@ export function isInside(innerBounds: Bounds, outerBounds: Bounds) {
     outerBounds.bottom >= innerBounds.bottom
   );
 }
+
+export function screenToSVG(x: number, y: number, svg: SVGSVGElement) {
+  const point = svg.createSVGPoint();
+  point.x = x;
+  point.y = y;
+  return point.matrixTransform(svg.getScreenCTM()?.inverse());
+}
+
+export function screenBoundsToSVG(bounds: Bounds, svg: SVGSVGElement) {
+  let topLeft = screenToSVG(bounds.left, bounds.top, svg);
+
+  let bottomRight = screenToSVG(bounds.right, bounds.bottom, svg);
+
+  return topLeft && bottomRight
+    ? ({ top: topLeft.y, left: topLeft.x, bottom: bottomRight.y, right: bottomRight.x } as Bounds)
+    : bounds;
+}
+
+export function svgToScreen(x: number, y: number, svg: SVGSVGElement) {
+  const point = svg.createSVGPoint();
+  point.x = x;
+  point.y = y;
+
+  return point.matrixTransform(svg.getScreenCTM()!);
+}
