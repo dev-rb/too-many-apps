@@ -247,36 +247,33 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           if (Array.isArray(selected)) {
             const newBounds = selected.reduce(
               (acc, curr) => {
-                if (curr.bounds.left < acc.x) {
-                  acc.x = curr.bounds.left;
+                const currentBounds = document.getElementById(curr.id)!.getBoundingClientRect();
+                if (currentBounds.left - canvasBounds().x < acc.x) {
+                  acc.x = currentBounds.left - canvasBounds().x;
                 }
 
-                if (curr.bounds.top < acc.y) {
-                  console.log(curr.bounds.top, acc.y);
-                  acc.y = curr.bounds.top;
+                if (currentBounds.top - canvasBounds().y < acc.y) {
+                  acc.y = currentBounds.top - canvasBounds().y;
                 }
 
-                if (curr.bounds.right > acc.width) {
-                  acc.width = curr.bounds.right;
+                if (currentBounds.right - canvasBounds().x > acc.width) {
+                  acc.width = currentBounds.right - canvasBounds().x - acc.x;
                 }
 
-                if (curr.bounds.bottom > acc.height) {
-                  acc.height = curr.bounds.bottom;
+                if (currentBounds.bottom - canvasBounds().y > acc.height) {
+                  acc.height = currentBounds.bottom - canvasBounds().y - acc.y;
                 }
 
                 return acc;
               },
-              { x: Number.MAX_SAFE_INTEGER, y: canvasBounds().height, ...ZERO_SIZE }
+              { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, ...ZERO_SIZE }
             );
-
             for (const comp of selected) {
-              console.log(comp.bounds.left, newBounds.x, {
-                x: comp.bounds.left - newBounds.x,
-                y: comp.bounds.top - newBounds.y,
-              });
+              const currentBounds = document.getElementById(comp.id)!.getBoundingClientRect();
+
               builder.updateComponentPosition(comp.id, (p) => ({
-                x: p.x - newBounds.x,
-                y: p.y - newBounds.y,
+                x: currentBounds.left - newBounds.x - canvasBounds().x,
+                y: currentBounds.top - newBounds.y - canvasBounds().y,
               }));
             }
 

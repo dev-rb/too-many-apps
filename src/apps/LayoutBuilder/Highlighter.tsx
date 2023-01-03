@@ -81,6 +81,13 @@ export const Highlighter = () => {
       };
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
+        let compBounds = comp.bounds;
+        if (builder.componentState.selected.includes(comp.id)) {
+          // compBounds = {
+          //   ...compBounds,
+          //   left:
+          // }
+        }
         if (isInside(comp.bounds, bounds)) {
           acc.push(comp.id);
         }
