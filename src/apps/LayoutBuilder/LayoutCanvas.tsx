@@ -92,10 +92,12 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       e.preventDefault();
       e.stopPropagation();
       setTransformOp('draw');
-      const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
+
       const drawable = builder.getDrawable(builder.toolState.drawItem!);
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
+
       builder.clearSelection();
+
       const newComp = createNewComponent({
         name: drawable?.name,
         bounds: {
@@ -111,7 +113,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         },
       });
 
-      setSelectionPosition({ ...screenToSVG(mousePos.x, mousePos.y, canvasRef()!) });
+      setSelectionPosition({ ...mousePos });
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);
       setTransformState({
@@ -133,15 +135,17 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
     if (builder.toolState.activeTool === 'pointer' && selected) {
+      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
 
         startMousePos: {
-          x: e.clientX - (selectionRef()?.getBoundingClientRect().x ?? 0),
-          y: e.clientY - (selectionRef()?.getBoundingClientRect().y ?? 0),
+          x: e.clientX - selectionPosition().x,
+          y: e.clientY - selectionPosition().y,
         },
       });
+      // setSelectionPosition((p) => ({ x: e.clientX - canvasBounds().x, y: e.clientY - canvasBounds().y }));
     }
   };
 
@@ -174,10 +178,13 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         !Array.isArray(startMousePos)
       ) {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-        const { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
+        let { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
         setSelectionPosition({ ...updatedPos });
-        builder.updateComponentPosition(selected.id, updatedPos);
+        builder.updateComponentPosition(selected.id, {
+          x: 0,
+          y: 0,
+        });
 
         builder.updateComponentSize(selected.id, (p) => {
           const restrictedSize = restrictSize(updatedPos, updatedSize, p);
@@ -187,8 +194,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       } else if (transformOp() === 'drag' && selected) {
         let newPoint = screenToSVG(e.clientX - startMousePos.x, e.clientY - startMousePos.y, canvasRef()!);
         let newPos = {
-          x: clamp(newPoint.x, 0, canvasBounds().width - selectionSize().width),
-          y: clamp(newPoint.y, 0, canvasBounds().height - selectionSize().height),
+          x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selectionSize().width),
+          y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
         };
 
         const currentBounds = {
@@ -216,13 +223,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         }
 
         setSelectionPosition(newPos);
-        if (Array.isArray(selected)) {
-          for (const comp of selected) {
-            builder.updateComponentPosition(comp.id, newPos);
-          }
-        } else {
-          builder.updateComponentPosition(selected.id, newPos);
-        }
       }
     }
   };
@@ -252,26 +252,43 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
                 }
 
                 if (curr.bounds.top < acc.y) {
+                  console.log(curr.bounds.top, acc.y);
                   acc.y = curr.bounds.top;
                 }
 
-                if (curr.size.width > acc.width) {
-                  acc.width = curr.size.width;
+                if (curr.bounds.right > acc.width) {
+                  acc.width = curr.bounds.right;
                 }
 
-                if (curr.size.height > acc.height) {
-                  acc.height = curr.size.height;
+                if (curr.bounds.bottom > acc.height) {
+                  acc.height = curr.bounds.bottom;
                 }
 
                 return acc;
               },
-              { ...selectionPosition(), ...ZERO_SIZE }
+              { x: Number.MAX_SAFE_INTEGER, y: canvasBounds().height, ...ZERO_SIZE }
             );
+
+            for (const comp of selected) {
+              console.log(comp.bounds.left, newBounds.x, {
+                x: comp.bounds.left - newBounds.x,
+                y: comp.bounds.top - newBounds.y,
+              });
+              builder.updateComponentPosition(comp.id, (p) => ({
+                x: p.x - newBounds.x,
+                y: p.y - newBounds.y,
+              }));
+            }
+
             setSelectionPosition({ x: newBounds.x, y: newBounds.y });
             setSelectionSize({ width: newBounds.width, height: newBounds.height });
           } else if (selected && !Array.isArray(selected)) {
             setSelectionPosition({ x: selected.bounds.left, y: selected.bounds.top });
             setSelectionSize({ width: selected.size.width, height: selected.size.height });
+            builder.updateComponentPosition(selected.id, (p) => ({
+              x: 0,
+              y: 0,
+            }));
           }
           for (const comp of newSelection) {
             const id = comp.id;
@@ -288,6 +305,11 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
               if (!newSelection.find((v) => v.id === id)) {
                 const selectionElement = selectionRef()!.querySelector(`#${id}`);
                 if (selectionElement) {
+                  builder.updateComponentPosition(comp.id, (p) => ({
+                    x: selectionElement.getBoundingClientRect().left - canvasBounds().x,
+                    y: selectionElement.getBoundingClientRect().top - canvasBounds().y,
+                  }));
+
                   canvasRef()?.appendChild(selectionElement);
                 }
               }

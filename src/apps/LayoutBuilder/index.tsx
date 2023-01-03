@@ -319,6 +319,9 @@ const LayoutBuilder = () => {
   };
 
   const selectMultipleComponents = (ids: ComponentID[]) => {
+    if (ids.every((v) => componentState.selected.includes(v))) {
+      return;
+    }
     setComponentState('selected', ids);
   };
 

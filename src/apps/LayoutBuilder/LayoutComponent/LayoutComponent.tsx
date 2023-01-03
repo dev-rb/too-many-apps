@@ -56,9 +56,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   });
 
   const translate = () => {
-    return !props.active
-      ? `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`
-      : 'translate3d(0px, 0px, 0px)';
+    return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`;
   };
 
   return (
