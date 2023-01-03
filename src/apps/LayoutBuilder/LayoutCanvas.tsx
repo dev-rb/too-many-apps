@@ -54,12 +54,17 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
 
-    if (!Array.isArray(selected)) {
+    if (selected) {
       setTransformOp('resize');
-      let currentElementPosition = { x: selected.bounds.left, y: selected.bounds.top };
+      let currentElementPosition = selectionPosition();
 
       const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const handle = closestCorner(mousePos, selected.bounds);
+      const handle = closestCorner(mousePos, {
+        left: selectionPosition().x,
+        right: selectionPosition().x + selectionSize().width,
+        top: selectionPosition().y,
+        bottom: selectionPosition().y + selectionSize().height,
+      });
       if (handle) {
         setTransformState({
           isTransforming: true,
@@ -68,11 +73,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
             y: e.clientY,
           },
           startElPos: currentElementPosition,
-          startSize: selected.size,
+          startSize: selectionSize(),
           activeHandle: handle,
         });
       }
-    } else {
     }
   };
 
@@ -172,11 +176,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (transformState.isTransforming) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
 
-      if (
-        (transformOp() === 'draw' || transformOp() === 'resize') &&
-        !Array.isArray(selected) &&
-        !Array.isArray(startMousePos)
-      ) {
+      if ((transformOp() === 'draw' || transformOp() === 'resize') && !Array.isArray(selected)) {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
         let { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
@@ -243,50 +243,41 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       () => props.selectedComponents,
       (newSelection, oldSelection) => {
         if (selectionRef()) {
-          const selected = newSelection.length > 1 ? newSelection : newSelection[0];
-          if (Array.isArray(selected)) {
-            const newBounds = selected.reduce(
-              (acc, curr) => {
-                const currentBounds = document.getElementById(curr.id)!.getBoundingClientRect();
-                if (currentBounds.left - canvasBounds().x < acc.x) {
-                  acc.x = currentBounds.left - canvasBounds().x;
-                }
+          const newBounds = newSelection.reduce(
+            (acc, curr) => {
+              const currentBounds = document.getElementById(curr.id)!.getBoundingClientRect();
+              if (currentBounds.left - canvasBounds().x < acc.x) {
+                acc.x = currentBounds.left - canvasBounds().x;
+              }
 
-                if (currentBounds.top - canvasBounds().y < acc.y) {
-                  acc.y = currentBounds.top - canvasBounds().y;
-                }
+              if (currentBounds.top - canvasBounds().y < acc.y) {
+                acc.y = currentBounds.top - canvasBounds().y;
+              }
 
-                if (currentBounds.right - canvasBounds().x > acc.width) {
-                  acc.width = currentBounds.right - canvasBounds().x - acc.x;
-                }
+              if (currentBounds.right - canvasBounds().x > acc.width) {
+                acc.width = currentBounds.right - canvasBounds().x - acc.x;
+              }
 
-                if (currentBounds.bottom - canvasBounds().y > acc.height) {
-                  acc.height = currentBounds.bottom - canvasBounds().y - acc.y;
-                }
+              if (currentBounds.bottom - canvasBounds().y > acc.height) {
+                acc.height = currentBounds.bottom - canvasBounds().y - acc.y;
+              }
 
-                return acc;
-              },
-              { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, ...ZERO_SIZE }
-            );
-            for (const comp of selected) {
-              const currentBounds = document.getElementById(comp.id)!.getBoundingClientRect();
+              return acc;
+            },
+            { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, ...ZERO_SIZE }
+          );
+          for (const comp of newSelection) {
+            const currentBounds = document.getElementById(comp.id)!.getBoundingClientRect();
 
-              builder.updateComponentPosition(comp.id, (p) => ({
-                x: currentBounds.left - newBounds.x - canvasBounds().x,
-                y: currentBounds.top - newBounds.y - canvasBounds().y,
-              }));
-            }
-
-            setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-            setSelectionSize({ width: newBounds.width, height: newBounds.height });
-          } else if (selected && !Array.isArray(selected)) {
-            setSelectionPosition({ x: selected.bounds.left, y: selected.bounds.top });
-            setSelectionSize({ width: selected.size.width, height: selected.size.height });
-            builder.updateComponentPosition(selected.id, (p) => ({
-              x: 0,
-              y: 0,
+            builder.updateComponentPosition(comp.id, (p) => ({
+              x: currentBounds.left - newBounds.x - canvasBounds().x,
+              y: currentBounds.top - newBounds.y - canvasBounds().y,
             }));
           }
+
+          setSelectionPosition({ x: newBounds.x, y: newBounds.y });
+          setSelectionSize({ width: newBounds.width, height: newBounds.height });
+
           for (const comp of newSelection) {
             const id = comp.id;
             const canvasElement = canvasRef()!.getElementById(id);
