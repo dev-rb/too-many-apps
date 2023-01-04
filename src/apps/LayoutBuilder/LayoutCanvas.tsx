@@ -176,23 +176,24 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (transformState.isTransforming) {
       const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
 
-      if ((transformOp() === 'draw' || transformOp() === 'resize') && !Array.isArray(selected)) {
+      if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
         let { updatedPos, updatedSize } = calculateResize(startSize, startElPos, newMousePos, activeHandle);
 
-        setSelectionPosition({ ...updatedPos });
-        builder.updateComponentPosition(selected.id, {
-          x: 0,
-          y: 0,
-        });
+        setSelectionPosition({ x: Math.max(0, updatedPos.x), y: Math.max(0, updatedPos.y) });
+        setSelectionSize((p) => ({ ...restrictSize(updatedPos, updatedSize, p) }));
 
-        builder.updateComponentSize(selected.id, (p) => {
-          const restrictedSize = restrictSize(updatedPos, updatedSize, p);
-          setSelectionSize({ ...restrictedSize });
-          return { width: restrictedSize.width, height: restrictedSize.height };
-        });
+        for (const comp of props.selectedComponents) {
+          builder.updateComponentPosition(comp.id, {
+            x: Math.max(0, updatedPos.x - canvasBounds().x),
+            y: Math.max(0, updatedPos.y - canvasBounds().y),
+          });
+          builder.updateComponentSize(comp.id, (p) => {
+            const restrictedSize = restrictSize(updatedPos, updatedSize, p);
+            return restrictedSize;
+          });
+        }
       } else if (transformOp() === 'drag' && selected) {
-        let newPoint = screenToSVG(e.clientX - startMousePos.x, e.clientY - startMousePos.y, canvasRef()!);
         let newPos = {
           x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selectionSize().width),
           y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
@@ -223,6 +224,20 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         }
 
         setSelectionPosition(newPos);
+
+        if (Array.isArray(selected)) {
+          // for (const comp of selected) {
+          //   builder.updateComponentPosition(comp.id, (p) => ({
+          //     x: newPos.x - canvasBounds().x,
+          //     y: newPos.y - canvasBounds().y,
+          //   }));
+          // }
+        } else {
+          builder.updateComponentPosition(selected.id, (p) => ({
+            x: Math.abs(canvasBounds().x - newPos.x - canvasBounds().x),
+            y: Math.abs(canvasBounds().y - newPos.y - canvasBounds().y),
+          }));
+        }
       }
     }
   };
@@ -293,10 +308,10 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
               if (!newSelection.find((v) => v.id === id)) {
                 const selectionElement = selectionRef()!.querySelector(`#${id}`);
                 if (selectionElement) {
-                  builder.updateComponentPosition(comp.id, (p) => ({
-                    x: selectionElement.getBoundingClientRect().left - canvasBounds().x,
-                    y: selectionElement.getBoundingClientRect().top - canvasBounds().y,
-                  }));
+                  // builder.updateComponentPosition(comp.id, (p) => ({
+                  //   x: selectionElement.getBoundingClientRect().left - canvasBounds().x,
+                  //   y: selectionElement.getBoundingClientRect().top - canvasBounds().y,
+                  // }));
 
                   canvasRef()?.appendChild(selectionElement);
                 }
@@ -361,48 +376,56 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <g ref={setSelectionRef} transform={`translate(${selectionPosition().x} ${selectionPosition().y})`}>
-          <g>
-            <Show when={props.selectedComponents.length}>
-              <rect
-                x={0}
-                y={0}
-                width={selectionSize().width}
-                height={selectionSize().height}
-                class="outline-blue-6 outline-1 outline-solid"
-                fill="none"
-              />
-              <circle
-                cx={0}
-                cy={0}
-                r={6}
-                class={`comp-handle-blue-40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={selectionSize().width}
-                cy={0}
-                r={6}
-                class={`comp-handle-blue-40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={0}
-                cy={selectionSize().height}
-                r={6}
-                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={selectionSize().width}
-                cy={selectionSize().height}
-                r={6}
-                class={`comp-handle-blue-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
-                onPointerDown={onResizeStart}
-              />
-            </Show>
+        <svg
+          x={selectionPosition().x}
+          y={selectionPosition().y}
+          width={selectionSize().width}
+          height={selectionSize().height}
+          style={{ overflow: 'visible' }}
+        >
+          <g ref={setSelectionRef}>
+            <g>
+              <Show when={props.selectedComponents.length}>
+                <rect
+                  x={0}
+                  y={0}
+                  width={selectionSize().width}
+                  height={selectionSize().height}
+                  class="outline-blue-6 outline-1 outline-solid"
+                  fill="none"
+                />
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={6}
+                  class={`comp-handle-blue-40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={selectionSize().width}
+                  cy={0}
+                  r={6}
+                  class={`comp-handle-blue-40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={0}
+                  cy={selectionSize().height}
+                  r={6}
+                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={selectionSize().width}
+                  cy={selectionSize().height}
+                  r={6}
+                  class={`comp-handle-blue-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
+                  onPointerDown={onResizeStart}
+                />
+              </Show>
+            </g>
           </g>
-        </g>
+        </svg>
 
         <For each={Object.values(props.components)}>
           {(comp) => (
