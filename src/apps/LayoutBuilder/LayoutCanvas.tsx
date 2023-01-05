@@ -300,34 +300,31 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     on(
       () => props.selectedComponents,
       (newSelection) => {
-        if (selectionRef()) {
-          const newBounds = newSelection.reduce(
-            (acc, curr) => {
-              const currentBounds = document.getElementById(curr.id)!.getBoundingClientRect();
-              if (currentBounds.left - canvasBounds().x < acc.x) {
-                acc.x = currentBounds.left - canvasBounds().x;
-              }
+        const newBounds = newSelection.reduce(
+          (acc, curr) => {
+            if (curr.bounds.left < acc.x) {
+              acc.x = curr.bounds.left;
+            }
 
-              if (currentBounds.top - canvasBounds().y < acc.y) {
-                acc.y = currentBounds.top - canvasBounds().y;
-              }
+            if (curr.bounds.top < acc.y) {
+              acc.y = curr.bounds.top;
+            }
 
-              if (currentBounds.right - canvasBounds().x > acc.width) {
-                acc.width = currentBounds.right - canvasBounds().x - acc.x;
-              }
+            if (curr.bounds.right > acc.right) {
+              acc.right = curr.bounds.right;
+            }
 
-              if (currentBounds.bottom - canvasBounds().y > acc.height) {
-                acc.height = currentBounds.bottom - canvasBounds().y - acc.y;
-              }
+            if (curr.bounds.bottom > acc.bottom) {
+              acc.bottom = curr.bounds.bottom;
+            }
 
-              return acc;
-            },
-            { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, ...ZERO_SIZE }
-          );
+            return acc;
+          },
+          { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
+        );
 
-          setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-          setSelectionSize({ width: newBounds.width, height: newBounds.height });
-        }
+        setSelectionPosition({ x: newBounds.x, y: newBounds.y });
+        setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
       }
     )
   );
