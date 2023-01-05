@@ -127,6 +127,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       });
 
       setSelectionPosition({ ...mousePos });
+      setSelectionSize(ZERO_SIZE);
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);
       setTransformState({
@@ -135,6 +136,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           x: e.clientX,
           y: e.clientY,
         },
+        startElPos: [mousePos],
         startSelectionPos: mousePos,
         startSize: [ZERO_SIZE],
         startSelectionSize: ZERO_SIZE,
@@ -153,7 +155,9 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
-
+        startElPos: props.selectedComponents.map((v) => {
+          return { x: e.clientX - v.bounds.left, y: e.clientY - v.bounds.top };
+        }),
         startMousePos: {
           x: e.clientX - selectionPosition().x,
           y: e.clientY - selectionPosition().y,
@@ -204,6 +208,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         for (let i = 0; i < startSize.length; i++) {
           const comp = props.selectedComponents[i];
           builder.updateComponentSize(comp.id, newSize);
+          builder.updateComponentPosition(comp.id, updatedSelectionPos);
         }
       } else if (transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
@@ -267,6 +272,15 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         }
 
         setSelectionPosition(newPos);
+        for (let i = 0; i < startElPos.length; i++) {
+          const comp = props.selectedComponents[i];
+          let newElPos = {
+            x: clamp(e.clientX - startElPos[i].x, 0, canvasBounds().width - comp.size.width),
+            y: clamp(e.clientY - startElPos[i].y, 0, canvasBounds().height - comp.size.height),
+          };
+
+          builder.updateComponentPosition(comp.id, newElPos);
+        }
       }
     }
   };
@@ -285,7 +299,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   createEffect(
     on(
       () => props.selectedComponents,
-      (newSelection, oldSelection) => {
+      (newSelection) => {
         if (selectionRef()) {
           const newBounds = newSelection.reduce(
             (acc, curr) => {
@@ -310,51 +324,9 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
             },
             { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, ...ZERO_SIZE }
           );
-          for (const comp of newSelection) {
-            const currentBounds = document.getElementById(comp.id)!.getBoundingClientRect();
-
-            builder.updateComponentPosition(comp.id, (p) => ({
-              x: currentBounds.left - newBounds.x - canvasBounds().x,
-              y: currentBounds.top - newBounds.y - canvasBounds().y,
-            }));
-          }
 
           setSelectionPosition({ x: newBounds.x, y: newBounds.y });
           setSelectionSize({ width: newBounds.width, height: newBounds.height });
-
-          for (const comp of newSelection) {
-            const id = comp.id;
-            const canvasElement = canvasRef()!.getElementById(id);
-            if (canvasElement) {
-              selectionRef()!.appendChild(canvasElement);
-            }
-          }
-
-          if (oldSelection) {
-            for (const comp of oldSelection) {
-              const id = comp.id;
-
-              if (!newSelection.find((v) => v.id === id)) {
-                const selectionElement = selectionRef()!.querySelector(`#${id}`);
-                if (selectionElement) {
-                  builder.updateComponentPosition(comp.id, (p) => ({
-                    x: selectionElement.getBoundingClientRect().left - canvasBounds().x,
-                    y: selectionElement.getBoundingClientRect().top - canvasBounds().y,
-                  }));
-                  console.log(
-                    selectionElement.getBoundingClientRect().width,
-                    selectionElement.getBoundingClientRect().height
-                  );
-                  builder.updateComponentSize(comp.id, (p) => ({
-                    width: selectionElement.getBoundingClientRect().width,
-                    height: selectionElement.getBoundingClientRect().height,
-                  }));
-
-                  canvasRef()?.appendChild(selectionElement);
-                }
-              }
-            }
-          }
         }
       }
     )
@@ -419,50 +391,40 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           y={selectionPosition().y}
           width={selectionSize().width}
           height={selectionSize().height}
-          // viewBox={`0 0 ${canvasBounds().width} ${canvasBounds().height}`}
           style={{ overflow: 'visible' }}
         >
           <g>
-            <g>
-              <Show when={props.selectedComponents.length}>
-                <rect
-                  x={0}
-                  y={0}
-                  width="100%"
-                  height="100%"
-                  class="outline-blue-6 outline-1 outline-solid"
-                  fill="none"
-                />
-                <circle
-                  cx={0}
-                  cy={0}
-                  r={6}
-                  class={`comp-handle-blue-40 border-white/50 border-1 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={'100%'}
-                  cy={0}
-                  r={6}
-                  class={`comp-handle-blue-40 border-white/50 border-1 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={0}
-                  cy={'100%'}
-                  r={6}
-                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(stroke-white stroke-2) active:(stroke-white stroke-2)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={'100%'}
-                  cy={'100%'}
-                  r={6}
-                  class={`comp-handle-blue-40 w-3 h-3border-white/50 border-1 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
-                  onPointerDown={onResizeStart}
-                />
-              </Show>
-            </g>
+            <Show when={props.selectedComponents.length}>
+              <rect x={0} y={0} width="100%" height="100%" class="outline-blue-6 outline-1 outline-solid" fill="none" />
+              <circle
+                cx={0}
+                cy={0}
+                r={6}
+                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-nw-resize hover:(fill-blue-6)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={'100%'}
+                cy={0}
+                r={6}
+                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-ne-resize hover:(fill-blue-6)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={0}
+                cy={'100%'}
+                r={6}
+                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(fill-blue-6)`}
+                onPointerDown={onResizeStart}
+              />
+              <circle
+                cx={'100%'}
+                cy={'100%'}
+                r={6}
+                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-se-resize hover:(fill-blue-6)`}
+                onPointerDown={onResizeStart}
+              />
+            </Show>
           </g>
         </svg>
 
