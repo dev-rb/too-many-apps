@@ -3,13 +3,19 @@ import { ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
 import { ILayoutComponent, MIN_LAYER } from '.';
 
-export function calculateResize(currentSize: Size, currentPos: XYPosition, mousePos: XYPosition, handle: string) {
+export function calculateResize(
+  currentSize: Size,
+  currentPos: XYPosition,
+  mousePos: XYPosition,
+  handle: string,
+  handleReverse: boolean = true
+) {
   let updatedSize = { ...currentSize };
   let updatedPos = { ...currentPos };
   if (['bottom-left', 'top-left'].includes(handle)) {
     let newWidth = currentSize.width - mousePos.x;
     let newX = currentPos.x + mousePos.x;
-    if (newWidth < 0) {
+    if (newWidth < 0 && handleReverse) {
       newX = currentPos.x + currentSize.width;
     }
     updatedSize.width = newWidth;
@@ -18,7 +24,7 @@ export function calculateResize(currentSize: Size, currentPos: XYPosition, mouse
 
   if (['bottom-left', 'bottom-right'].includes(handle)) {
     let newHeight = currentSize.height + mousePos.y;
-    if (newHeight < 0) {
+    if (newHeight < 0 && handleReverse) {
       updatedPos.y = currentPos.y + newHeight;
     }
     updatedSize.height = newHeight;
@@ -27,7 +33,7 @@ export function calculateResize(currentSize: Size, currentPos: XYPosition, mouse
   if (['top-left', 'top-right'].includes(handle)) {
     let newHeight = currentSize.height - mousePos.y;
     let newY = currentPos.y + mousePos.y;
-    if (newHeight < 0) {
+    if (newHeight < 0 && handleReverse) {
       newY = currentSize.height + currentPos.y;
     }
     updatedSize.height = newHeight;
@@ -36,7 +42,7 @@ export function calculateResize(currentSize: Size, currentPos: XYPosition, mouse
 
   if (['bottom-right', 'top-right'].includes(handle)) {
     let newWidth = currentSize.width + mousePos.x;
-    if (newWidth < 0) {
+    if (newWidth < 0 && handleReverse) {
       updatedPos.x = currentPos.x + newWidth;
     }
 
