@@ -387,7 +387,7 @@ const LayoutBuilder = () => {
         <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
           <Menu />
           <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-          <div class="flex items-start justify-evenly">
+          <div class="flex items-start justify-evenly max-h-2xl">
             <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
             <LayoutCanvas
               components={componentState.components}

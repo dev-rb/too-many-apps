@@ -163,7 +163,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           y: e.clientY - selectionPosition().y,
         },
       });
-      // setSelectionPosition((p) => ({ x: e.clientX - canvasBounds().x, y: e.clientY - canvasBounds().y }));
     }
   };
 
@@ -219,7 +218,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           activeHandle
         );
 
-        // console.log(updatedSize.width - startSize.width);
         const newSize = restrictSize(updatedSelectionPos, updatedSelectionSize, selectionSize());
         setSelectionPosition({ x: Math.max(0, updatedSelectionPos.x), y: Math.max(0, updatedSelectionPos.y) });
         setSelectionSize((p) => ({ ...newSize }));
@@ -253,25 +251,25 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           bottom: selectionPosition().y + selectionSize().height,
           right: selectionPosition().x + selectionSize().width,
         };
-        const otherComponents = Object.values(props.components).filter((comp) =>
-          Array.isArray(selected) ? !selected.includes(comp) : selected.id !== comp.id
-        );
+        // const otherComponents = Object.values(props.components).filter((comp) =>
+        //   Array.isArray(selected) ? !selected.includes(comp) : selected.id !== comp.id
+        // );
 
-        const alignDistance = calculateDistances(
-          selectionBounds,
-          otherComponents.map((v) => v.bounds)
-        );
-        const xDiff = Math.abs(newPos.x - selectionBounds.left);
-        const xLock = Math.abs(xDiff + alignDistance.xAlign - 2) < 2;
-        if (xLock) {
-          newPos.x = selectionBounds.left + alignDistance.xAlign;
-        }
+        // const alignDistance = calculateDistances(
+        //   selectionBounds,
+        //   otherComponents.map((v) => v.bounds)
+        // );
+        // const xDiff = Math.abs(newPos.x - selectionBounds.left);
+        // const xLock = Math.abs(xDiff + alignDistance.xAlign - 2) < 2;
+        // if (xLock) {
+        //   newPos.x = selectionBounds.left + alignDistance.xAlign;
+        // }
 
-        const yDiff = Math.abs(newPos.y - selectionBounds.top);
-        const yLock = Math.abs(yDiff + alignDistance.yAlign - 2) < 2;
-        if (yLock) {
-          newPos.y = selectionBounds.top + alignDistance.yAlign;
-        }
+        // const yDiff = Math.abs(newPos.y - selectionBounds.top);
+        // const yLock = Math.abs(yDiff + alignDistance.yAlign - 2) < 2;
+        // if (yLock) {
+        //   newPos.y = selectionBounds.top + alignDistance.yAlign;
+        // }
 
         for (let i = 0; i < startElPos.length; i++) {
           const comp = props.selectedComponents[i];
@@ -290,7 +288,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
           builder.updateComponentPosition(comp.id, newElPos);
         }
-        setSelectionPosition(newPos);
+        // setSelectionPosition(newPos);
+        evaluteSelection();
       }
     }
   };
@@ -306,6 +305,34 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     builder.selectComponent(id);
   };
 
+  const evaluteSelection = () => {
+    const newBounds = props.selectedComponents.reduce(
+      (acc, curr) => {
+        if (curr.bounds.left < acc.x) {
+          acc.x = curr.bounds.left;
+        }
+
+        if (curr.bounds.top < acc.y) {
+          acc.y = curr.bounds.top;
+        }
+
+        if (curr.bounds.right > acc.right) {
+          acc.right = curr.bounds.right;
+        }
+
+        if (curr.bounds.bottom > acc.bottom) {
+          acc.bottom = curr.bounds.bottom;
+        }
+
+        return acc;
+      },
+      { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
+    );
+
+    setSelectionPosition({ x: newBounds.x, y: newBounds.y });
+    setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
+  };
+
   createEffect(
     on(
       () => props.selectedComponents,
@@ -315,31 +342,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           setSelectionSize(ZERO_SIZE);
           return;
         }
-        const newBounds = newSelection.reduce(
-          (acc, curr) => {
-            if (curr.bounds.left < acc.x) {
-              acc.x = curr.bounds.left;
-            }
-
-            if (curr.bounds.top < acc.y) {
-              acc.y = curr.bounds.top;
-            }
-
-            if (curr.bounds.right > acc.right) {
-              acc.right = curr.bounds.right;
-            }
-
-            if (curr.bounds.bottom > acc.bottom) {
-              acc.bottom = curr.bounds.bottom;
-            }
-
-            return acc;
-          },
-          { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
-        );
-
-        setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-        setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
+        evaluteSelection();
       }
     )
   );

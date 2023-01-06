@@ -46,7 +46,7 @@ const Preview = (props: PreviewProps) => {
           )}
         </For>
       </div>
-      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto pr-2 select-none h-full">
+      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto pr-2 select-none">
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
