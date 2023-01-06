@@ -247,40 +247,50 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
         };
 
-        const currentBounds = {
+        const selectionBounds = {
           left: selectionPosition().x,
           top: selectionPosition().y,
           bottom: selectionPosition().y + selectionSize().height,
           right: selectionPosition().x + selectionSize().width,
         };
         const otherComponents = Object.values(props.components).filter((comp) =>
-          Array.isArray(selected) ? selected.includes(comp) : selected.id !== comp.id
+          Array.isArray(selected) ? !selected.includes(comp) : selected.id !== comp.id
         );
 
         const alignDistance = calculateDistances(
-          currentBounds,
+          selectionBounds,
           otherComponents.map((v) => v.bounds)
         );
-        const xDiff = Math.abs(newPos.x - currentBounds.left);
-        if (Math.abs(xDiff + alignDistance.xAlign - 2) < 2) {
-          newPos.x = currentBounds.left + alignDistance.xAlign;
+        const xDiff = Math.abs(newPos.x - selectionBounds.left);
+        const xLock = Math.abs(xDiff + alignDistance.xAlign - 2) < 2;
+        if (xLock) {
+          newPos.x = selectionBounds.left + alignDistance.xAlign;
         }
 
-        const yDiff = Math.abs(newPos.y - currentBounds.top);
-        if (Math.abs(yDiff + alignDistance.yAlign - 2) < 2) {
-          newPos.y = currentBounds.top + alignDistance.yAlign;
+        const yDiff = Math.abs(newPos.y - selectionBounds.top);
+        const yLock = Math.abs(yDiff + alignDistance.yAlign - 2) < 2;
+        if (yLock) {
+          newPos.y = selectionBounds.top + alignDistance.yAlign;
         }
 
-        setSelectionPosition(newPos);
         for (let i = 0; i < startElPos.length; i++) {
           const comp = props.selectedComponents[i];
           let newElPos = {
-            x: clamp(e.clientX - startElPos[i].x, 0, canvasBounds().width - comp.size.width),
-            y: clamp(e.clientY - startElPos[i].y, 0, canvasBounds().height - comp.size.height),
+            x: clamp(
+              e.clientX - startElPos[i].x,
+              comp.bounds.left - newPos.x,
+              newPos.x + (comp.bounds.left - selectionBounds.left)
+            ),
+            y: clamp(
+              e.clientY - startElPos[i].y,
+              comp.bounds.top - newPos.y,
+              newPos.y + (comp.bounds.top - selectionBounds.top)
+            ),
           };
 
           builder.updateComponentPosition(comp.id, newElPos);
         }
+        setSelectionPosition(newPos);
       }
     }
   };
@@ -300,6 +310,11 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     on(
       () => props.selectedComponents,
       (newSelection) => {
+        if (!newSelection.length) {
+          setSelectionPosition(ZERO_POS);
+          setSelectionSize(ZERO_SIZE);
+          return;
+        }
         const newBounds = newSelection.reduce(
           (acc, curr) => {
             if (curr.bounds.left < acc.x) {
