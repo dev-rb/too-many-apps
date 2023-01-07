@@ -10,6 +10,7 @@ interface LayoutComponentProps extends ILayoutComponent {
   onResizeStart: (e: MouseEvent) => void;
   onDragStart: (e: MouseEvent) => void;
   passThrough: boolean;
+  observe: (el: Element) => void;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
@@ -17,6 +18,8 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const builder = useBuilder();
   const selectElement = () => props.selectElement(props.id);
+
+  const [ref, setRef] = createSignal<SVGGElement>();
 
   const [shift, setShift] = createSignal(false);
 
@@ -46,6 +49,9 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         setShift(false);
       }
     });
+    if (ref()) {
+      props.observe(ref()!);
+    }
     onCleanup(() => {
       document.removeEventListener('keydown', (e) => {
         if (e.shiftKey) {
@@ -61,6 +67,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   return (
     <g
+      ref={setRef}
       id={props.id}
       class="w-fit h-fit cursor-pointer select-none"
       style={{

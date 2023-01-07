@@ -216,7 +216,7 @@ const LayoutBuilder = () => {
     const currentBounds = getComponent(id).bounds;
     const resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
-    updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
+    // updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -230,7 +230,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    updateTree(id, getComponent(id).bounds);
+    // updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
@@ -361,6 +361,7 @@ const LayoutBuilder = () => {
   const contextValues = {
     componentState,
     toolState,
+    updateTree,
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
@@ -414,6 +415,7 @@ export default LayoutBuilder;
 interface BuilderContextValues {
   componentState: ComponentState;
   toolState: ToolState;
+  updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: ComponentID, newName: ComponentID) => void;
