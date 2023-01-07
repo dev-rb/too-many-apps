@@ -1,4 +1,14 @@
-import { batch, createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
+import {
+  batch,
+  createContext,
+  createSelector,
+  createUniqueId,
+  For,
+  JSX,
+  mergeProps,
+  onMount,
+  useContext,
+} from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
@@ -216,7 +226,7 @@ const LayoutBuilder = () => {
     const currentBounds = getComponent(id).bounds;
     const resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
 
-    // updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
+    updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -230,7 +240,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    // updateTree(id, getComponent(id).bounds);
+    updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },

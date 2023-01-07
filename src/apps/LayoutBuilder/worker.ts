@@ -1,177 +1,158 @@
-import { XYPosition, Size } from '~/types';
-import { clamp } from '~/utils/math';
+import { Bounds } from '~/types';
 import { ILayoutComponent } from '.';
-import { calculateResize } from './utils';
+import { isInside } from './utils';
 
-interface TransformState {
-  startMousePos: XYPosition;
-  startElPos: XYPosition[];
-  startSize: Size[];
-  startSelectionSize: Size;
-  startSelectionPos: XYPosition;
-  isTransforming: boolean;
-  activeHandle: string;
-}
-const restrictSize = (
-  canvasBounds: {
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  },
-  position: XYPosition,
-  newSize: Size,
-  previousSize: Size
+type ComponentID = string;
+
+const updateParent = (
+  components: { [key: string]: ILayoutComponent },
+  childId: ComponentID,
+  newParentId: ComponentID | undefined
 ) => {
-  let newWidth = Math.abs(newSize.width);
-  let newHeight = Math.abs(newSize.height);
-  if (position.x < 0) {
-    newWidth = previousSize.width;
-  } else if (Math.floor(canvasBounds.width - (position.x + newWidth)) < 0) {
-    newWidth = canvasBounds.width - position.x;
-  }
-  if (position.y < 0) {
-    newHeight = previousSize.height;
-  } else if (Math.floor(canvasBounds.height - (position.y + newHeight)) < 0) {
-    newHeight = canvasBounds.height - position.y;
-  }
+  postMessage({
+    type: 'updateParent',
+    data: {
+      id: childId,
+      newParent: newParentId,
+    },
+  });
+  components[childId].parent = newParentId;
 
-  return { width: newWidth, height: newHeight };
+  // setComponentState('components', childId, 'parent', newParentId);
 };
 
-type TransformOp = 'draw' | 'resize' | 'drag';
-const dragUpdate = (
-  e: { clientX: number; clientY: number },
-  transformState: TransformState,
-  transformOp: TransformOp,
-  selectedComponents: ILayoutComponent[],
-  currentSelection: { size: Size; position: XYPosition },
-  canvasBounds: {
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  }
-) => {
-  const selected = selectedComponents.length > 1 ? selectedComponents : selectedComponents[0];
-  if (transformState.isTransforming) {
-    const { activeHandle, startElPos, startMousePos, startSize, startSelectionSize, startSelectionPos } =
-      transformState;
+const addChild = (components: { [key: string]: ILayoutComponent }, parentId: ComponentID, childId: ComponentID) => {
+  if (components[parentId].children.includes(childId)) return;
 
-    if (transformOp === 'draw') {
-      const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-      let { updatedPos: updatedSelectionPos, updatedSize: updatedSelectionSize } = calculateResize(
-        startSelectionSize,
-        startSelectionPos,
-        newMousePos,
-        activeHandle
-      );
+  postMessage({
+    type: 'addChild',
+    data: {
+      id: parentId,
+      newChild: childId,
+    },
+  });
+  components[parentId].children = [...components[parentId].children, childId];
+  updateParent(components, childId, parentId);
+};
 
-      // console.log(updatedSize.width - startSize.width);
-      let selectionStuff = { x: 0, y: 0, width: 0, height: 0 };
-      const newSize = restrictSize(canvasBounds, updatedSelectionPos, updatedSelectionSize, currentSelection.size);
-      selectionStuff = { x: Math.max(0, updatedSelectionPos.x), y: Math.max(0, updatedSelectionPos.y), ...newSize };
-      let copy = [...selectedComponents];
-      for (let i = 0; i < startSize.length; i++) {
-        let comp = copy[i];
-        comp.size = newSize;
-        comp.bounds = { ...comp.bounds, left: updatedSelectionPos.x, top: updatedSelectionPos.y };
-      }
-      return { selection: selectionStuff, copy: [...copy] };
-    } else if (transformOp === 'resize') {
-      const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-      let { updatedPos: updatedSelectionPos, updatedSize: updatedSelectionSize } = calculateResize(
-        startSelectionSize,
-        startSelectionPos,
-        newMousePos,
-        activeHandle
-      );
+const removeChild = (components: { [key: string]: ILayoutComponent }, parentId: ComponentID, childId: ComponentID) => {
+  postMessage({
+    type: 'removeChild',
+    data: {
+      id: parentId,
+      removed: childId,
+    },
+  });
+  components[parentId].children = components[parentId].children.filter((v) => v !== childId);
+};
 
-      let selectionStuff = { x: 0, y: 0, width: 0, height: 0 };
-      const newSize = restrictSize(canvasBounds, updatedSelectionPos, updatedSelectionSize, currentSelection.size);
-      selectionStuff = { x: Math.max(0, updatedSelectionPos.x), y: Math.max(0, updatedSelectionPos.y), ...newSize };
-      let copy = [...selectedComponents];
-      for (let i = 0; i < startSize.length; i++) {
-        let comp = copy[i];
-        let { updatedPos, updatedSize } = calculateResize(startSize[i], startElPos[i], newMousePos, activeHandle, true);
-        comp.bounds = {
-          ...comp.bounds,
-          left: Math.max(0, updatedPos.x - updatedSelectionPos.x),
-          top: Math.max(0, updatedPos.y - updatedSelectionPos.y),
-        };
-        const restrictedSize = restrictSize(canvasBounds, updatedPos, updatedSize, comp.size);
-        comp.size = {
-          width: restrictedSize.width,
-          height: restrictedSize.height,
-        };
-      }
-      return { selection: selectionStuff, copy: [...copy] };
-    } else if (transformOp === 'drag' && selected) {
-      let newPos = {
-        x: clamp(e.clientX - startMousePos.x, 0, canvasBounds.width - currentSelection.size.width),
-        y: clamp(e.clientY - startMousePos.y, 0, canvasBounds.height - currentSelection.size.height),
-      };
+const areChildrenOutside = (components: { [key: string]: ILayoutComponent }, id: ComponentID, bounds: Bounds) => {
+  const childrenOfComponent = components[id].children;
 
-      const selectionBounds = {
-        left: currentSelection.position.x,
-        top: currentSelection.position.y,
-        bottom: currentSelection.position.y + currentSelection.size.height,
-        right: currentSelection.position.x + currentSelection.size.width,
-      };
-      // const otherComponents = Object.values(components).filter((comp) =>
-      //   Array.isArray(selected) ? !selected.includes(comp) : selected.id !== comp.id
-      // );
+  if (!childrenOfComponent.length) return;
 
-      // const alignDistance = calculateDistances(
-      //   selectionBounds,
-      //   otherComponents.map((v) => v.bounds)
-      // );
-      // const xDiff = Math.abs(newPos.x - selectionBounds.left);
-      // const xLock = Math.abs(xDiff + alignDistance.xAlign - 2) < 2;
-      // if (xLock) {
-      //   newPos.x = selectionBounds.left + alignDistance.xAlign;
-      // }
+  for (const child of childrenOfComponent) {
+    const childBounds = components[child].bounds;
 
-      // const yDiff = Math.abs(newPos.y - selectionBounds.top);
-      // const yLock = Math.abs(yDiff + alignDistance.yAlign - 2) < 2;
-      // if (yLock) {
-      //   newPos.y = selectionBounds.top + alignDistance.yAlign;
-      // }
-
-      let copy = [...selectedComponents];
-      for (let i = 0; i < startElPos.length; i++) {
-        let comp = copy[i];
-        let newElPos = {
-          x: clamp(
-            e.clientX - startElPos[i].x,
-            comp.bounds.left - newPos.x,
-            newPos.x + (comp.bounds.left - selectionBounds.left)
-          ),
-          y: clamp(
-            e.clientY - startElPos[i].y,
-            comp.bounds.top - newPos.y,
-            newPos.y + (comp.bounds.top - selectionBounds.top)
-          ),
-        };
-        comp.bounds = { ...comp.bounds, left: newElPos.x, top: newElPos.y };
-      }
-      // setSelectionPosition(newPos);
-      return { selection: { ...newPos, ...currentSelection.size }, copy: [...copy] };
+    // If any side of the child is outside the current element
+    if (
+      childBounds.left < bounds.left ||
+      childBounds.top < bounds.top ||
+      childBounds.right > bounds.right ||
+      childBounds.bottom > bounds.bottom
+    ) {
+      // Update parent of child to grandparent.
+      updateParent(components, child, components[id].parent);
+      removeChild(components, id, child);
+      // Resolve tree for child changes
+      updateTree(components, child, childBounds);
     }
   }
 };
 
+const isOutsideParent = (components: { [key: string]: ILayoutComponent }, id: ComponentID, bounds: Bounds) => {
+  const parent = components[id].parent;
+  if (!parent) return;
+  if (parent) {
+    const parentComponent = components[parent];
+
+    const outTop = bounds.top < parentComponent.bounds.top && bounds.bottom < parentComponent.bounds.top;
+    const outLeft = bounds.left < parentComponent.bounds.left && bounds.right < parentComponent.bounds.left;
+    const outRight = bounds.left > parentComponent.bounds.right && bounds.right > parentComponent.bounds.right;
+    const outBottom = bounds.top > parentComponent.bounds.bottom && bounds.bottom > parentComponent.bounds.bottom;
+
+    if (outTop || outLeft || outRight || outBottom) {
+      // Remove this element from it's parent since it's outside it
+      removeChild(components, parent, id);
+      // Set elements' parent to grandparent
+      updateParent(components, id, parentComponent.parent);
+    }
+  }
+};
+
+const updateTree = (
+  components: { [key: string]: ILayoutComponent },
+  updatedComponentId: ComponentID,
+  bounds: Bounds
+) => {
+  isOutsideParent(components, updatedComponentId, bounds);
+  areChildrenOutside(components, updatedComponentId, bounds);
+  let currentMin = {
+    x: 99999,
+    y: 99999,
+  };
+  let closestParent: string | undefined = '';
+  for (const component of Object.values(components)) {
+    if (component.id === updatedComponentId) {
+      continue;
+    }
+    let minDistance = {
+      x: component.bounds.left - bounds.left,
+      y: component.bounds.top - bounds.top,
+    };
+    // Inside check. Are all sides of the selected/changed component inside the current component?
+    if (isInside(bounds, component.bounds)) {
+      // Find the closest parent by distance
+      if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
+        currentMin.x = Math.abs(minDistance.x);
+        currentMin.y = Math.abs(minDistance.y);
+        closestParent = component.id;
+      }
+    }
+    // Outside check. Is the current component inside the selected/changed component?
+    if (isInside(component.bounds, bounds)) {
+      // If component already has a parent, we don't need to change it's parent.
+      // If there is no parent, the component is a "root" component that the selected/changed component is covering/surrounding.
+      if (!component.parent) {
+        updateTree(components, component.id, component.bounds);
+      }
+    }
+  }
+
+  if (closestParent) {
+    // If we have found the closest parent for this component, check if this component also covers any of the found parents children.
+    // Move the covered children to be children on this component and remove them from the previous parent.
+    // console.log(components);
+    for (const child of components[closestParent].children) {
+      const childComponent = components[child];
+      if (isInside(childComponent.bounds, bounds)) {
+        if (childComponent.parent) {
+          removeChild(components, childComponent.parent, child);
+        }
+        addChild(components, updatedComponentId, child);
+      }
+    }
+    if (components[updatedComponentId].parent) {
+      removeChild(components, components[updatedComponentId].parent!, updatedComponentId);
+    }
+    addChild(components, closestParent, updatedComponentId);
+  }
+};
+
 addEventListener('message', function (ev) {
-  if (Object.hasOwn(ev.data, 'mouseDrag')) {
-    const calc = dragUpdate(
-      ev.data.mousePos,
-      ev.data.transformState,
-      ev.data.transformOp,
-      ev.data.selectedComponents,
-      ev.data.currentSelection,
-      ev.data.canvasBounds
-    );
-    this.postMessage(calc);
+  if (Object.hasOwn(ev.data, 'treeCheck')) {
+    // console.log(ev.data.components);
+    updateTree(ev.data.components, ev.data.id, ev.data.bounds);
   }
   // console.log(ev.data);
   // this.postMessage({ test: 234 });

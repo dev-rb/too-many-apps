@@ -25,19 +25,15 @@ interface TransformState {
   activeHandle: string;
 }
 
-const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-
 const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
-  const [selectionRef, setSelectionRef] = createSignal<SVGGElement>();
+  const [selectionRef, setSelectionRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
   const [selectionSize, setSelectionSize] = createSignal(ZERO_SIZE, { equals: false });
-
-  const [mutationObserver, setMutationObserver] = createSignal<MutationObserver>();
 
   const [ctrl, setCtrl] = createSignal(false);
 
@@ -191,15 +187,110 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
 
     if (transformState.isTransforming) {
-      worker.postMessage({
-        mouseDrag: true,
-        mousePos: JSON.parse(JSON.stringify({ clientX: e.clientX, clientY: e.clientY })),
-        transformState: JSON.parse(JSON.stringify(unwrap(transformState))),
-        transformOp: transformOp(),
-        selectedComponents: JSON.parse(JSON.stringify([...props.selectedComponents])),
-        currentSelection: JSON.parse(JSON.stringify({ position: selectionPosition(), size: selectionSize() })),
-        canvasBounds: JSON.parse(JSON.stringify(canvasBounds())),
-      });
+      const { activeHandle, startElPos, startMousePos, startSize, startSelectionSize, startSelectionPos } =
+        unwrap(transformState);
+
+      if (transformOp() === 'draw') {
+        const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
+        let { updatedPos: updatedSelectionPos, updatedSize: updatedSelectionSize } = calculateResize(
+          startSelectionSize,
+          startSelectionPos,
+          newMousePos,
+          activeHandle
+        );
+
+        // console.log(updatedSize.width - startSize.width);
+        const newSize = restrictSize(updatedSelectionPos, updatedSelectionSize, selectionSize());
+        setSelectionPosition({ x: Math.max(0, updatedSelectionPos.x), y: Math.max(0, updatedSelectionPos.y) });
+        setSelectionSize((p) => ({ ...newSize }));
+
+        for (let i = 0; i < startSize.length; i++) {
+          const comp = props.selectedComponents[i];
+          builder.updateComponentSize(comp.id, newSize);
+          builder.updateComponentPosition(comp.id, updatedSelectionPos);
+        }
+      } else if (transformOp() === 'resize') {
+        const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
+        let { updatedPos: updatedSelectionPos, updatedSize: updatedSelectionSize } = calculateResize(
+          startSelectionSize,
+          startSelectionPos,
+          newMousePos,
+          activeHandle
+        );
+
+        const newSize = restrictSize(updatedSelectionPos, updatedSelectionSize, selectionSize());
+        setSelectionPosition({ x: Math.max(0, updatedSelectionPos.x), y: Math.max(0, updatedSelectionPos.y) });
+        setSelectionSize((p) => ({ ...newSize }));
+        for (let i = 0; i < startSize.length; i++) {
+          const comp = props.selectedComponents[i];
+          let { updatedPos, updatedSize } = calculateResize(
+            startSize[i],
+            startElPos[i],
+            newMousePos,
+            activeHandle,
+            true
+          );
+          builder.updateComponentPosition(comp.id, {
+            x: Math.max(0, updatedPos.x - updatedSelectionPos.x),
+            y: Math.max(0, updatedPos.y - updatedSelectionPos.y),
+          });
+          builder.updateComponentSize(comp.id, (p) => {
+            const restrictedSize = restrictSize(updatedPos, updatedSize, p);
+            return { width: restrictedSize.width, height: restrictedSize.height };
+          });
+        }
+      } else if (transformOp() === 'drag' && selected) {
+        let newPos = {
+          x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selectionSize().width),
+          y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
+        };
+
+        // const selectionBounds = {
+        //   left: selectionPosition().x,
+        //   top: selectionPosition().y,
+        //   bottom: selectionPosition().y + selectionSize().height,
+        //   right: selectionPosition().x + selectionSize().width,
+        // };
+        // const otherComponents = Object.values(props.components).filter((comp) =>
+        //   Array.isArray(selected) ? !selected.includes(comp) : selected.id !== comp.id
+        // );
+
+        // const alignDistance = calculateDistances(
+        //   selectionBounds,
+        //   otherComponents.map((v) => v.bounds)
+        // );
+        // const xDiff = Math.abs(newPos.x - selectionBounds.left);
+        // const xLock = Math.abs(xDiff + alignDistance.xAlign - 2) < 2;
+        // if (xLock) {
+        //   newPos.x = selectionBounds.left + alignDistance.xAlign;
+        // }
+
+        // const yDiff = Math.abs(newPos.y - selectionBounds.top);
+        // const yLock = Math.abs(yDiff + alignDistance.yAlign - 2) < 2;
+        // if (yLock) {
+        //   newPos.y = selectionBounds.top + alignDistance.yAlign;
+        // }
+
+        for (let i = 0; i < startElPos.length; i++) {
+          const comp = props.selectedComponents[i];
+          let newElPos = {
+            x: clamp(
+              e.clientX - startElPos[i].x,
+              comp.bounds.left - newPos.x,
+              newPos.x + (comp.bounds.left - selectionPosition().x)
+            ),
+            y: clamp(
+              e.clientY - startElPos[i].y,
+              comp.bounds.top - newPos.y,
+              newPos.y + (comp.bounds.top - selectionPosition().y)
+            ),
+          };
+
+          builder.updateComponentPosition(comp.id, newElPos);
+        }
+        // setSelectionPosition(newPos);
+        evaluteSelection();
+      }
     }
   };
 
@@ -242,16 +333,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
   };
 
-  const mutationUpdate: MutationCallback = (mutations, observer) => {
-    for (const mutation of mutations) {
-      // evaluteSelection();
-      // builder.updateTree(
-      //   (mutation.target as Element).id,
-      //   builder.componentState.components[(mutation.target as Element).id].bounds
-      // );
-    }
-  };
-
   createEffect(
     on(
       () => props.selectedComponents,
@@ -284,33 +365,12 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         setCtrl(true);
       }
     });
-    worker.addEventListener('message', (ev) => {
-      if (Object.hasOwn(ev.data, 'copy')) {
-        // console.log(ev.data);
-        if (ev.data.selection) {
-          setSelectionPosition({ x: ev.data.selection.x, y: ev.data.selection.y });
-          setSelectionSize({ width: ev.data.selection.width, height: ev.data.selection.height });
-        }
 
-        for (const comp of ev.data.copy) {
-          // builder.updateTree(comp.id, {
-          //   left: comp.bounds.left,
-          //   top: comp.bounds.top,
-          //   right: comp.bounds.left + comp.size.width,
-          //   bottom: comp.bounds.top + comp.size.height,
-          // });
-          builder.updateComponentPosition(comp.id, { x: comp.bounds.left, y: comp.bounds.top });
-          builder.updateComponentSize(comp.id, { width: comp.size.width, height: comp.size.height });
-        }
-      }
-    });
     document.addEventListener('keyup', (e) => {
       if (e.key === 'Control') {
         setCtrl(false);
       }
     });
-
-    // setMutationObserver(new MutationObserver(mutationUpdate));
 
     onCleanup(() => {
       document.removeEventListener('pointermove', onDrag);
@@ -330,10 +390,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     })
   );
 
-  const observeComponent = (element: Element) => {
-    mutationObserver()?.observe(element, { attributes: true });
-  };
-
   return (
     <div class="flex flex-col w-6xl h-2xl ">
       {/* Display header */}
@@ -346,49 +402,57 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <svg
-          ref={setSelectionRef}
-          x={selectionPosition().x}
-          y={selectionPosition().y}
-          width={selectionSize().width}
-          height={selectionSize().height}
-          style={{ overflow: 'visible' }}
-        >
-          <g>
-            <Show when={props.selectedComponents.length}>
-              <rect x={0} y={0} width="100%" height="100%" class="outline-blue-6 outline-1 outline-solid" fill="none" />
-              <circle
-                cx={0}
-                cy={0}
-                r={6}
-                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-nw-resize hover:(fill-blue-6)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={'100%'}
-                cy={0}
-                r={6}
-                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-ne-resize hover:(fill-blue-6)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={0}
-                cy={'100%'}
-                r={6}
-                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(fill-blue-6)`}
-                onPointerDown={onResizeStart}
-              />
-              <circle
-                cx={'100%'}
-                cy={'100%'}
-                r={6}
-                class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-se-resize hover:(fill-blue-6)`}
-                onPointerDown={onResizeStart}
-              />
-            </Show>
-          </g>
-        </svg>
-
+        <Show when={transformOp() !== 'drag'}>
+          <svg
+            ref={setSelectionRef}
+            x={selectionPosition().x}
+            y={selectionPosition().y}
+            width={selectionSize().width}
+            height={selectionSize().height}
+            style={{ overflow: 'visible' }}
+          >
+            <g>
+              <Show when={props.selectedComponents.length}>
+                <rect
+                  x={0}
+                  y={0}
+                  width="100%"
+                  height="100%"
+                  class="outline-blue-6 outline-1 outline-solid"
+                  fill="none"
+                />
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={6}
+                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-nw-resize hover:(fill-blue-6)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={'100%'}
+                  cy={0}
+                  r={6}
+                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-ne-resize hover:(fill-blue-6)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={0}
+                  cy={'100%'}
+                  r={6}
+                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(fill-blue-6)`}
+                  onPointerDown={onResizeStart}
+                />
+                <circle
+                  cx={'100%'}
+                  cy={'100%'}
+                  r={6}
+                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-se-resize hover:(fill-blue-6)`}
+                  onPointerDown={onResizeStart}
+                />
+              </Show>
+            </g>
+          </svg>
+        </Show>
         <For each={Object.values(props.components)}>
           {(comp) => (
             <LayoutComponent
@@ -399,7 +463,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
               onResizeStart={onResizeStart}
               onDragStart={onDragStart}
               passThrough={ctrl()}
-              observe={observeComponent}
             />
           )}
         </For>

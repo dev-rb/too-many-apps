@@ -10,7 +10,6 @@ interface LayoutComponentProps extends ILayoutComponent {
   onResizeStart: (e: MouseEvent) => void;
   onDragStart: (e: MouseEvent) => void;
   passThrough: boolean;
-  observe: (el: Element) => void;
 }
 
 const LayoutComponent = (props: LayoutComponentProps) => {
@@ -49,9 +48,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         setShift(false);
       }
     });
-    if (ref()) {
-      props.observe(ref()!);
-    }
+
     onCleanup(() => {
       document.removeEventListener('keydown', (e) => {
         if (e.shiftKey) {
