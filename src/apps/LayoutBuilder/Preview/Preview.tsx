@@ -3,6 +3,7 @@ import { createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '..';
 import { TreeView, HtmlView, CssView } from './views';
+import { CanvasTreeView } from './views/TreeView';
 
 const views = [
   { name: 'Tree', view: () => TreeView },
@@ -46,11 +47,12 @@ const Preview = (props: PreviewProps) => {
           )}
         </For>
       </div>
-      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto pr-2 select-none">
+      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto select-none">
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <Switch>
+        <CanvasTreeView components={props.components} />
+        {/* <Switch>
           <Match when={activeView() < 2}>
             <Index each={noParentComponents()}>
               {(component) => (
@@ -78,7 +80,7 @@ const Preview = (props: PreviewProps) => {
               )}
             </Index>
           </Match>
-        </Switch>
+        </Switch> */}
 
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'</div>'} </p>

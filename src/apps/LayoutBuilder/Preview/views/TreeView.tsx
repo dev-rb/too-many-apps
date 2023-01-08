@@ -1,4 +1,4 @@
-import { For } from 'solid-js';
+import { createEffect, createSignal, For, onMount } from 'solid-js';
 import { ILayoutComponent, useBuilder } from '../..';
 
 export interface TreeViewProps {
@@ -10,6 +10,108 @@ export interface TreeViewProps {
   children: string[];
   depth: number;
 }
+
+interface CanvasTreeViewProps {
+  components: Record<string, ILayoutComponent>;
+}
+
+export const CanvasTreeView = (props: CanvasTreeViewProps) => {
+  const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
+  const components = () => Object.values(props.components);
+  const noParentComponents = () => Object.values(props.components).filter((v) => !v.parent);
+
+  const [canvasContext, setContext] = createSignal<CanvasRenderingContext2D | null | undefined>();
+
+  const builder = useBuilder();
+
+  const drawContainer = (x: number, y: number, color: string) => {
+    const canvas = canvasRef();
+    const context = canvasContext();
+
+    if (context && canvas) {
+      context.fillStyle = color;
+      context.roundRect(x, y, canvas?.width! - x, 60, 4);
+      context.fill();
+      context.fillStyle = 'white';
+      context.beginPath();
+      return {
+        addText: (text: string, side: 'left' | 'right') => {
+          const textSize = context.measureText(text);
+          if (side === 'left') {
+            context.fillText(text, x + textSize.actualBoundingBoxLeft + 10, y + 30);
+          } else {
+            context.fillText(text, canvas.width - textSize.actualBoundingBoxLeft - 10, y + 30);
+          }
+
+          context.globalCompositeOperation = 'destination-over';
+          context.beginPath();
+          context.strokeStyle = 'white';
+          context.moveTo(x, y + 30);
+          context.lineTo(x - 10, y + 30);
+
+          context.strokeStyle = 'white';
+          context.moveTo(x - 10, y - 30);
+          context.lineTo(x - 10, y + 30);
+          context.stroke();
+          context.globalCompositeOperation = 'source-over';
+        },
+      };
+    }
+  };
+
+  const drawComponents = () => {
+    const canvas = canvasRef();
+    const context = canvasContext();
+    if (context && canvas) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      let offset = 0;
+      for (let i = 0; i < noParentComponents().length; i++) {
+        const allChildren = noParentComponents()[i].children.map((v) => props.components[v]);
+
+        const container = drawContainer(
+          0,
+          75 + (i - 1) * 75 + offset,
+          builder.componentState.selected.includes(noParentComponents()[i].id) ? '#1c7ed6' : '#373A40'
+        );
+        container?.addText(noParentComponents()[i].name, 'left');
+        container?.addText(noParentComponents()[i].id, 'right');
+
+        for (let j = 0; j < allChildren.length; j++) {
+          const container = drawContainer(
+            40 + j * 20,
+            75 + (j + i) * 75 + offset,
+            builder.componentState.selected.includes(allChildren[j].id) ? '#1c7ed6' : '#373A40'
+          );
+          container?.addText(allChildren[j].name, 'left');
+          container?.addText(allChildren[j].id, 'right');
+        }
+        offset += allChildren.length * 75;
+      }
+    }
+  };
+
+  createEffect(() => {
+    drawComponents();
+  });
+
+  onMount(() => {
+    const canvas = canvasRef();
+    const context = canvas?.getContext('2d');
+    if (canvas && context) {
+      canvas.width = 500;
+      canvas.height = 1000;
+      context.font = '24px Arial';
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.imageSmoothingQuality = 'high';
+      setContext(context);
+    }
+  });
+
+  return <canvas ref={setCanvasRef} />;
+};
 
 export const TreeView = (props: TreeViewProps) => {
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]).filter(Boolean);

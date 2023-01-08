@@ -231,10 +231,10 @@ const LayoutBuilder = () => {
       ...p,
       bounds: {
         ...p.bounds,
-        left: Math.max(0, resolvedNewPos.x),
-        top: Math.max(0, resolvedNewPos.y),
-        right: Math.max(0, resolvedNewPos.x) + p.size.width,
-        bottom: Math.max(0, resolvedNewPos.y) + p.size.height,
+        left: Math.floor(Math.max(0, resolvedNewPos.x)),
+        top: Math.floor(Math.max(0, resolvedNewPos.y)),
+        right: Math.floor(Math.max(0, resolvedNewPos.x) + p.size.width),
+        bottom: Math.floor(Math.max(0, resolvedNewPos.y) + p.size.height),
       },
     }));
   };
