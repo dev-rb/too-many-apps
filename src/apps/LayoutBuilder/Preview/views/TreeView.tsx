@@ -34,65 +34,82 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
       context.fill();
       context.fillStyle = 'white';
       context.beginPath();
-      return {
-        addText: (text: string, side: 'left' | 'right') => {
-          const textSize = context.measureText(text);
-          if (side === 'left') {
-            context.fillText(text, x + textSize.actualBoundingBoxLeft + 10, y + 30);
-          } else {
-            context.fillText(text, canvas.width - textSize.actualBoundingBoxLeft - 10, y + 30);
-          }
+      return (text: string, side: 'left' | 'right') => {
+        const textSize = context.measureText(text);
+        if (side === 'left') {
+          context.fillText(text, x + textSize.actualBoundingBoxLeft + 10, y + 30);
+        } else {
+          context.fillText(text, canvas.width - textSize.actualBoundingBoxLeft - 10, y + 30);
+        }
 
-          context.globalCompositeOperation = 'destination-over';
-          context.beginPath();
-          context.strokeStyle = 'white';
-          context.moveTo(x, y + 30);
-          context.lineTo(x - 10, y + 30);
+        context.globalCompositeOperation = 'destination-over';
+        context.beginPath();
+        context.strokeStyle = 'white';
+        context.moveTo(x, y + 30);
+        context.lineTo(x - 10, y + 30);
 
-          context.strokeStyle = 'white';
-          context.moveTo(x - 10, y - 30);
-          context.lineTo(x - 10, y + 30);
-          context.stroke();
-          context.globalCompositeOperation = 'source-over';
-        },
+        context.strokeStyle = 'white';
+        context.moveTo(x - 10, y - 30);
+        context.lineTo(x - 10, y + 30);
+        context.stroke();
+        context.globalCompositeOperation = 'source-over';
       };
     }
   };
 
-  const drawComponents = () => {
+  const drawComponents = (components: ILayoutComponent[]) => {
+    let yOffset = 0;
+    for (let i = 0; i < components.length; i++) {
+      const container = drawContainer(
+        0,
+        75 + (i - 1) * 75 + yOffset,
+        builder.componentState.selected.includes(components[i].id) ? '#1c7ed6' : '#373A40'
+      );
+      container?.(components[i].name, 'left');
+      container?.(components[i].id, 'right');
+
+      let allChildren = components[i].children.map((v) => props.components[v]);
+      let childSize = allChildren.length;
+
+      let depth = 0;
+      let idx = 0;
+
+      while (allChildren.length) {
+        const child = allChildren.shift();
+        if (child) {
+          const container = drawContainer(
+            40 + depth * 40,
+            75 + (idx + i) * 75 + yOffset,
+            builder.componentState.selected.includes(child.id) ? '#1c7ed6' : '#373A40'
+          );
+          container?.(child.name, 'left');
+          container?.(child.id, 'right');
+          if (child.children.length) {
+            allChildren.unshift(...child.children.map((v) => props.components[v]));
+            childSize += child.children.length;
+            depth += 1;
+          } else {
+            depth = 0;
+          }
+          idx += 1;
+        }
+      }
+
+      yOffset += childSize * 75;
+    }
+  };
+
+  const startDraw = () => {
     const canvas = canvasRef();
     const context = canvasContext();
     if (context && canvas) {
       context.clearRect(0, 0, canvas.width, canvas.height);
-
-      let offset = 0;
-      for (let i = 0; i < noParentComponents().length; i++) {
-        const allChildren = noParentComponents()[i].children.map((v) => props.components[v]);
-
-        const container = drawContainer(
-          0,
-          75 + (i - 1) * 75 + offset,
-          builder.componentState.selected.includes(noParentComponents()[i].id) ? '#1c7ed6' : '#373A40'
-        );
-        container?.addText(noParentComponents()[i].name, 'left');
-        container?.addText(noParentComponents()[i].id, 'right');
-
-        for (let j = 0; j < allChildren.length; j++) {
-          const container = drawContainer(
-            40 + j * 20,
-            75 + (j + i) * 75 + offset,
-            builder.componentState.selected.includes(allChildren[j].id) ? '#1c7ed6' : '#373A40'
-          );
-          container?.addText(allChildren[j].name, 'left');
-          container?.addText(allChildren[j].id, 'right');
-        }
-        offset += allChildren.length * 75;
-      }
+      drawComponents(noParentComponents());
     }
   };
 
   createEffect(() => {
-    drawComponents();
+    startDraw();
   });
 
   onMount(() => {
@@ -100,7 +117,7 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
     const context = canvas?.getContext('2d');
     if (canvas && context) {
       canvas.width = 500;
-      canvas.height = 1000;
+      canvas.height = 10000;
       context.font = '24px Arial';
       context.fillStyle = 'white';
       context.textAlign = 'center';
