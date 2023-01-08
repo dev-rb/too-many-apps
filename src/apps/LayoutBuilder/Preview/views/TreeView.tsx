@@ -17,7 +17,7 @@ interface CanvasTreeViewProps {
 
 export const CanvasTreeView = (props: CanvasTreeViewProps) => {
   const [canvasRef, setCanvasRef] = createSignal<HTMLCanvasElement>();
-  const components = () => Object.values(props.components);
+
   const noParentComponents = () => Object.values(props.components).filter((v) => !v.parent);
 
   const [canvasContext, setContext] = createSignal<CanvasRenderingContext2D | null | undefined>();
@@ -30,10 +30,8 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
 
     if (context && canvas) {
       context.fillStyle = color;
-      context.roundRect(x, y, canvas?.width! - x, 60, 4);
-      context.fill();
+      context.fillRect(x, y, canvas?.width! - x, 60);
       context.fillStyle = 'white';
-      context.beginPath();
       return (text: string, side: 'left' | 'right') => {
         const textSize = context.measureText(text);
         if (side === 'left') {
@@ -43,7 +41,6 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
         }
 
         context.globalCompositeOperation = 'destination-over';
-        context.beginPath();
         context.strokeStyle = 'white';
         context.moveTo(x, y + 30);
         context.lineTo(x - 10, y + 30);
@@ -104,7 +101,16 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
     const context = canvasContext();
     if (context && canvas) {
       context.clearRect(0, 0, canvas.width, canvas.height);
+      context.beginPath();
       drawComponents(noParentComponents());
+    }
+  };
+
+  const onCanvasHover = (e: PointerEvent) => {
+    const context = canvasContext();
+
+    if (context) {
+      // context.isPointInPath();
     }
   };
 
@@ -127,7 +133,7 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
     }
   });
 
-  return <canvas ref={setCanvasRef} />;
+  return <canvas ref={setCanvasRef} onPointerMove={onCanvasHover} />;
 };
 
 export const TreeView = (props: TreeViewProps) => {

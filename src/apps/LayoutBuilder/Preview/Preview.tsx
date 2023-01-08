@@ -21,7 +21,7 @@ const Preview = (props: PreviewProps) => {
 
   const [activeView, setActiveView] = createSignal(0);
 
-  const translateHighlight = () => `translate-x-${activeView() * 101}%`;
+  const translateHighlight = () => `translateX(${activeView() * 101}%)`;
 
   const noParentComponents = createMemo(() => {
     return Object.values(props.components).filter((v) => v.parent === undefined);
@@ -33,9 +33,11 @@ const Preview = (props: PreviewProps) => {
         <h1 class="text-lg color-dark-2"> Preview </h1>
       </div>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
-      <div
-        class={`flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative after:(content-empty bg-blue-7 rounded-sm absolute top-0 h-full w-33% transition-transform) after:${translateHighlight()}`}
-      >
+      <div class={`flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative `}>
+        <div
+          class="absolute top-0 left-0 bg-blue-7 rounded-sm absolute top-0 h-full w-33% transition-transform"
+          style={{ transform: translateHighlight() }}
+        />
         <For each={views}>
           {(view, index) => (
             <button
