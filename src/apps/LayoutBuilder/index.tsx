@@ -97,7 +97,7 @@ const LayoutBuilder = () => {
   /** HIERARCHY  */
   const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
     if (componentState.components[childId].parent === newParentId) return;
-    // console.log('update parent');
+    // console.log('update parent', childId, newParentId);
     setComponentState('components', childId, 'parent', newParentId);
   };
 
@@ -135,13 +135,19 @@ const LayoutBuilder = () => {
         childBounds.right > bounds.right ||
         childBounds.bottom > bounds.bottom
       ) {
+        // console.log(`Child with ID: ${child} is outside it's parent. Moving ${child} to ${getComponent(id).parent}`);
         // Update parent of child to grandparent.
         updateParent(child, getComponent(id).parent);
+        if (getComponent(id).parent) {
+          addChild(getComponent(id).parent!, child);
+        }
         removeChild(id, child);
         // Resolve tree for child changes
-        updateTree(child, childBounds);
+        // updateTree(child, childBounds);
       }
     }
+
+    // console.log('after child changes: ', componentState.components);
   };
 
   const isOutsideParent = (id: ComponentID, bounds: Bounds) => {
@@ -237,7 +243,7 @@ const LayoutBuilder = () => {
       ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
     };
 
-    updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
+    // updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -251,7 +257,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    updateTree(id, getComponent(id).bounds);
+    // updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },

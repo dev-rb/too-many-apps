@@ -6,7 +6,7 @@ import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '.';
 import LayoutComponent from './LayoutComponent/LayoutComponent';
 import { calculateDistances } from './snapping';
-import { calculateResize, closestCorner, createNewComponent, isLeftClick, screenToSVG } from './utils';
+import { calculateResize, closestCorner, createNewComponent, isInside, isLeftClick, screenToSVG } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -184,8 +184,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const onDrag = (e: MouseEvent) => {
-    const selected = props.selectedComponents.length > 1 ? props.selectedComponents : props.selectedComponents[0];
-
     if (transformState.isTransforming) {
       const { activeHandle, startElPos, startMousePos, startSize, startSelectionSize, startSelectionPos } =
         unwrap(transformState);
@@ -218,7 +216,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
           });
           setSelectionSize((p) => ({ ...props.selectedComponents[0].size }));
         }
-      } else if (transformOp() === 'drag' && selected) {
+      } else if (transformOp() === 'drag') {
         let newPos = {
           x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selectionSize().width),
           y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
@@ -252,7 +250,8 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
         for (let i = 0; i < startElPos.length; i++) {
           const comp = props.selectedComponents[i];
-          let newElPos = {
+
+          const newElPos = {
             x: clamp(
               e.clientX - startElPos[i].x,
               comp.bounds.left - newPos.x,
@@ -267,8 +266,37 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
 
           builder.updateComponentPosition(comp.id, newElPos);
         }
-        // setSelectionPosition(newPos);
         measureSelection();
+      }
+
+      // Instead of updating the tree after moving each and every selected component,
+      // we can only update the tree for the most outer elements in the selection that would need to be updated
+      // because of their parent status.
+      let farthestParents: ILayoutComponent[] = [];
+
+      let largestParent: ILayoutComponent | undefined = undefined;
+
+      for (let i = 0; i < startElPos.length; i++) {
+        const comp = props.selectedComponents[i];
+
+        if (!comp.parent) {
+          farthestParents.push(comp);
+        }
+
+        if (largestParent) {
+          if (isInside(largestParent.bounds, comp.bounds)) {
+            largestParent = comp;
+          }
+        } else {
+          largestParent = comp;
+        }
+      }
+      if (largestParent) {
+        farthestParents.push(largestParent);
+      }
+      // console.log(farthestParents);
+      for (let i = 0; i < farthestParents.length; i++) {
+        builder.updateTree(farthestParents[i].id, farthestParents[i].bounds);
       }
     }
   };
