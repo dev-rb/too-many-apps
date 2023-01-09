@@ -11,6 +11,7 @@
     "noEmit": true,
     "strict": true,
     "isolatedModules": true,
+    "lib": ["WebWorker", "ESNext", "ScriptHost", "DOM"],
     "paths": {
       "~/*": ["./src/*"]
     }

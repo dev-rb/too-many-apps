@@ -6,11 +6,11 @@ import initUnocssRuntime from '@unocss/runtime';
 import './index.css';
 import presetWind from 'unocss/preset-wind';
 
-initUnocssRuntime({
-  defaults: {
-    presets: [presetWind()],
-  },
-});
+// initUnocssRuntime({
+//   defaults: {
+//     presets: [presetWind()],
+//   },
+// });
 
 function Index() {
   return <App />;

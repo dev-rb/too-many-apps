@@ -81,12 +81,19 @@ export const Highlighter = () => {
       };
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
-        if (isInside(comp.bounds, bounds)) {
+        let compBounds = document.getElementById(comp.id)!.getBoundingClientRect();
+        compBounds = {
+          ...compBounds,
+          left: compBounds.left - canvasBounds().x,
+          top: compBounds.top - canvasBounds().y,
+          right: comp.size.width + (compBounds.left - canvasBounds().x),
+          bottom: comp.size.height + (compBounds.top - canvasBounds().y),
+        };
+        if (isInside({ ...compBounds }, bounds)) {
           acc.push(comp.id);
         }
         return acc;
       }, [] as string[]);
-
       builder.selectMultipleComponents(insideComponents);
     }
   };

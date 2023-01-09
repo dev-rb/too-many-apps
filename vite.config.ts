@@ -15,6 +15,30 @@ export default defineConfig({
             'flex items-center justify-center cursor-pointer outline-none border-none py-1 px-4 h-8 font-600 text-3 rounded-[0.3rem] ml-auto bg-blue-7 color-white shadow-[0px_0px_6px_2px_rgba(28,126,214,0.5)] hover:bg-blue-6',
         },
         [/^btn-(.*)$/, ([, size]) => `h-${size} w-${size}`],
+        [
+          /^comp-outline-(.*)-(.*)$/,
+          ([, color, opacity]) => `fill-${color}/${opacity} border-${color}-4 border-1 color-${color}-6`,
+        ],
+        [
+          /^comp-lined-(.*)-(.*)$/,
+          ([, color, opacity]) =>
+            `bg-${color}/${opacity} fill-${color}/${opacity} border-${color}-4 border-1 lines-gradient to-${color}-4/50`,
+        ],
+        [/^comp-handle-(.*)-(.*)$/, ([, color, opacity]) => `fill-${color}/${opacity}`],
+      ],
+      rules: [
+        [
+          /^(lines-gradient)$/,
+          ([]) => ({
+            'background-image': `repeating-linear-gradient(-45deg, transparent, transparent 4px, var(--un-gradient-to) 4px, var(--un-gradient-to) 6px)`,
+          }),
+        ],
+      ],
+      safelist: [
+        ...Array.from(['blue', 'pink'], (v) => `fill-${v}-6`),
+        ...Array.from(['blue', 'pink'], (v) => `comp-outline-${v}-40`),
+        ...Array.from(['blue', 'pink'], (v) => `comp-lined-${v}-30`),
+        ...Array.from(['blue', 'pink'], (v) => `comp-handle-${v}-40`),
       ],
       theme: {
         colors: {

@@ -3,6 +3,7 @@ import { createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '..';
 import { TreeView, HtmlView, CssView } from './views';
+import { CanvasTreeView } from './views/TreeView';
 
 const views = [
   { name: 'Tree', view: () => TreeView },
@@ -20,7 +21,7 @@ const Preview = (props: PreviewProps) => {
 
   const [activeView, setActiveView] = createSignal(0);
 
-  const translateHighlight = () => `translate-x-${activeView() * 101}%`;
+  const translateHighlight = () => `translateX(${activeView() * 101}%)`;
 
   const noParentComponents = createMemo(() => {
     return Object.values(props.components).filter((v) => v.parent === undefined);
@@ -32,9 +33,11 @@ const Preview = (props: PreviewProps) => {
         <h1 class="text-lg color-dark-2"> Preview </h1>
       </div>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
-      <div
-        class={`flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative after:(content-empty bg-blue-7 rounded-sm absolute top-0 h-full w-33% transition-transform) after:${translateHighlight()}`}
-      >
+      <div class={`flex mt-2 w-full bg-dark-4 rounded-r-sm rounded-l-sm relative `}>
+        <div
+          class="absolute top-0 left-0 bg-blue-7 rounded-sm absolute top-0 h-full w-33% transition-transform"
+          style={{ transform: translateHighlight() }}
+        />
         <For each={views}>
           {(view, index) => (
             <button
@@ -46,11 +49,12 @@ const Preview = (props: PreviewProps) => {
           )}
         </For>
       </div>
-      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto pr-2 select-none h-full">
+      <div class="custom-v-scrollbar flex flex-col mt-4 overflow-auto select-none">
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <Switch>
+        <CanvasTreeView components={props.components} />
+        {/* <Switch>
           <Match when={activeView() < 2}>
             <Index each={noParentComponents()}>
               {(component) => (
@@ -78,7 +82,7 @@ const Preview = (props: PreviewProps) => {
               )}
             </Index>
           </Match>
-        </Switch>
+        </Switch> */}
 
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'</div>'} </p>

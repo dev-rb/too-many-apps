@@ -1,4 +1,15 @@
-import { createContext, createSelector, createUniqueId, For, JSX, mergeProps, useContext } from 'solid-js';
+import {
+  batch,
+  createContext,
+  createMemo,
+  createSelector,
+  createUniqueId,
+  For,
+  JSX,
+  mergeProps,
+  onMount,
+  useContext,
+} from 'solid-js';
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
@@ -85,10 +96,14 @@ const LayoutBuilder = () => {
 
   /** HIERARCHY  */
   const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
+    if (componentState.components[childId].parent === newParentId) return;
+    // console.log('update parent');
     setComponentState('components', childId, 'parent', newParentId);
   };
 
   const addChild = (parentId: ComponentID, childId: ComponentID) => {
+    if (componentState.components[parentId].children.includes(childId)) return;
+    // console.log('add child', componentState.components[parentId].children.includes(childId));
     setComponentState('components', parentId, 'children', (p) => {
       // If the child already exists, we can skip adding it.
       if (p.includes(childId)) {
@@ -100,6 +115,8 @@ const LayoutBuilder = () => {
   };
 
   const removeChild = (parentId: ComponentID, childId: ComponentID) => {
+    if (!componentState.components[parentId].children.includes(childId)) return;
+    // console.log('remove child');
     setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
   };
 
@@ -154,7 +171,7 @@ const LayoutBuilder = () => {
       x: 99999,
       y: 99999,
     };
-    let closestParent: string | undefined = '';
+    let closestParent: string | undefined = undefined;
     for (const component of Object.values(componentState.components)) {
       if (component.id === updatedComponentId) {
         continue;
@@ -186,6 +203,7 @@ const LayoutBuilder = () => {
       // If we have found the closest parent for this component, check if this component also covers any of the found parents children.
       // Move the covered children to be children on this component and remove them from the previous parent.
       for (const child of componentState.components[closestParent].children) {
+        if (child === updatedComponentId) continue;
         const childComponent = getComponent(child);
         if (isInside(childComponent.bounds, bounds)) {
           if (childComponent.parent) {
@@ -194,6 +212,7 @@ const LayoutBuilder = () => {
           addChild(updatedComponentId, child);
         }
       }
+      if (getComponent(updatedComponentId).parent === closestParent) return;
       if (getComponent(updatedComponentId).parent) {
         removeChild(getComponent(updatedComponentId).parent!, updatedComponentId);
       }
@@ -214,17 +233,19 @@ const LayoutBuilder = () => {
     newPosition: XYPosition | ((previous: XYPosition) => XYPosition)
   ) => {
     const currentBounds = getComponent(id).bounds;
-    const resolvedNewPos = { ...access(newPosition, { x: currentBounds.left, y: currentBounds.top }) };
+    const resolvedNewPos = {
+      ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
+    };
 
-    updateTree(id, { ...currentBounds, top: resolvedNewPos.y, left: resolvedNewPos.x });
+    updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
         ...p.bounds,
-        left: Math.max(0, resolvedNewPos.x),
-        top: Math.max(0, resolvedNewPos.y),
-        right: Math.max(0, resolvedNewPos.x) + p.size.width,
-        bottom: Math.max(0, resolvedNewPos.y) + p.size.height,
+        left: Math.floor(Math.max(0, resolvedNewPos.x)),
+        top: Math.floor(Math.max(0, resolvedNewPos.y)),
+        right: Math.floor(Math.max(0, resolvedNewPos.x) + p.size.width),
+        bottom: Math.floor(Math.max(0, resolvedNewPos.y) + p.size.height),
       },
     }));
   };
@@ -361,6 +382,7 @@ const LayoutBuilder = () => {
   const contextValues = {
     componentState,
     toolState,
+    updateTree,
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
@@ -387,7 +409,7 @@ const LayoutBuilder = () => {
         <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
           <Menu />
           <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-          <div class="flex items-start justify-evenly">
+          <div class="flex items-start justify-evenly max-h-2xl">
             <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
             <LayoutCanvas
               components={componentState.components}
@@ -414,6 +436,7 @@ export default LayoutBuilder;
 interface BuilderContextValues {
   componentState: ComponentState;
   toolState: ToolState;
+  updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: ComponentID, newName: ComponentID) => void;
@@ -454,12 +477,11 @@ interface ComponentDisplayProps {
 const ComponentDisplay = (props: ComponentDisplayProps) => {
   props = mergeProps({ color: 'white' }, props);
 
-  const getBackgroundStyles = () =>
-    `bg-${props.color}/30 border-${props.color}-4 border-1 rounded-sm lines-gradient to-${props.color}-4/50`;
-
   return (
     <div
-      class={`${getBackgroundStyles()} flex items-center justify-center cursor-pointer select-none w-24 h-10 ${
+      class={`comp-lined-${
+        props.color
+      }-30 flex items-center rounded-sm  justify-center cursor-pointer select-none w-24 h-10 ${
         props.active ? 'ring-blue-7 ring-4' : ''
       }`}
       onClick={(e) => {

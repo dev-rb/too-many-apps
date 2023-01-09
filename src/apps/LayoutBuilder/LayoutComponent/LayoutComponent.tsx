@@ -18,6 +18,8 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const builder = useBuilder();
   const selectElement = () => props.selectElement(props.id);
 
+  const [ref, setRef] = createSignal<SVGGElement>();
+
   const [shift, setShift] = createSignal(false);
 
   const onPointerDown = (e: PointerEvent) => {
@@ -29,13 +31,11 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       builder.toggleSelect(props.id);
       return;
     }
-    selectElement();
+    if (!builder.componentState.selected.includes(props.id)) {
+      selectElement();
+    }
     props.onDragStart(e);
   };
-
-  const colorOpacity = createMemo(() => (props.active ? 40 : 30));
-
-  const style = createMemo(() => styleTypes[props.variant](props.color, colorOpacity()));
 
   onMount(() => {
     document.addEventListener('keydown', (e) => {
@@ -48,6 +48,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         setShift(false);
       }
     });
+
     onCleanup(() => {
       document.removeEventListener('keydown', (e) => {
         if (e.shiftKey) {
@@ -57,42 +58,44 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     });
   });
 
+  const translate = () => {
+    return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`;
+  };
+
   return (
-    <div
+    <g
+      ref={setRef}
       id={props.id}
-      class={`${style()} flex items-center justify-center cursor-pointer select-none hover:border-${props.color}-8/60`}
+      class="w-fit h-fit cursor-pointer select-none"
       style={{
-        position: 'absolute',
-        transform: `translate(${props.bounds.left}px, ${props.bounds.top}px)`,
-        width: `${props.size!.width}px`,
-        height: `${props.size!.height}px`,
-        'z-index': props.layer,
+        transform: translate(),
         'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
+        'will-change': 'transform',
       }}
       onPointerDown={onPointerDown}
     >
-      <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
-
-      <Show when={props.active}>
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -left-1.5 cursor-nw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -top-1.5 -right-1.5 cursor-ne-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -left-1.5 cursor-sw-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={props.onResizeStart}
-        />
-        <div
-          class={`bg-${props.color}-5/40 w-3 h-3 rounded-full border-white/50 border-1 absolute -bottom-1.5 -right-1.5 cursor-se-resize hover:(border-white border-2) active:(border-white border-2)`}
-          onMouseDown={props.onResizeStart}
-        />
-      </Show>
-      <p class="font-400 "> {props.name} </p>
-    </div>
+      <foreignObject width={`${props.size!.width}`} height={`${props.size!.height}`} overflow="visible">
+        <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
+      </foreignObject>
+      <g>
+        <rect
+          class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
+          x={0}
+          y={0}
+          width={`${props.size!.width}`}
+          height={`${props.size!.height}`}
+        ></rect>
+        <text
+          class={`font-400 fill-${props.color}-6`}
+          x={props.size.width / 2}
+          y={props.size.height / 2}
+          text-anchor="middle"
+          dominant-baseline="central"
+        >
+          {props.name}
+        </text>
+      </g>
+    </g>
   );
 };
 
