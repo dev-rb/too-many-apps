@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from 'solid-js';
+import { batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds } from '~/types';
@@ -66,13 +66,11 @@ export const Highlighter = () => {
         newMousePos,
         'top-left'
       );
-
       setSelfState((p) => ({
         ...p,
         position: updatedPos,
         size: { width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) },
       }));
-
       const bounds: Bounds = {
         top: updatedPos.y - canvasBounds().y,
         left: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x,
@@ -102,7 +100,7 @@ export const Highlighter = () => {
       size: ZERO_SIZE,
       visible: false,
     });
-    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mousemove', (e) => requestAnimationFrame(() => onMouseMove(e)));
     document.removeEventListener('mouseup', onMouseUp);
   };
 
@@ -135,9 +133,11 @@ export const Highlighter = () => {
     });
   });
 
-  const translate = () => {
-    return `translate(${selfState.position.x}px, ${selfState.position.y}px)`;
-  };
+  const translate = createMemo(() => {
+    return `translate3d(${selfState.position.x}px, ${selfState.position.y}px, 0) scale3d(${
+      selfState.size.width / window.outerWidth
+    }, ${selfState.size.height / window.outerHeight}, 1)`;
+  });
 
   return (
     <div
@@ -148,8 +148,9 @@ export const Highlighter = () => {
       }}
       style={{
         transform: translate(),
-        width: `${selfState.size.width}px`,
-        height: `${selfState.size.height}px`,
+        width: `${window.outerWidth}px`,
+        height: `${window.outerHeight}px`,
+        'transform-origin': 'top left',
       }}
     ></div>
   );

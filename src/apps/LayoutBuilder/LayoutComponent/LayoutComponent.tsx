@@ -64,9 +64,9 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   return (
     <g ref={setRef} id={props.id} class="w-fit h-fit cursor-pointer select-none" onPointerDown={onPointerDown}>
-      <foreignObject width={`${props.size!.width}`} height={`${props.size!.height}`} overflow="visible">
+      {/* <foreignObject width={`${props.size!.width}`} height={`${props.size!.height}`} overflow="visible">
         <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
-      </foreignObject>
+      </foreignObject> */}
       <g
         style={{
           // width: props.size.width + 'px',
@@ -83,15 +83,15 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           width={props.size.width}
           height={props.size.height}
         ></rect>
-        {/* <text
+        <text
           class={`font-400 fill-${props.color}-6`}
-          x={'25%'}
-          y={'25%'}
+          x={props.size.width / 2}
+          y={props.size.height / 2}
           text-anchor="middle"
           dominant-baseline="central"
         >
           {props.name}
-        </text> */}
+        </text>
       </g>
     </g>
   );
