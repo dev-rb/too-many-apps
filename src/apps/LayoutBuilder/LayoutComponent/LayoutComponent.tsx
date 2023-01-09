@@ -59,41 +59,39 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   });
 
   const translate = () => {
-    return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0px)`;
+    return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`;
   };
 
   return (
-    <g
-      ref={setRef}
-      id={props.id}
-      class="w-fit h-fit cursor-pointer select-none"
-      style={{
-        transform: translate(),
-        'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
-        'will-change': 'transform',
-      }}
-      onPointerDown={onPointerDown}
-    >
+    <g ref={setRef} id={props.id} class="w-fit h-fit cursor-pointer select-none" onPointerDown={onPointerDown}>
       <foreignObject width={`${props.size!.width}`} height={`${props.size!.height}`} overflow="visible">
         <DebugInfo {...props} showHierarchy={false} showId={false} showPositionPoints={false} showSize={false} />
       </foreignObject>
-      <g>
+      <g
+        style={{
+          // width: props.size.width + 'px',
+          // height: props.size.height + 'px',
+          transform: translate(),
+          'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
+          'will-change': 'transform',
+        }}
+      >
         <rect
           class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
           x={0}
           y={0}
-          width={`${props.size!.width}`}
-          height={`${props.size!.height}`}
+          width={props.size.width}
+          height={props.size.height}
         ></rect>
-        <text
+        {/* <text
           class={`font-400 fill-${props.color}-6`}
-          x={props.size.width / 2}
-          y={props.size.height / 2}
+          x={'25%'}
+          y={'25%'}
           text-anchor="middle"
           dominant-baseline="central"
         >
           {props.name}
-        </text>
+        </text> */}
       </g>
     </g>
   );

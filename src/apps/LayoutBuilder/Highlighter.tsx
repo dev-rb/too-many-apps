@@ -76,20 +76,12 @@ export const Highlighter = () => {
       const bounds: Bounds = {
         top: updatedPos.y - canvasBounds().y,
         left: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x,
-        right: dragState.startMousePos.x + Math.abs(updatedSize.width) - canvasBounds().x,
-        bottom: dragState.startMousePos.y + Math.abs(updatedSize.height) - canvasBounds().y,
+        right: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x + Math.abs(updatedSize.width),
+        bottom: updatedPos.y - canvasBounds().y + Math.abs(updatedSize.height),
       };
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
-        let compBounds = document.getElementById(comp.id)!.getBoundingClientRect();
-        compBounds = {
-          ...compBounds,
-          left: compBounds.left - canvasBounds().x,
-          top: compBounds.top - canvasBounds().y,
-          right: comp.size.width + (compBounds.left - canvasBounds().x),
-          bottom: comp.size.height + (compBounds.top - canvasBounds().y),
-        };
-        if (isInside({ ...compBounds }, bounds)) {
+        if (isInside(comp.bounds, bounds)) {
           acc.push(comp.id);
         }
         return acc;

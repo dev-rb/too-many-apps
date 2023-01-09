@@ -88,9 +88,7 @@ const LayoutBuilder = () => {
     components: {},
     maxLayer: MIN_LAYER,
     get selectedComponent() {
-      return (Object.values(this.components) as ILayoutComponent[]).filter((comp: ILayoutComponent) =>
-        this.selected.includes(comp.id)
-      );
+      return this.selected.map((id: string) => this.components[id]);
     },
   });
 
@@ -353,16 +351,16 @@ const LayoutBuilder = () => {
     setComponentState('selected', (p) => p.filter((selected) => selected !== id));
   };
 
-  const deleteComponent = (id: ComponentID) => {
+  const deleteComponent = (toRemove: ComponentID) => {
     let newState = Object.fromEntries(
-      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== id)
+      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== toRemove)
     );
 
-    const selfParent = componentState.components[id].parent;
-    const selfChildren = componentState.components[id].children;
+    const selfParent = componentState.components[toRemove].parent;
+    const selfChildren = componentState.components[toRemove].children;
 
     if (selfParent) {
-      removeChild(selfParent, id);
+      removeChild(selfParent, toRemove);
     }
 
     for (const child of selfChildren) {
@@ -372,6 +370,7 @@ const LayoutBuilder = () => {
       }
     }
 
+    setComponentState('selected', (p) => p.filter((id) => id !== toRemove));
     setComponentState('components', reconcile(newState));
   };
 

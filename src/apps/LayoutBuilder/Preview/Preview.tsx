@@ -53,8 +53,8 @@ const Preview = (props: PreviewProps) => {
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <CanvasTreeView components={props.components} />
-        {/* <Switch>
+        {/* <CanvasTreeView components={props.components} /> */}
+        <Switch>
           <Match when={activeView() < 2}>
             <Index each={noParentComponents()}>
               {(component) => (
@@ -82,7 +82,7 @@ const Preview = (props: PreviewProps) => {
               )}
             </Index>
           </Match>
-        </Switch> */}
+        </Switch>
 
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'</div>'} </p>
