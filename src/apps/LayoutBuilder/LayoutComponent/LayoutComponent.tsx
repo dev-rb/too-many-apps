@@ -1,4 +1,5 @@
 import { mergeProps, Show, For, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
+import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { ILayoutComponent, useBuilder } from '..';
 import { DebugInfo } from './DebugInfo';
 import { styleTypes } from './styles';
@@ -19,6 +20,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const selectElement = () => props.selectElement(props.id);
 
   const [ref, setRef] = createSignal<SVGGElement>();
+  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
 
   const [shift, setShift] = createSignal(false);
 
@@ -58,9 +60,23 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     });
   });
 
+  onMount(() => {
+    const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
+
+    setCanvasBounds({
+      x: canvasBounds.left,
+      y: canvasBounds.top,
+      width: canvasBounds.width,
+      height: canvasBounds.height,
+    });
+  });
+
   const translate = () => {
     return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`;
   };
+
+  const scale = () =>
+    `scale3d(${props.size.width / canvasBounds().width}, ${props.size.height / canvasBounds().height}, 1)`;
 
   return (
     <g ref={setRef} id={props.id} class="w-fit h-fit cursor-pointer select-none" onPointerDown={onPointerDown}>
@@ -69,9 +85,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       </foreignObject> */}
       <g
         style={{
-          // width: props.size.width + 'px',
-          // height: props.size.height + 'px',
-          transform: translate(),
+          transform: translate() + scale(),
           'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
           'will-change': 'transform',
         }}
@@ -80,13 +94,13 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
           x={0}
           y={0}
-          width={props.size.width}
-          height={props.size.height}
-        ></rect>
+          width={canvasBounds().width}
+          height={canvasBounds().height}
+        />
         <text
           class={`font-400 fill-${props.color}-6`}
-          x={props.size.width / 2}
-          y={props.size.height / 2}
+          x={'50%'}
+          y={'50%'}
           text-anchor="middle"
           dominant-baseline="central"
         >

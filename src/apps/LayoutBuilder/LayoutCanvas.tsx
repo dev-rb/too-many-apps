@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
+import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Bounds, Size, XYPosition } from '~/types';
@@ -268,30 +268,33 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       // Instead of updating the tree after moving each and every selected component,
       // we can only update the tree for the most outer elements in the selection that would need to be updated
       // because of their parent status.
-      let farthestParents: ILayoutComponent[] = [];
+      let farthestParents: Set<ILayoutComponent> = new Set();
 
-      let largestParent: ILayoutComponent | undefined = undefined;
-
-      for (let i = 0; i < startElPos.length; i++) {
+      for (let i = 0; i < selected().length; i++) {
         const comp = selected()[i];
 
-        if (!comp.parent) {
-          farthestParents.push(comp);
+        let parent: string = comp.id;
+
+        while (parent && builder.componentState.selected.includes(parent)) {
+          let grandparent: string | undefined = props.components[parent].parent;
+          if (grandparent && !builder.componentState.selected.includes(grandparent)) break;
+          parent = grandparent!;
         }
 
-        if (largestParent && isInside(largestParent.bounds, comp.bounds)) {
-          largestParent = comp;
-        } else {
-          largestParent = comp;
+        if (parent && builder.componentState.selected.includes(parent)) {
+          farthestParents.add(props.components[parent]);
+        }
+
+        if (comp.parent === undefined) {
+          farthestParents.add(comp);
         }
       }
-      if (largestParent) {
-        farthestParents.push(largestParent);
-      }
 
-      for (let i = 0; i < farthestParents.length; i++) {
-        builder.updateTree(farthestParents[i].id, farthestParents[i].bounds);
-      }
+      batch(() => {
+        for (const comp of farthestParents) {
+          builder.updateTree(comp.id, comp.bounds);
+        }
+      });
     }
   };
 
