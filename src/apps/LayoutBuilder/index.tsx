@@ -1,8 +1,10 @@
 import {
+  Accessor,
   batch,
   createContext,
   createMemo,
   createSelector,
+  createSignal,
   createUniqueId,
   For,
   JSX,
@@ -77,6 +79,7 @@ interface ToolState {
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
+  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const [toolState, setToolState] = createStore<ToolState>({
     activeTool: 'pointer',
     drawItem: undefined,
@@ -344,6 +347,7 @@ const LayoutBuilder = () => {
   };
 
   const selectMultipleComponents = (ids: ComponentID[]) => {
+    if (ids.length === 0 && componentState.selected.length === 0) return;
     setComponentState('selected', ids);
   };
 
@@ -384,7 +388,19 @@ const LayoutBuilder = () => {
     }));
   };
 
+  onMount(() => {
+    const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
+
+    setCanvasBounds({
+      x: canvasBounds.left,
+      y: canvasBounds.top,
+      width: canvasBounds.width,
+      height: canvasBounds.height,
+    });
+  });
+
   const contextValues = {
+    canvasBounds,
     componentState,
     toolState,
     updateTree,
@@ -439,6 +455,12 @@ const LayoutBuilder = () => {
 export default LayoutBuilder;
 
 interface BuilderContextValues {
+  canvasBounds: Accessor<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  }>;
   componentState: ComponentState;
   toolState: ToolState;
   updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;

@@ -51,13 +51,20 @@ export const Highlighter = () => {
       },
     });
 
-    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mousemove', (e) =>
+      requestAnimationFrame(() => {
+        if (raf() && dragState.isDragging) {
+          onMouseMove(e);
+        }
+      })
+    );
     document.addEventListener('mouseup', onMouseUp);
   };
 
   const onMouseMove = (e: MouseEvent) => {
     e.stopPropagation();
     if (dragState.isDragging) {
+      setRaf(true);
       const newMousePos = { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y };
 
       const { updatedPos, updatedSize } = calculateResize(
@@ -88,6 +95,8 @@ export const Highlighter = () => {
     }
   };
 
+  const [raf, setRaf] = createSignal(true);
+
   const reset = () => {
     setDragState({
       isDragging: false,
@@ -100,7 +109,14 @@ export const Highlighter = () => {
       size: ZERO_SIZE,
       visible: false,
     });
-    document.removeEventListener('mousemove', (e) => requestAnimationFrame(() => onMouseMove(e)));
+    document.removeEventListener('mousemove', (e) =>
+      requestAnimationFrame(() => {
+        if (raf() && dragState.isDragging) {
+          setRaf(false);
+          onMouseMove(e);
+        }
+      })
+    );
     document.removeEventListener('mouseup', onMouseUp);
   };
 

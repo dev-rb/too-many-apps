@@ -181,8 +181,18 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     return { width: newWidth, height: newHeight };
   };
 
+  const [raf, setRaf] = createSignal(true);
+
+  const dragUpdate = (e: MouseEvent) => {
+    if (transformState.isTransforming && raf()) {
+      setRaf(false);
+      requestAnimationFrame(() => onDrag(e));
+    }
+  };
+
   const onDrag = (e: MouseEvent) => {
     if (transformState.isTransforming) {
+      setRaf(true);
       const { activeHandle, startElPos, startMousePos, startSize, startSelectionSize, startSelectionPos } =
         unwrap(transformState);
 
@@ -303,6 +313,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       isTransforming: false,
     });
     setTransformOp('draw');
+    setRaf(true);
   };
 
   const selectElement = (id: string) => {
@@ -359,7 +370,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   onMount(() => {
-    document.addEventListener('pointermove', (e) => requestAnimationFrame(() => onDrag(e)));
+    document.addEventListener('pointermove', dragUpdate);
     document.addEventListener('pointerup', onMouseUp);
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey) {
@@ -374,7 +385,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     });
 
     onCleanup(() => {
-      document.removeEventListener('pointermove', onDrag);
+      document.removeEventListener('pointermove', dragUpdate);
       document.removeEventListener('pointerup', onMouseUp);
     });
   });

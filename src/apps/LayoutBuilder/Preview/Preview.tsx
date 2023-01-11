@@ -42,7 +42,7 @@ const Preview = (props: PreviewProps) => {
           {(view, index) => (
             <button
               class="appearance-none border-none bg-transparent outline-none p-2 color-white cursor-pointer w-full rounded-sm transition-colors z-2 select-none"
-              onClick={() => setActiveView(index())}
+              onPointerDown={() => setActiveView(index())}
             >
               {view.name}
             </button>

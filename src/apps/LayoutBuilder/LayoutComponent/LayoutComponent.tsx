@@ -20,7 +20,6 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const selectElement = () => props.selectElement(props.id);
 
   const [ref, setRef] = createSignal<SVGGElement>();
-  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
 
   const [shift, setShift] = createSignal(false);
 
@@ -60,23 +59,14 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     });
   });
 
-  onMount(() => {
-    const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
+  const translate = createMemo(() => `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`);
 
-    setCanvasBounds({
-      x: canvasBounds.left,
-      y: canvasBounds.top,
-      width: canvasBounds.width,
-      height: canvasBounds.height,
-    });
-  });
-
-  const translate = () => {
-    return `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`;
-  };
-
-  const scale = () =>
-    `scale3d(${props.size.width / canvasBounds().width}, ${props.size.height / canvasBounds().height}, 1)`;
+  const scale = createMemo(
+    () =>
+      `scale3d(${props.size.width / builder.canvasBounds().width}, ${
+        props.size.height / builder.canvasBounds().height
+      }, 1)`
+  );
 
   return (
     <g ref={setRef} id={props.id} class="w-fit h-fit cursor-pointer select-none" onPointerDown={onPointerDown}>
@@ -94,8 +84,8 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
           x={0}
           y={0}
-          width={canvasBounds().width}
-          height={canvasBounds().height}
+          width={builder.canvasBounds().width}
+          height={builder.canvasBounds().height}
         />
         <text
           class={`font-400 fill-${props.color}-6`}
