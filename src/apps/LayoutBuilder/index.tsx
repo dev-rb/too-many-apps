@@ -1,8 +1,6 @@
 import {
   Accessor,
-  batch,
   createContext,
-  createMemo,
   createSelector,
   createSignal,
   createUniqueId,

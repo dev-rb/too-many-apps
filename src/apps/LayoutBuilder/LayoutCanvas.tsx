@@ -1,12 +1,12 @@
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import type { Bounds, Size, XYPosition } from '~/types';
+import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '.';
 import LayoutComponent from './LayoutComponent/LayoutComponent';
 import { calculateDistances } from './snapping';
-import { calculateResize, closestCorner, createNewComponent, isInside, isLeftClick, screenToSVG } from './utils';
+import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -27,7 +27,6 @@ interface TransformState {
 
 const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
-  const [selectionRef, setSelectionRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
 
@@ -92,13 +91,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (!isLeftClick(e)) return;
     if (builder.toolState.activeTool === 'pointer' && selected().length) {
       builder.clearSelection();
-      if (selectionRef()) {
-        for (const child of Array.from(selectionRef()!.children)) {
-          if (child.id) {
-            canvasRef()!.appendChild(child);
-          }
-        }
-      }
     }
     if (builder.toolState.drawItem && builder.toolState.activeTool === 'draw') {
       e.preventDefault();
@@ -429,7 +421,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
         </For>
         <Show when={transformOp() !== 'drag'}>
           <svg
-            ref={setSelectionRef}
             x={selectionPosition().x}
             y={selectionPosition().y}
             width={selectionSize().width}

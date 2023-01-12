@@ -1,7 +1,5 @@
-import { mergeProps, Show, For, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
-import { ZERO_POS, ZERO_SIZE } from '~/constants';
+import { mergeProps, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
 import { ILayoutComponent, useBuilder } from '..';
-import { DebugInfo } from './DebugInfo';
 import { styleTypes } from './styles';
 
 interface LayoutComponentProps extends ILayoutComponent {
