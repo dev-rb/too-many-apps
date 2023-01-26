@@ -3,10 +3,11 @@ import { createStore, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
-import { ILayoutComponent, useBuilder } from '.';
-import LayoutComponent from './LayoutComponent/LayoutComponent';
-import { calculateDistances } from './snapping';
-import { calculateResize, closestCorner, createNewComponent, isLeftClick } from './utils';
+import { ILayoutComponent, useBuilder } from '..';
+import LayoutComponent from '../LayoutComponent/LayoutComponent';
+import { calculateDistances } from '../snapping';
+import { calculateResize, closestCorner, createNewComponent, isLeftClick } from '../utils';
+import { Selection } from './Selection';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
 
@@ -25,7 +26,7 @@ interface TransformState {
   activeHandle: string;
 }
 
-const LayoutCanvas = (props: LayoutCanvasProps) => {
+export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
@@ -417,59 +418,13 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
             />
           )}
         </For>
-        <Show when={transformOp() !== 'drag'}>
-          <svg
-            x={selectionPosition().x}
-            y={selectionPosition().y}
-            width={selectionSize().width}
-            height={selectionSize().height}
-            style={{ overflow: 'visible' }}
-          >
-            <g>
-              <Show when={props.selectedComponents.length}>
-                <rect
-                  x={0}
-                  y={0}
-                  width="100%"
-                  height="100%"
-                  class="outline-blue-6 outline-1 outline-solid"
-                  fill="none"
-                />
-                <circle
-                  cx={0}
-                  cy={0}
-                  r={6}
-                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-nw-resize hover:(fill-blue-6)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={'100%'}
-                  cy={0}
-                  r={6}
-                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-ne-resize hover:(fill-blue-6)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={0}
-                  cy={'100%'}
-                  r={6}
-                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-sw-resize hover:(fill-blue-6)`}
-                  onPointerDown={onResizeStart}
-                />
-                <circle
-                  cx={'100%'}
-                  cy={'100%'}
-                  r={6}
-                  class={`comp-handle-blue-40 stroke-white/50 stroke-1 cursor-se-resize hover:(fill-blue-6)`}
-                  onPointerDown={onResizeStart}
-                />
-              </Show>
-            </g>
-          </svg>
-        </Show>
+        <Selection
+          active={transformOp() !== 'drag' && props.selectedComponents.length > 0}
+          position={selectionPosition()}
+          size={selectionSize()}
+          onHandleClick={onResizeStart}
+        />
       </svg>
     </div>
   );
 };
-
-export default LayoutCanvas;

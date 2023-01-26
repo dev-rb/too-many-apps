@@ -15,7 +15,7 @@ import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
 import Preview from './Preview/Preview';
-import LayoutCanvas from './LayoutCanvas';
+import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
 import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
