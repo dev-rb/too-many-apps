@@ -141,7 +141,6 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
     if (!isLeftClick(e)) return;
 
     if (builder.toolState.activeTool === 'pointer' && selected().length) {
-      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
@@ -185,8 +184,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
   const onDrag = (e: MouseEvent) => {
     if (transformState.isTransforming) {
       setRaf(true);
-      const { activeHandle, startElPos, startMousePos, startSize, startSelectionSize, startSelectionPos } =
-        unwrap(transformState);
+      const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
@@ -214,7 +212,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
             x: Math.max(0, selected()[0].bounds.left),
             y: Math.max(0, selected()[0].bounds.top),
           });
-          setSelectionSize((p) => ({ ...selected()[0].size }));
+          setSelectionSize(() => ({ ...selected()[0].size }));
         }
       } else if (transformOp() === 'drag') {
         let newPos = {
@@ -406,7 +404,7 @@ const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <For each={Object.values(props.components)}>
+        <For each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
           {(comp) => (
             <LayoutComponent
               {...comp}
