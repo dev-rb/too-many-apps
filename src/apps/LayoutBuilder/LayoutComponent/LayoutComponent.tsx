@@ -66,6 +66,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       }, 1)`
   );
 
+  const inverseScale = () => {
+    return `scale(${1 / (props.size.width / builder.canvasBounds().width)} ${
+      1 / (props.size.height / builder.canvasBounds().height)
+    })`;
+  };
+
   return (
     <g ref={setRef} id={props.id} class="w-fit h-fit cursor-pointer select-none" onPointerDown={onPointerDown}>
       {/* <foreignObject width={`${props.size!.width}`} height={`${props.size!.height}`} overflow="visible">
@@ -75,7 +81,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         style={{
           transform: translate() + scale(),
           'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
-          'will-change': 'transform',
+          'will-change': props.active ? 'transform' : undefined,
         }}
       >
         <rect
@@ -87,10 +93,11 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         />
         <text
           class={`font-400 fill-${props.color}-6`}
-          x={'50%'}
-          y={'50%'}
+          x={props.size.width / 2}
+          y={props.size.height / 2}
           text-anchor="middle"
-          dominant-baseline="central"
+          dominant-baseline="middle"
+          transform={inverseScale()}
         >
           {props.name}
         </text>
