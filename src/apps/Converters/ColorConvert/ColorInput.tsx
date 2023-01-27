@@ -1,8 +1,8 @@
 import { createSignal, Show } from 'solid-js';
 import { z, ZodError } from 'zod';
 import { VALIDATION_REGEXP } from '~/utils/colors';
-import { useClickOutside } from '@hope-ui/solid';
 import ColorPicker from '~/components/ColorPicker';
+import { useClickOutside } from '~/hooks/useClickOutside';
 
 const colorSchema = z
   .string({ description: 'Color Value' })
@@ -31,8 +31,8 @@ const ColorInput = (props: ColorInputProps) => {
 
   const [pickerOpen, setPickerOpen] = createSignal(false);
   useClickOutside({
-    element: pickerRef,
-    handler: () => {
+    ref: pickerRef,
+    callbackFn: () => {
       setPickerOpen(false);
     },
   });

@@ -1,9 +1,8 @@
-import { copyToClipboard, makeClipboard } from '@solid-primitives/clipboard';
+import { makeClipboard } from '@solid-primitives/clipboard';
 import { BiRegularX, BiSolidCheckCircle } from 'solid-icons/bi';
-import { Show, For, mergeProps, createSignal } from 'solid-js';
+import { Show, For, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { hsvaToRgba, hsvaToHex, hsvaToHsl } from '~/components/ColorPicker/converters/hsvaConvert';
-import InfoCard from '~/components/InfoCard';
 import { COLOR_FORMATS, ColorFormat, identifyFormat, parseColor } from '~/utils/colors';
 import ColorInput from './ColorInput';
 
