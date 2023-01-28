@@ -22,6 +22,7 @@ import { isInside } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
+import { CssEditor } from './CssEditor';
 
 export const MIN_LAYER = 4;
 
@@ -435,6 +436,7 @@ const LayoutBuilder = () => {
               selectedComponents={componentState.selectedComponent}
             />
             <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+            <CssEditor />
           </div>
           <div
             class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
