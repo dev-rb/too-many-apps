@@ -1,9 +1,11 @@
-import { createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { createMemo, createSignal, JSX, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds } from '~/types';
 import { useBuilder } from '.';
 import { calculateResize, isInside } from './utils';
+
+const excludeNodes = ['#css-editor'];
 
 export const Highlighter = () => {
   const builder = useBuilder();
@@ -26,7 +28,11 @@ export const Highlighter = () => {
   });
 
   const onMouseDown = (e: MouseEvent) => {
-    if (e.defaultPrevented) return;
+    if (
+      e.defaultPrevented ||
+      excludeNodes.some((node) => (e.currentTarget as Node).contains(document.querySelector(node)))
+    )
+      return;
     e.preventDefault();
     e.stopPropagation();
 
