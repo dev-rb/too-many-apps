@@ -20,8 +20,6 @@ interface TransformState {
   startMousePos: XYPosition;
   startElPos: XYPosition[];
   startSize: Size[];
-  startSelectionSize: Size;
-  startSelectionPos: XYPosition;
   isTransforming: boolean;
   activeHandle: string;
 }
@@ -40,9 +38,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
     startElPos: [ZERO_POS],
-    startSelectionPos: ZERO_POS,
     startSize: [ZERO_SIZE],
-    startSelectionSize: ZERO_SIZE,
     isTransforming: false,
     activeHandle: 'top-left',
   });
@@ -76,12 +72,10 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
             x: e.clientX,
             y: e.clientY,
           },
-          startSelectionPos: currentElementPosition,
           startElPos: selected().map((v) => {
             return { x: v.bounds.left, y: v.bounds.top };
           }),
           startSize: selected().map((v) => v.size),
-          startSelectionSize: selectionSize(),
           activeHandle: handle,
         });
       }
@@ -129,9 +123,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           y: e.clientY,
         },
         startElPos: [mousePos],
-        startSelectionPos: mousePos,
         startSize: [ZERO_SIZE],
-        startSelectionSize: ZERO_SIZE,
       });
     }
   };
@@ -185,7 +177,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const onDrag = (e: MouseEvent) => {
     if (transformState.isTransforming) {
       setRaf(true);
-      const { activeHandle, startElPos, startMousePos, startSize } = unwrap(transformState);
+      const { activeHandle, startElPos, startMousePos, startSize } = { ...transformState };
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
