@@ -30,7 +30,10 @@ export const Highlighter = () => {
   const onMouseDown = (e: MouseEvent) => {
     if (
       e.defaultPrevented ||
-      excludeNodes.some((node) => (e.currentTarget as Node).contains(document.querySelector(node)))
+      excludeNodes.some((node) => {
+        const nodeEl = document.querySelector(node);
+        return nodeEl && e.composedPath().includes(nodeEl);
+      })
     )
       return;
     e.preventDefault();
