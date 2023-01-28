@@ -39,6 +39,7 @@ export interface ILayoutComponent {
   layer: number;
   children: string[];
   parent?: string;
+  grouped?: false | string[];
 }
 
 const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'>[] = [
@@ -354,6 +355,12 @@ const LayoutBuilder = () => {
     setComponentState('selected', (p) => p.filter((selected) => selected !== id));
   };
 
+  const groupSelected = () => {
+    for (const selectedId of componentState.selected) {
+      setComponentState('components', selectedId, 'grouped', [...componentState.selected]);
+    }
+  };
+
   const deleteComponent = (toRemove: ComponentID) => {
     let newState = Object.fromEntries(
       Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== toRemove)
@@ -410,6 +417,7 @@ const LayoutBuilder = () => {
     selectComponent,
     unselectComponent,
     selectMultipleComponents,
+    groupSelected,
     deleteComponent,
     createNewComponent,
     getDrawable,
@@ -471,6 +479,7 @@ interface BuilderContextValues {
   selectComponent: (id: ComponentID) => void;
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
+  groupSelected: () => void;
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;

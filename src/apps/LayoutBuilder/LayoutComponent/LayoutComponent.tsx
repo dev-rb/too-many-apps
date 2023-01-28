@@ -6,7 +6,6 @@ interface LayoutComponentProps extends ILayoutComponent {
   selectElement: (id: string) => void;
   active: boolean;
   variant: keyof typeof styleTypes;
-  onResizeStart: (e: MouseEvent) => void;
   onDragStart: (e: MouseEvent) => void;
   passThrough: boolean;
 }

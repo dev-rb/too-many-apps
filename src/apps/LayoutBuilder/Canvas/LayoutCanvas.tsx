@@ -1,5 +1,6 @@
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
+import { Match, Switch } from 'solid-js/web';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
@@ -314,12 +315,12 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           acc.y = curr.bounds.top;
         }
 
-        if (curr.bounds.right > acc.right) {
-          acc.right = curr.bounds.right;
+        if (curr.bounds.left + curr.size.width > acc.right) {
+          acc.right = curr.bounds.left + curr.size.width;
         }
 
-        if (curr.bounds.bottom > acc.bottom) {
-          acc.bottom = curr.bounds.bottom;
+        if (curr.bounds.top + curr.size.height > acc.bottom) {
+          acc.bottom = curr.bounds.top + curr.size.height;
         }
 
         return acc;
@@ -359,6 +360,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (e.ctrlKey) {
         setCtrl(true);
       }
+
+      if (e.ctrlKey && e.key === 'g') {
+        e.preventDefault();
+        builder.groupSelected();
+      }
     });
 
     document.addEventListener('keyup', (e) => {
@@ -385,6 +391,30 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     })
   );
 
+  const comps = createMemo(() => {
+    let allComponents = Object.values(props.components);
+
+    for (const comp of allComponents) {
+      const findSame = allComponents.findIndex((c) => {
+        if (c.grouped && comp.grouped && c.grouped.length === comp.grouped.length) {
+          return c.grouped.every((v) => (comp.grouped as Array<string>).includes(v));
+        }
+
+        return false;
+      });
+
+      if (findSame !== -1) {
+        allComponents.splice(findSame, 1);
+      }
+    }
+
+    console.log('rerun');
+
+    const sortedComponents = Object.values(allComponents).sort((a, b) => a.layer - b.layer);
+
+    return sortedComponents;
+  });
+
   return (
     <div class="flex flex-col w-6xl h-2xl ">
       {/* Display header */}
@@ -397,17 +427,36 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <For each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
+        <For each={comps()}>
           {(comp) => (
-            <LayoutComponent
-              {...comp}
-              active={builder.componentState.selected?.includes(comp.id)}
-              selectElement={selectElement}
-              variant="outline"
-              onResizeStart={onResizeStart}
-              onDragStart={onDragStart}
-              passThrough={ctrl()}
-            />
+            <Switch>
+              <Match when={comp.grouped}>
+                <g>
+                  <For each={comp.grouped}>
+                    {(member) => (
+                      <LayoutComponent
+                        {...props.components[member]}
+                        active={builder.componentState.selected?.includes(comp.id)}
+                        selectElement={selectElement}
+                        variant="outline"
+                        onDragStart={() => {}}
+                        passThrough={ctrl()}
+                      />
+                    )}
+                  </For>
+                </g>
+              </Match>
+              <Match when={!comp.grouped}>
+                <LayoutComponent
+                  {...comp}
+                  active={builder.componentState.selected?.includes(comp.id)}
+                  selectElement={selectElement}
+                  variant="outline"
+                  onDragStart={onDragStart}
+                  passThrough={ctrl()}
+                />
+              </Match>
+            </Switch>
           )}
         </For>
         <Selection
