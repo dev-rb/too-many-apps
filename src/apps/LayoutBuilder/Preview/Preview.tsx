@@ -42,7 +42,7 @@ const Preview = (props: PreviewProps) => {
           {(view, index) => (
             <button
               class="appearance-none border-none bg-transparent outline-none p-2 color-white cursor-pointer w-full rounded-sm transition-colors z-2 select-none"
-              onClick={() => setActiveView(index())}
+              onPointerDown={() => setActiveView(index())}
             >
               {view.name}
             </button>
@@ -53,8 +53,8 @@ const Preview = (props: PreviewProps) => {
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'<div id="app">'} </p>
         </Show>
-        <CanvasTreeView components={props.components} />
-        {/* <Switch>
+        {/* <CanvasTreeView components={props.components} /> */}
+        <Switch>
           <Match when={activeView() < 2}>
             <Index each={noParentComponents()}>
               {(component) => (
@@ -82,7 +82,7 @@ const Preview = (props: PreviewProps) => {
               )}
             </Index>
           </Match>
-        </Switch> */}
+        </Switch>
 
         <Show when={activeView() === 1}>
           <p class="text-sm color-dark-1"> {'</div>'} </p>

@@ -1,7 +1,7 @@
 import { createUniqueId } from 'solid-js';
 import { ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
-import { ILayoutComponent, MIN_LAYER } from '.';
+import { ILayoutComponent } from '.';
 
 export function calculateResize(
   currentSize: Size,

@@ -19,15 +19,14 @@
     "vite-plugin-solid": "^2.3.0"
   },
   "dependencies": {
-    "@hope-ui/solid": "^0.6.7",
     "@solid-primitives/clipboard": "^1.4.5",
     "@solidjs/router": "^0.5.1",
-    "@stitches/core": "^1.2.8",
     "@unocss/reset": "^v0.47.6",
     "@unocss/runtime": "^0.47.6",
     "solid-icons": "^1.0.4",
     "solid-js": "^1.5.1",
     "solid-transition-group": "^0.0.10",
+    "vscode-css-languageservice": "^6.2.3",
     "zod": "^3.20.2"
   }
 }

@@ -1,9 +1,11 @@
-import { createSignal, onCleanup, onMount } from 'solid-js';
+import { createMemo, createSignal, JSX, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds } from '~/types';
 import { useBuilder } from '.';
 import { calculateResize, isInside } from './utils';
+
+const excludeNodes = ['#css-editor'];
 
 export const Highlighter = () => {
   const builder = useBuilder();
@@ -26,7 +28,14 @@ export const Highlighter = () => {
   });
 
   const onMouseDown = (e: MouseEvent) => {
-    if (e.defaultPrevented) return;
+    if (
+      e.defaultPrevented ||
+      excludeNodes.some((node) => {
+        const nodeEl = document.querySelector(node);
+        return nodeEl && e.composedPath().includes(nodeEl);
+      })
+    )
+      return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -51,13 +60,20 @@ export const Highlighter = () => {
       },
     });
 
-    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mousemove', (e) =>
+      requestAnimationFrame(() => {
+        if (raf() && dragState.isDragging) {
+          onMouseMove(e);
+        }
+      })
+    );
     document.addEventListener('mouseup', onMouseUp);
   };
 
   const onMouseMove = (e: MouseEvent) => {
     e.stopPropagation();
     if (dragState.isDragging) {
+      setRaf(true);
       const newMousePos = { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y };
 
       const { updatedPos, updatedSize } = calculateResize(
@@ -66,30 +82,20 @@ export const Highlighter = () => {
         newMousePos,
         'top-left'
       );
-
       setSelfState((p) => ({
         ...p,
         position: updatedPos,
         size: { width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) },
       }));
-
       const bounds: Bounds = {
         top: updatedPos.y - canvasBounds().y,
         left: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x,
-        right: dragState.startMousePos.x + Math.abs(updatedSize.width) - canvasBounds().x,
-        bottom: dragState.startMousePos.y + Math.abs(updatedSize.height) - canvasBounds().y,
+        right: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x + Math.abs(updatedSize.width),
+        bottom: updatedPos.y - canvasBounds().y + Math.abs(updatedSize.height),
       };
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
-        let compBounds = document.getElementById(comp.id)!.getBoundingClientRect();
-        compBounds = {
-          ...compBounds,
-          left: compBounds.left - canvasBounds().x,
-          top: compBounds.top - canvasBounds().y,
-          right: comp.size.width + (compBounds.left - canvasBounds().x),
-          bottom: comp.size.height + (compBounds.top - canvasBounds().y),
-        };
-        if (isInside({ ...compBounds }, bounds)) {
+        if (isInside(comp.bounds, bounds)) {
           acc.push(comp.id);
         }
         return acc;
@@ -97,6 +103,8 @@ export const Highlighter = () => {
       builder.selectMultipleComponents(insideComponents);
     }
   };
+
+  const [raf, setRaf] = createSignal(true);
 
   const reset = () => {
     setDragState({
@@ -110,7 +118,14 @@ export const Highlighter = () => {
       size: ZERO_SIZE,
       visible: false,
     });
-    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mousemove', (e) =>
+      requestAnimationFrame(() => {
+        if (raf() && dragState.isDragging) {
+          setRaf(false);
+          onMouseMove(e);
+        }
+      })
+    );
     document.removeEventListener('mouseup', onMouseUp);
   };
 
@@ -143,9 +158,11 @@ export const Highlighter = () => {
     });
   });
 
-  const translate = () => {
-    return `translate(${selfState.position.x}px, ${selfState.position.y}px)`;
-  };
+  const translate = createMemo(() => {
+    return `translate3d(${selfState.position.x}px, ${selfState.position.y}px, 0) scale3d(${
+      selfState.size.width / window.outerWidth
+    }, ${selfState.size.height / window.outerHeight}, 1)`;
+  });
 
   return (
     <div
@@ -156,8 +173,9 @@ export const Highlighter = () => {
       }}
       style={{
         transform: translate(),
-        width: `${selfState.size.width}px`,
-        height: `${selfState.size.height}px`,
+        width: `${window.outerWidth}px`,
+        height: `${window.outerHeight}px`,
+        'transform-origin': 'top left',
       }}
     ></div>
   );

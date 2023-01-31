@@ -1,8 +1,8 @@
 import {
-  batch,
+  Accessor,
   createContext,
-  createMemo,
   createSelector,
+  createSignal,
   createUniqueId,
   For,
   JSX,
@@ -15,13 +15,14 @@ import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
 import { access } from '~/utils/common';
 import Preview from './Preview/Preview';
-import LayoutCanvas from './LayoutCanvas';
+import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
 import Toolbar, { Tools } from './Toolbar';
 import { isInside } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
+import { CssEditor } from './CssEditor';
 
 export const MIN_LAYER = 4;
 
@@ -38,6 +39,7 @@ export interface ILayoutComponent {
   layer: number;
   children: string[];
   parent?: string;
+  grouped?: false | string[];
 }
 
 const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'>[] = [
@@ -77,6 +79,7 @@ interface ToolState {
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
+  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const [toolState, setToolState] = createStore<ToolState>({
     activeTool: 'pointer',
     drawItem: undefined,
@@ -88,16 +91,14 @@ const LayoutBuilder = () => {
     components: {},
     maxLayer: MIN_LAYER,
     get selectedComponent() {
-      return (Object.values(this.components) as ILayoutComponent[]).filter((comp: ILayoutComponent) =>
-        this.selected.includes(comp.id)
-      );
+      return this.selected.map((id: string) => this.components[id]);
     },
   });
 
   /** HIERARCHY  */
   const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
     if (componentState.components[childId].parent === newParentId) return;
-    // console.log('update parent');
+    // console.log('update parent', childId, newParentId);
     setComponentState('components', childId, 'parent', newParentId);
   };
 
@@ -135,13 +136,19 @@ const LayoutBuilder = () => {
         childBounds.right > bounds.right ||
         childBounds.bottom > bounds.bottom
       ) {
+        // console.log(`Child with ID: ${child} is outside it's parent. Moving ${child} to ${getComponent(id).parent}`);
         // Update parent of child to grandparent.
         updateParent(child, getComponent(id).parent);
+        if (getComponent(id).parent) {
+          addChild(getComponent(id).parent!, child);
+        }
         removeChild(id, child);
         // Resolve tree for child changes
-        updateTree(child, childBounds);
+        // updateTree(child, childBounds);
       }
     }
+
+    // console.log('after child changes: ', componentState.components);
   };
 
   const isOutsideParent = (id: ComponentID, bounds: Bounds) => {
@@ -237,7 +244,7 @@ const LayoutBuilder = () => {
       ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
     };
 
-    updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
+    // updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -251,7 +258,7 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    updateTree(id, getComponent(id).bounds);
+    // updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
@@ -340,6 +347,7 @@ const LayoutBuilder = () => {
   };
 
   const selectMultipleComponents = (ids: ComponentID[]) => {
+    if (ids.length === 0 && componentState.selected.length === 0) return;
     setComponentState('selected', ids);
   };
 
@@ -347,16 +355,22 @@ const LayoutBuilder = () => {
     setComponentState('selected', (p) => p.filter((selected) => selected !== id));
   };
 
-  const deleteComponent = (id: ComponentID) => {
+  const groupSelected = () => {
+    for (const selectedId of componentState.selected) {
+      setComponentState('components', selectedId, 'grouped', [...componentState.selected]);
+    }
+  };
+
+  const deleteComponent = (toRemove: ComponentID) => {
     let newState = Object.fromEntries(
-      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== id)
+      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== toRemove)
     );
 
-    const selfParent = componentState.components[id].parent;
-    const selfChildren = componentState.components[id].children;
+    const selfParent = componentState.components[toRemove].parent;
+    const selfChildren = componentState.components[toRemove].children;
 
     if (selfParent) {
-      removeChild(selfParent, id);
+      removeChild(selfParent, toRemove);
     }
 
     for (const child of selfChildren) {
@@ -366,6 +380,7 @@ const LayoutBuilder = () => {
       }
     }
 
+    setComponentState('selected', (p) => p.filter((id) => id !== toRemove));
     setComponentState('components', reconcile(newState));
   };
 
@@ -379,7 +394,19 @@ const LayoutBuilder = () => {
     }));
   };
 
+  onMount(() => {
+    const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
+
+    setCanvasBounds({
+      x: canvasBounds.left,
+      y: canvasBounds.top,
+      width: canvasBounds.width,
+      height: canvasBounds.height,
+    });
+  });
+
   const contextValues = {
+    canvasBounds,
     componentState,
     toolState,
     updateTree,
@@ -390,6 +417,7 @@ const LayoutBuilder = () => {
     selectComponent,
     unselectComponent,
     selectMultipleComponents,
+    groupSelected,
     deleteComponent,
     createNewComponent,
     getDrawable,
@@ -416,6 +444,7 @@ const LayoutBuilder = () => {
               selectedComponents={componentState.selectedComponent}
             />
             <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+            <CssEditor />
           </div>
           <div
             class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
@@ -434,6 +463,12 @@ const LayoutBuilder = () => {
 export default LayoutBuilder;
 
 interface BuilderContextValues {
+  canvasBounds: Accessor<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  }>;
   componentState: ComponentState;
   toolState: ToolState;
   updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
@@ -444,6 +479,7 @@ interface BuilderContextValues {
   selectComponent: (id: ComponentID) => void;
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
+  groupSelected: () => void;
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;

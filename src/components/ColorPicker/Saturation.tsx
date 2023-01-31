@@ -1,27 +1,8 @@
-import { Box, css, PropsOf } from '@hope-ui/solid';
-import { createEffect, createSignal, splitProps } from 'solid-js';
+import { createEffect, createSignal, JSX, splitProps } from 'solid-js';
 import Thumb from './Thumb';
 import { HsvaColor } from './types';
 import { useMove } from '~/hooks/useMouseMove';
 import { XYPosition } from '~/types';
-
-const containerStyle = css({
-  boxSizing: 'border-box',
-  position: 'relative',
-  height: 120,
-  borderRadius: 8,
-  pointerEvents: 'all',
-});
-
-const overlayStyle = css({
-  boxSizing: 'border-box',
-  borderRadius: 8,
-  position: 'absolute',
-  top: -4,
-  bottom: -4,
-  left: -4,
-  right: -4,
-});
 
 interface SaturationProps {
   value: HsvaColor;
@@ -29,7 +10,9 @@ interface SaturationProps {
   onChange: (color: Partial<HsvaColor>) => void;
 }
 
-const Saturation = (props: SaturationProps & PropsOf<typeof Box>) => {
+type DivProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, 'onChange'>;
+
+const Saturation = (props: SaturationProps & DivProps) => {
   let containerRef!: HTMLDivElement;
 
   const [local, rest] = splitProps(props, ['value', 'color', 'onChange']);
@@ -59,8 +42,8 @@ const Saturation = (props: SaturationProps & PropsOf<typeof Box>) => {
   });
 
   return (
-    <Box
-      class={containerStyle()}
+    <div
+      class={'box-border relative h-30 rounded-2 pointer-events-auto'}
       ref={containerRef}
       role="slider"
       onMouseDown={(e: MouseEvent) => {
@@ -70,25 +53,25 @@ const Saturation = (props: SaturationProps & PropsOf<typeof Box>) => {
       {...rest}
     >
       <div
-        class={overlayStyle()}
+        class={'box-border rounded-2 absolute -top-4px -bottom-4px -left-4px -right-4px'}
         style={{ 'background-color': `hsl(${local.value.h}, 100%, 50%)` }}
       />
 
       <div
-        class={overlayStyle()}
+        class={'box-border rounded-2 absolute -top-4px -bottom-4px -left-4px -right-4px'}
         style={{
           'background-image': 'linear-gradient(90deg, #fff, transparent)',
         }}
       />
 
       <div
-        class={overlayStyle()}
+        class={'box-border rounded-2 absolute -top-4px -bottom-4px -left-4px -right-4px'}
         style={{
           'background-image': 'linear-gradient(0deg, #000, transparent)',
         }}
       />
-      <Thumb position={position()} css={{ backgroundColor: local.color }} />
-    </Box>
+      <Thumb position={position()} style={{ 'background-color': local.color }} />
+    </div>
   );
 };
 

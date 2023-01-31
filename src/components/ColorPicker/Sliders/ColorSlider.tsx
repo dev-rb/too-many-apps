@@ -1,35 +1,7 @@
-import { Box, css, PropsOf } from '@hope-ui/solid';
-import { CSSProperties } from '@stitches/core';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  mergeProps,
-  on,
-  splitProps,
-} from 'solid-js';
+import { createEffect, createMemo, createSignal, For, JSX, mergeProps, on, splitProps } from 'solid-js';
 import Thumb from '../Thumb';
 import { useMove } from '~/hooks/useMouseMove';
 import { XYPosition } from '~/types';
-
-const sliderStyles = css({
-  position: 'relative',
-  boxSizing: 'border-box',
-  // mx: 8,
-  outline: 0,
-  pointerEvents: 'all',
-});
-
-const sliderOverlayStyles = css({
-  position: 'absolute',
-  boxSizing: 'border-box',
-  top: 0,
-  bottom: 0,
-  left: -12 / 2 - 1,
-  right: -12 / 2 - 1,
-  borderRadius: 1000,
-});
 
 export interface BaseColorSliderProps {
   value: number;
@@ -38,40 +10,27 @@ export interface BaseColorSliderProps {
 }
 
 interface ColorSliderProps extends BaseColorSliderProps {
-  overlays: CSSProperties[];
+  overlays: JSX.CSSProperties[];
   maxValue: number;
   thumbColor?: string;
 }
 
-type AllProps = ColorSliderProps & PropsOf<typeof Box>;
+type DivProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, 'onChange'>;
+type AllProps = ColorSliderProps & DivProps;
 
 const ColorSlider = (props: AllProps) => {
   let containerRef!: HTMLDivElement;
-  props = mergeProps(
-    { direction: 'horizontal' as 'horizontal' | 'vertical' },
-    props
-  );
-  const [local, rest] = splitProps(props, [
-    'value',
-    'onChange',
-    'overlays',
-    'maxValue',
-    'thumbColor',
-    'direction',
-  ]);
+  props = mergeProps({ direction: 'horizontal' as 'horizontal' | 'vertical' }, props);
+  const [local, rest] = splitProps(props, ['value', 'onChange', 'overlays', 'maxValue', 'thumbColor', 'direction']);
 
   const propValue = createMemo(() => local.value);
 
   const [position, setPosition] = createSignal<XYPosition>(
     {
-      y:
-        (local.direction && local.direction === 'horizontal'
-          ? 0.5
-          : propValue() / local.maxValue) ?? 0.5,
+      y: (local.direction && local.direction === 'horizontal' ? 0.5 : propValue() / local.maxValue) ?? 0.5,
       x:
-        (local.direction && local.direction === 'vertical'
-          ? 0.5
-          : propValue() / local.maxValue) ?? propValue() / local.maxValue,
+        (local.direction && local.direction === 'vertical' ? 0.5 : propValue() / local.maxValue) ??
+        propValue() / local.maxValue,
     },
     { equals: false }
   );
@@ -79,30 +38,23 @@ const ColorSlider = (props: AllProps) => {
   createEffect(
     on(propValue, () => {
       setPosition({
-        y:
-          (local.direction && local.direction === 'horizontal'
-            ? 0.5
-            : propValue() / local.maxValue) ?? 0.5,
+        y: (local.direction && local.direction === 'horizontal' ? 0.5 : propValue() / local.maxValue) ?? 0.5,
         x:
-          (local.direction && local.direction === 'vertical'
-            ? 0.5
-            : propValue() / local.maxValue) ?? propValue() / local.maxValue,
+          (local.direction && local.direction === 'vertical' ? 0.5 : propValue() / local.maxValue) ??
+          propValue() / local.maxValue,
       });
     })
   );
 
   useMove(
     () => containerRef,
-    ({ x, y }) =>
-      local.onChange(
-        (local.direction === 'horizontal' ? x : y) * local.maxValue
-      )
+    ({ x, y }) => local.onChange((local.direction === 'horizontal' ? x : y) * local.maxValue)
   );
 
   return (
-    <Box
+    <div
       ref={containerRef}
-      class={sliderStyles()}
+      class={'relative box-border outline-0 pointer-events-auto'}
       role="slider"
       aria-valuenow={local.value}
       aria-valuemax={local.maxValue}
@@ -111,31 +63,29 @@ const ColorSlider = (props: AllProps) => {
         e.preventDefault();
         e.stopPropagation();
       }}
-      __baseStyle={{
-        minHeight: local.direction === 'horizontal' ? '14px' : '100%',
-        minWidth: local.direction === 'horizontal' ? '100%' : '14px',
-      }}
       {...rest}
+      style={{
+        ...(typeof rest.style === 'object' ? rest.style : {}),
+        'min-height': local.direction === 'horizontal' ? '14px' : '100%',
+        'min-width': local.direction === 'horizontal' ? '100%' : '14px',
+      }}
     >
       <For each={local.overlays}>
         {(layer) => (
-          <Box
-            class={sliderOverlayStyles()}
-            css={{ ...layer }}
-            __baseStyle={{
-              top: local.direction === 'horizontal' ? 0 : -12 / 2 - 1,
-              bottom: local.direction === 'horizontal' ? 0 : -12 / 2 - 1,
-              left: local.direction === 'vertical' ? 0 : -12 / 2 - 1,
-              right: local.direction === 'vertical' ? 0 : -12 / 2 - 1,
+          <div
+            class={'absolute box-border top-0 bottom-0 -left-5px -right-5px rounded-1000px'}
+            style={{
+              ...layer,
+              top: local.direction === 'horizontal' ? 0 : -12 / 2 - 1 + 'px',
+              bottom: local.direction === 'horizontal' ? 0 : -12 / 2 - 1 + 'px',
+              left: local.direction === 'vertical' ? 0 : -12 / 2 - 1 + 'px',
+              right: local.direction === 'vertical' ? 0 : -12 / 2 - 1 + 'px',
             }}
           />
         )}
       </For>
-      <Thumb
-        position={position()}
-        css={{ top: 1, backgroundColor: local.thumbColor }}
-      />
-    </Box>
+      <Thumb position={position()} style={{ top: '1px', 'background-color': local.thumbColor }} />
+    </div>
   );
 };
 

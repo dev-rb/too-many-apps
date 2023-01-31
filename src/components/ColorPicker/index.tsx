@@ -1,4 +1,3 @@
-import { Box, HStack, VStack } from '@hope-ui/solid';
 import { batch, createEffect, createMemo, createSignal, on } from 'solid-js';
 import { isColorValid, parseColor } from './converters/colorParse';
 import { convertHsvaTo } from './converters/hsvaConvert';
@@ -68,25 +67,20 @@ const ColorPicker = (props: ColorPickerProps) => {
         e.stopPropagation();
       }}
     >
-      <HStack css={{ height: '100%' }}>
-        <Saturation
-          color={colorValue()}
-          value={parsedColor()}
-          onChange={handleColorChange}
-          css={{ width: '100%' }}
-        />
+      <div class="flex h-full">
+        <Saturation color={colorValue()} value={parsedColor()} onChange={handleColorChange} style={{ width: '100%' }} />
         <AlphaSlider
           value={parsedColor().a}
           onChange={(newA) => handleColorChange({ a: newA })}
           direction="vertical"
           color={convertHsvaTo('hex', parsedColor())}
-          css={{ marginLeft: 16, alignSelf: 'normal' }}
+          style={{ 'margin-left': '16px', 'align-self': 'normal' }}
         />
-      </HStack>
+      </div>
       <HueSlider
         value={parsedColor().h}
         onChange={(newH) => handleColorChange({ h: newH })}
-        css={{ marginTop: 20 }}
+        style={{ 'margin-top': '20px' }}
       />
     </div>
   );

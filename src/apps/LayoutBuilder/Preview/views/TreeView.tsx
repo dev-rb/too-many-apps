@@ -41,11 +41,10 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
         }
 
         context.globalCompositeOperation = 'destination-over';
-        context.strokeStyle = 'white';
+        context.strokeStyle = '#909296';
         context.moveTo(x, y + 30);
         context.lineTo(x - 10, y + 30);
 
-        context.strokeStyle = 'white';
         context.moveTo(x - 10, y - 30);
         context.lineTo(x - 10, y + 30);
         context.stroke();
@@ -81,10 +80,10 @@ export const CanvasTreeView = (props: CanvasTreeViewProps) => {
           );
           container?.(child.name, 'left');
           container?.(child.id, 'right');
+          depth += 1;
           if (child.children.length) {
             allChildren.unshift(...child.children.map((v) => props.components[v]));
             childSize += child.children.length;
-            depth += 1;
           } else {
             depth = 0;
           }
