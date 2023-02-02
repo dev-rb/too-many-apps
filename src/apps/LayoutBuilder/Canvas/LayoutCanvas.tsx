@@ -7,7 +7,7 @@ import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '..';
 import LayoutComponent from '../LayoutComponent/LayoutComponent';
 import { calculateDistances } from '../snapping';
-import { calculateResize, closestCorner, createNewComponent, isLeftClick } from '../utils';
+import { calculateResize, closestCorner, createNewComponent, getCommonBounds, isLeftClick } from '../utils';
 import { Selection } from './Selection';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
@@ -305,28 +305,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const measureSelection = () => {
-    const newBounds = selected().reduce(
-      (acc, curr) => {
-        if (curr.bounds.left < acc.x) {
-          acc.x = curr.bounds.left;
-        }
-
-        if (curr.bounds.top < acc.y) {
-          acc.y = curr.bounds.top;
-        }
-
-        if (curr.bounds.left + curr.size.width > acc.right) {
-          acc.right = curr.bounds.left + curr.size.width;
-        }
-
-        if (curr.bounds.top + curr.size.height > acc.bottom) {
-          acc.bottom = curr.bounds.top + curr.size.height;
-        }
-
-        return acc;
-      },
-      { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
-    );
+    const newBounds = getCommonBounds(selected());
 
     setSelectionPosition({ x: newBounds.x, y: newBounds.y });
     setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
@@ -430,16 +409,23 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           {(comp) => (
             <Switch>
               <Match when={comp.groupId}>
-                <g>
+                <g
+                  style={{
+                    transform: `translate(${builder.groups[comp.groupId!].bounds.left}px, ${
+                      builder.groups[comp.groupId!].bounds.top
+                    }px)`,
+                  }}
+                  onMouseDown={onDragStart}
+                >
                   <For each={builder.getComponentsInGroup(comp.groupId!)}>
                     {(member) => (
                       <LayoutComponent
                         {...props.components[member]}
-                        active={builder.componentState.selected?.includes(comp.id)}
+                        active={builder.componentState.selected?.includes(member)}
                         selectElement={selectElement}
                         variant="outline"
-                        onDragStart={() => {}}
-                        passThrough={ctrl()}
+                        onDragStart={onDragStart}
+                        passThrough={false}
                       />
                     )}
                   </For>

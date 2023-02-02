@@ -60,6 +60,7 @@ export function isPointInBounds(point: XYPosition, bounds: XYPosition) {
 }
 
 const defaults = {
+  type: 'component' as const,
   name: '',
   bounds: { top: 0, left: 0, right: 0, bottom: 0 },
   size: ZERO_SIZE,
@@ -142,4 +143,31 @@ export function svgToScreen(x: number, y: number, svg: SVGSVGElement) {
   point.y = y;
 
   return point.matrixTransform(svg.getScreenCTM()!);
+}
+
+export function getCommonBounds(elements: ILayoutComponent[]) {
+  const newBounds = elements.reduce(
+    (acc, curr) => {
+      if (curr.bounds.left < acc.x) {
+        acc.x = curr.bounds.left;
+      }
+
+      if (curr.bounds.top < acc.y) {
+        acc.y = curr.bounds.top;
+      }
+
+      if (curr.bounds.left + curr.size.width > acc.right) {
+        acc.right = curr.bounds.left + curr.size.width;
+      }
+
+      if (curr.bounds.top + curr.size.height > acc.bottom) {
+        acc.bottom = curr.bounds.top + curr.size.height;
+      }
+
+      return acc;
+    },
+    { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
+  );
+
+  return newBounds;
 }

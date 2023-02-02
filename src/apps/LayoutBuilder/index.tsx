@@ -18,7 +18,7 @@ import Preview from './Preview/Preview';
 import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
 import Toolbar, { Tools } from './Toolbar';
-import { isInside } from './utils';
+import { getCommonBounds, isInside } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
@@ -30,6 +30,7 @@ type ComponentID = string;
 type DrawableID = string;
 
 export interface ILayoutComponent {
+  type: 'component';
   id: ComponentID;
   name: string;
   color?: string;
@@ -63,8 +64,16 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
   },
 ];
 
-interface Groups {
-  [key: string]: string[];
+export interface Group {
+  type: 'group';
+  id: string;
+  bounds: Bounds;
+  size: Size;
+  components: string[];
+}
+
+interface GroupList {
+  [key: string]: Group;
 }
 
 interface ComponentState {
@@ -89,7 +98,7 @@ const LayoutBuilder = () => {
     drawItem: undefined,
   });
 
-  const [groups, setGroups] = createStore<Groups>({});
+  const [groups, setGroups] = createStore<GroupList>({});
 
   const [componentState, setComponentState] = createStore<ComponentState>({
     selected: [],
@@ -363,14 +372,20 @@ const LayoutBuilder = () => {
 
   const groupSelected = () => {
     const newGroupId = createUniqueId();
-    setGroups(newGroupId, [...componentState.selected]);
+    const commonBounds = getCommonBounds(componentState.selectedComponent);
+    setGroups(newGroupId, {
+      id: newGroupId,
+      bounds: { left: commonBounds.x, top: commonBounds.y, right: commonBounds.right, bottom: commonBounds.bottom },
+      size: { width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y },
+      components: [...componentState.selected],
+    });
     for (const selectedId of componentState.selected) {
       setComponentState('components', selectedId, 'groupId', newGroupId);
     }
   };
 
   const getComponentsInGroup = (groupId: string) => {
-    return groups[groupId];
+    return groups[groupId].components;
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -420,6 +435,7 @@ const LayoutBuilder = () => {
   const contextValues = {
     canvasBounds,
     componentState,
+    groups,
     toolState,
     updateTree,
     updateComponentPosition,
@@ -483,6 +499,7 @@ interface BuilderContextValues {
     y: number;
   }>;
   componentState: ComponentState;
+  groups: GroupList;
   toolState: ToolState;
   updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
