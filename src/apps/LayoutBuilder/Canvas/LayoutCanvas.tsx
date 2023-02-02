@@ -394,10 +394,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const comps = createMemo(() => {
     let allComponents = Object.values(props.components);
 
+    // Remove duplicates
     for (const comp of allComponents) {
       const findSame = allComponents.findIndex((c) => {
-        if (c.grouped && comp.grouped && c.grouped.length === comp.grouped.length) {
-          return c.grouped.every((v) => (comp.grouped as Array<string>).includes(v));
+        if (c.groupId && comp.groupId && c.groupId === comp.groupId) {
+          return true;
         }
 
         return false;
@@ -407,8 +408,6 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         allComponents.splice(findSame, 1);
       }
     }
-
-    console.log('rerun');
 
     const sortedComponents = Object.values(allComponents).sort((a, b) => a.layer - b.layer);
 
@@ -430,9 +429,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         <For each={comps()}>
           {(comp) => (
             <Switch>
-              <Match when={comp.grouped}>
+              <Match when={comp.groupId}>
                 <g>
-                  <For each={comp.grouped}>
+                  <For each={builder.getComponentsInGroup(comp.groupId!)}>
                     {(member) => (
                       <LayoutComponent
                         {...props.components[member]}
@@ -446,7 +445,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
                   </For>
                 </g>
               </Match>
-              <Match when={!comp.grouped}>
+              <Match when={!comp.groupId}>
                 <LayoutComponent
                   {...comp}
                   active={builder.componentState.selected?.includes(comp.id)}

@@ -39,7 +39,7 @@ export interface ILayoutComponent {
   layer: number;
   children: string[];
   parent?: string;
-  grouped?: false | string[];
+  groupId?: string;
 }
 
 const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'>[] = [
@@ -63,6 +63,10 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
   },
 ];
 
+interface Groups {
+  [key: string]: string[];
+}
+
 interface ComponentState {
   selected: ComponentID[];
   displayBounds: XYPosition & Size;
@@ -84,6 +88,8 @@ const LayoutBuilder = () => {
     activeTool: 'pointer',
     drawItem: undefined,
   });
+
+  const [groups, setGroups] = createStore<Groups>({});
 
   const [componentState, setComponentState] = createStore<ComponentState>({
     selected: [],
@@ -356,9 +362,15 @@ const LayoutBuilder = () => {
   };
 
   const groupSelected = () => {
+    const newGroupId = createUniqueId();
+    setGroups(newGroupId, [...componentState.selected]);
     for (const selectedId of componentState.selected) {
-      setComponentState('components', selectedId, 'grouped', [...componentState.selected]);
+      setComponentState('components', selectedId, 'groupId', newGroupId);
     }
+  };
+
+  const getComponentsInGroup = (groupId: string) => {
+    return groups[groupId];
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -413,6 +425,7 @@ const LayoutBuilder = () => {
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
+    getComponentsInGroup,
     toggleSelect,
     selectComponent,
     unselectComponent,
@@ -480,6 +493,7 @@ interface BuilderContextValues {
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
   groupSelected: () => void;
+  getComponentsInGroup: (groupId: string) => string[];
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;

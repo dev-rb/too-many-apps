@@ -30,6 +30,10 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       return;
     }
     if (!builder.componentState.selected.includes(props.id)) {
+      if (props.groupId) {
+        builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
+        return;
+      }
       selectElement();
     }
     props.onDragStart(e);
