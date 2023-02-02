@@ -67,6 +67,7 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
 export interface Group {
   type: 'group';
   id: string;
+  name?: string;
   bounds: Bounds;
   size: Size;
   components: string[];
@@ -381,11 +382,33 @@ const LayoutBuilder = () => {
     });
     for (const selectedId of componentState.selected) {
       setComponentState('components', selectedId, 'groupId', newGroupId);
+      updateComponentPosition(selectedId, (p) => ({
+        x: p.x - commonBounds.x,
+        y: p.y - commonBounds.y,
+      }));
     }
   };
 
   const getComponentsInGroup = (groupId: string) => {
     return groups[groupId].components;
+  };
+
+  const updateGroupPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
+    const currentBounds = groups[id].bounds;
+    const resolvedNewPos = {
+      ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
+    };
+
+    setGroups(id, (p) => ({
+      ...p,
+      bounds: {
+        ...p.bounds,
+        left: Math.floor(Math.max(0, resolvedNewPos.x)),
+        top: Math.floor(Math.max(0, resolvedNewPos.y)),
+        right: Math.floor(Math.max(0, resolvedNewPos.x) + p.size.width),
+        bottom: Math.floor(Math.max(0, resolvedNewPos.y) + p.size.height),
+      },
+    }));
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -447,6 +470,7 @@ const LayoutBuilder = () => {
     unselectComponent,
     selectMultipleComponents,
     groupSelected,
+    updateGroupPosition,
     deleteComponent,
     createNewComponent,
     getDrawable,
@@ -511,6 +535,7 @@ interface BuilderContextValues {
   selectMultipleComponents: (ids: ComponentID[]) => void;
   groupSelected: () => void;
   getComponentsInGroup: (groupId: string) => string[];
+  updateGroupPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
   clearSelection: () => void;

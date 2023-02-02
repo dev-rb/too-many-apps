@@ -7,6 +7,7 @@ interface LayoutComponentProps extends ILayoutComponent {
   active: boolean;
   variant: keyof typeof styleTypes;
   onDragStart: (e: MouseEvent) => void;
+  onDragGroup?: (e: MouseEvent) => void;
   passThrough: boolean;
 }
 
@@ -36,7 +37,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       }
       selectElement();
     }
-    props.onDragStart(e);
+
+    if (props.groupId) {
+      props.onDragGroup?.(e);
+    } else {
+      props.onDragStart(e);
+    }
   };
 
   onMount(() => {
@@ -63,10 +69,10 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const position = () => {
     let pos = { x: props.bounds.left, y: props.bounds.top };
 
-    if (props.groupId) {
-      const groupBounds = builder.groups[props.groupId].bounds;
-      pos = { x: pos.x - groupBounds.left, y: pos.y - groupBounds.top };
-    }
+    // if (props.groupId) {
+    //   const groupBounds = builder.groups[props.groupId].bounds;
+    //   pos = { x: pos.x - groupBounds.left, y: pos.y - groupBounds.top };
+    // }
 
     return pos;
   };
