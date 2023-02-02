@@ -3,7 +3,6 @@ import { createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { ILayoutComponent, useBuilder } from '..';
 import { TreeView, HtmlView, CssView } from './views';
-import { CanvasTreeView } from './views/TreeView';
 
 const views = [
   { name: 'Tree', view: () => TreeView },
