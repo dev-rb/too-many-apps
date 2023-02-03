@@ -291,13 +291,25 @@ const LayoutBuilder = () => {
   };
 
   const bringToFront = (id: ComponentID) => {
-    const currentMaxLayer = componentState.maxLayer;
-    setComponentState('components', id, 'layer', currentMaxLayer + 1);
-    setComponentState('maxLayer', currentMaxLayer + 1);
+    const currentMaxLayer = Object.values(componentState.components).reduce(
+      (maxLayer, current) => (current.layer > maxLayer.layer ? current : maxLayer),
+      componentState.components[id]
+    );
+    setComponentState('components', id, 'layer', currentMaxLayer.layer + 1);
+    setComponentState('maxLayer', currentMaxLayer.layer + 1);
   };
 
   const sendToBack = (id: ComponentID) => {
-    setComponentState('components', id, 'layer', MIN_LAYER - 1);
+    const currentMinLayer = Object.values(componentState.components).reduce(
+      (minLayer, current) => (current.layer < minLayer.layer ? current : minLayer),
+      componentState.components[id]
+    );
+    for (const component of Object.values(componentState.components)) {
+      if (component.layer >= currentMinLayer.layer && component.id !== id) {
+        setComponentState('components', component.id, 'layer', (p) => p + 1);
+      }
+    }
+    setComponentState('components', id, 'layer', currentMinLayer.layer - 1);
   };
 
   const bringForward = (id: ComponentID) => {
