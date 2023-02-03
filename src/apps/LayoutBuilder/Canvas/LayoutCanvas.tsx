@@ -81,6 +81,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           activeHandle: handle,
         });
         document.addEventListener('pointermove', dragUpdate);
+        document.addEventListener('pointerup', onMouseUp);
       }
     }
   };
@@ -130,6 +131,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         startSize: [ZERO_SIZE],
       });
       document.addEventListener('pointermove', dragUpdate);
+      document.addEventListener('pointerup', onMouseUp);
     }
   };
 
@@ -149,6 +151,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         },
       });
       document.addEventListener('pointermove', dragUpdate);
+      document.addEventListener('pointerup', onMouseUp);
     }
   };
 
@@ -376,6 +379,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     setTransformOp('draw');
     raf = true;
     document.removeEventListener('pointermove', dragUpdate);
+    document.removeEventListener('pointerup', onMouseUp);
   };
 
   const selectElement = (id: string) => {
@@ -410,35 +414,42 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     });
   };
 
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey) {
+      setCtrl(true);
+    }
+
+    const group = e.ctrlKey && e.key === 'g';
+
+    if (group) {
+      e.preventDefault();
+      builder.groupSelected();
+    }
+
+    const ungroup = e.ctrlKey && e.shiftKey && e.key === 'G' && selected().length;
+
+    if (ungroup) {
+      e.preventDefault();
+      const groupId = selected()[0].groupId;
+      if (groupId) {
+        builder.removeGroup(groupId);
+      }
+    }
+  };
+
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'Control') {
+      setCtrl(false);
+    }
+  };
+
   onMount(() => {
-    document.addEventListener('pointerup', onMouseUp);
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey) {
-        setCtrl(true);
-      }
-
-      if (e.ctrlKey && e.key === 'g') {
-        e.preventDefault();
-        builder.groupSelected();
-      }
-
-      if (e.ctrlKey && e.shiftKey && e.key === 'G' && selected().length) {
-        e.preventDefault();
-        const groupId = selected()[0].groupId;
-        if (groupId) {
-          builder.removeGroup(groupId);
-        }
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'Control') {
-        setCtrl(false);
-      }
-    });
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
 
     onCleanup(() => {
-      document.removeEventListener('pointerup', onMouseUp);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
     });
   });
 
