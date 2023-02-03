@@ -66,18 +66,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     });
   });
 
-  const position = () => {
-    let pos = { x: props.bounds.left, y: props.bounds.top };
-
-    // if (props.groupId) {
-    //   const groupBounds = builder.groups[props.groupId].bounds;
-    //   pos = { x: pos.x - groupBounds.left, y: pos.y - groupBounds.top };
-    // }
-
-    return pos;
-  };
-
-  const translate = createMemo(() => `translate3d(${position().x}px, ${position().y}px, 0)`);
+  const translate = createMemo(() => `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`);
 
   const scale = createMemo(
     () =>
@@ -101,7 +90,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
         style={{
           transform: translate() + scale(),
           'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
-          'will-change': props.active ? 'transform' : undefined,
+          ...{ 'will-change': props.active ? 'transform' : undefined },
         }}
       >
         <rect

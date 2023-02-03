@@ -327,11 +327,8 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
               newPos.y + (comp.bounds.top - selectionPosition().y)
             ),
           };
-          if (comp.groupId) {
-            builder.updateGroupPosition(comp.groupId, newElPos);
-          } else {
-            builder.updateComponentPosition(comp.id, newElPos);
-          }
+
+          builder.updateComponentPosition(comp.id, newElPos);
         }
         measureSelection();
       }
