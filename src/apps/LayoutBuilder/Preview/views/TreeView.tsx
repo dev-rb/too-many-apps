@@ -1,4 +1,5 @@
 import { For } from 'solid-js';
+import { useTree } from '~/apps/TreeProvider';
 import { ILayoutComponent, useBuilder } from '../..';
 
 export interface TreeViewProps {
@@ -14,6 +15,8 @@ export interface TreeViewProps {
 export const TreeView = (props: TreeViewProps) => {
   const getChildrenLayers = () => props.children.map((val) => props.allLayers[val]).filter(Boolean);
   const builder = useBuilder();
+  const tree = useTree()!;
+
   const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
 
   const depthMargin = 12 * props.depth;
@@ -47,7 +50,7 @@ export const TreeView = (props: TreeViewProps) => {
         {(layer) => (
           <TreeView
             allLayers={props.allLayers}
-            children={layer.children}
+            children={tree.tree[layer.id].children}
             id={layer.id}
             depth={props.depth + 1}
             layerValue={layer.layer}

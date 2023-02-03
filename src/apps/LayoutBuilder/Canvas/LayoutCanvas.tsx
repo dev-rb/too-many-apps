@@ -1,6 +1,7 @@
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
+import { useTree } from '~/apps/TreeProvider';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
@@ -29,6 +30,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
+  const tree = useTree()!;
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
@@ -117,6 +119,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setSelectionSize(ZERO_SIZE);
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);
+      tree.addNewLeaf(newComp.id);
       setTransformState({
         isTransforming: true,
         startMousePos: {
@@ -344,7 +347,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         let parent: string = comp.id;
 
         while (parent && builder.componentState.selected.includes(parent)) {
-          let grandparent: string | undefined = props.components[parent].parent;
+          let grandparent: string | undefined = tree.tree[parent].parent;
           if (grandparent && !builder.componentState.selected.includes(grandparent)) break;
           parent = grandparent!;
         }
@@ -353,14 +356,14 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           farthestParents.add(props.components[parent]);
         }
 
-        if (comp.parent === undefined) {
+        if (tree.tree[comp.id].parent === undefined) {
           farthestParents.add(comp);
         }
       }
 
       batch(() => {
         for (const comp of farthestParents) {
-          builder.updateTree(comp.id, comp.bounds);
+          tree.updateTree(comp.id, comp.bounds);
         }
       });
     }

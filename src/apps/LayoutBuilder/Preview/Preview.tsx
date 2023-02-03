@@ -1,6 +1,7 @@
 import { createMemo, Match, Switch } from 'solid-js';
 import { createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { useTree } from '~/apps/TreeProvider';
 import { ILayoutComponent, useBuilder } from '..';
 import { TreeView, HtmlView, CssView } from './views';
 
@@ -17,13 +18,16 @@ interface PreviewProps {
 
 const Preview = (props: PreviewProps) => {
   const builder = useBuilder();
+  const tree = useTree()!;
 
   const [activeView, setActiveView] = createSignal(0);
 
   const translateHighlight = () => `translateX(${activeView() * 101}%)`;
 
   const noParentComponents = createMemo(() => {
-    return Object.values(props.components).filter((v) => v.parent === undefined);
+    return Object.values(tree.tree)
+      .filter((leaf) => leaf.parent === undefined)
+      .map((leaf) => props.components[leaf.id]);
   });
 
   return (
@@ -61,12 +65,12 @@ const Preview = (props: PreviewProps) => {
                   <Dynamic
                     component={views[activeView()].view()}
                     allLayers={props.components}
-                    children={component().children}
+                    children={tree.tree[component().id].children}
                     id={component().id}
                     depth={0}
                     layerValue={component().layer}
                     name={component().name}
-                    selectComponent={(id: string) => builder.selectComponent(id)}
+                    selectComponent={builder.selectComponent}
                   />
                 </div>
               )}
