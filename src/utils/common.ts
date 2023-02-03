@@ -19,3 +19,9 @@ export const access = <T extends MaybeFunction<any>>(value: T, ...args: Paramete
 
   return value as MaybeFunctionValue<T>;
 };
+
+export const removeFromObject = <T extends object, K extends keyof T>(object: T, keyToRemove: K) => {
+  const newState = Object.fromEntries(Object.entries(object).filter(([key]) => key !== keyToRemove));
+
+  return newState;
+};

@@ -13,7 +13,7 @@ import {
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
-import { access } from '~/utils/common';
+import { access, removeFromObject } from '~/utils/common';
 import Preview from './Preview/Preview';
 import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
@@ -389,6 +389,23 @@ const LayoutBuilder = () => {
     }
   };
 
+  const removeGroup = (groupId: string) => {
+    const newGroupState = removeFromObject({ ...groups }, groupId);
+
+    const groupBounds = groups[groupId].bounds;
+    const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+
+    for (const component of groups[groupId].components) {
+      setComponentState('components', component, 'groupId', undefined);
+      updateComponentPosition(component, (p) => ({
+        x: p.x + groupPosition.x,
+        y: p.y + groupPosition.y,
+      }));
+    }
+
+    setGroups(newGroupState);
+  };
+
   const getComponentsInGroup = (groupId: string) => {
     return groups[groupId].components;
   };
@@ -412,9 +429,7 @@ const LayoutBuilder = () => {
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
-    let newState = Object.fromEntries(
-      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== toRemove)
-    );
+    let newState = removeFromObject({ ...componentState.components }, toRemove);
 
     const selfParent = componentState.components[toRemove].parent;
     const selfChildren = componentState.components[toRemove].children;
@@ -456,25 +471,41 @@ const LayoutBuilder = () => {
   });
 
   const contextValues = {
+    // States
     canvasBounds,
     componentState,
     groups,
     toolState,
+
+    // Tree
     updateTree,
+
+    // Component updates
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
-    getComponentsInGroup,
+
+    // Selection
     toggleSelect,
     selectComponent,
     unselectComponent,
     selectMultipleComponents,
+    clearSelection,
+
+    // Groups
+    getComponentsInGroup,
     groupSelected,
+    removeGroup,
     updateGroupPosition,
+
+    // Delete/Create component
     deleteComponent,
     createNewComponent,
+
+    // Drawable
     getDrawable,
-    clearSelection,
+
+    // Layers
     layerControls: {
       sendBackward,
       sendToBack,
@@ -516,6 +547,7 @@ const LayoutBuilder = () => {
 export default LayoutBuilder;
 
 interface BuilderContextValues {
+  // States
   canvasBounds: Accessor<{
     width: number;
     height: number;
@@ -525,21 +557,36 @@ interface BuilderContextValues {
   componentState: ComponentState;
   groups: GroupList;
   toolState: ToolState;
+
+  // Tree
   updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
+
+  // Component updates
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: ComponentID, newName: ComponentID) => void;
+
+  // Selection
   toggleSelect: (ids: ComponentID | ComponentID[]) => void;
   selectComponent: (id: ComponentID) => void;
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
-  groupSelected: () => void;
+  clearSelection: () => void;
+
+  // Groups
   getComponentsInGroup: (groupId: string) => string[];
+  groupSelected: () => void;
+  removeGroup: (groupId: string) => void;
   updateGroupPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+
+  // Delete/Create component
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
-  clearSelection: () => void;
+
+  // Drawable
   getDrawable: (id: DrawableID) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
+
+  // Layers
   layerControls: {
     sendBackward: (id: ComponentID) => void;
     sendToBack: (id: ComponentID) => void;

@@ -418,6 +418,14 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         e.preventDefault();
         builder.groupSelected();
       }
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'G' && selected().length) {
+        e.preventDefault();
+        const groupId = selected()[0].groupId;
+        if (groupId) {
+          builder.removeGroup(groupId);
+        }
+      }
     });
 
     document.addEventListener('keyup', (e) => {
