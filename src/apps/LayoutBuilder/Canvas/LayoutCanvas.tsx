@@ -68,16 +68,25 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         bottom: selectionPosition().y + selectionSize().height,
       });
       if (handle) {
+        let startPositions = selected().map((v) => ({ x: v.bounds.left, y: v.bounds.top }));
+        let startSizes = selected().map((v) => v.size);
+        let mousePosition = {
+          x: e.clientX,
+          y: e.clientY,
+        };
+        const groupId = selected()[0].groupId;
+
+        if (groupId) {
+          const groupBounds = builder.groups[groupId].bounds;
+          const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+          startPositions = startPositions.map((v) => ({ x: v.x + groupPosition.x, y: v.y + groupPosition.y }));
+        }
+
         setTransformState({
           isTransforming: true,
-          startMousePos: {
-            x: e.clientX,
-            y: e.clientY,
-          },
-          startElPos: selected().map((v) => {
-            return { x: v.bounds.left, y: v.bounds.top };
-          }),
-          startSize: selected().map((v) => v.size),
+          startMousePos: mousePosition,
+          startElPos: startPositions,
+          startSize: startSizes,
           activeHandle: handle,
         });
         document.addEventListener('pointermove', dragUpdate);
@@ -226,6 +235,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     setTransformState({
       isTransforming: false,
     });
+    setTransformOp('draw');
     document.removeEventListener('pointermove', onDragGroup);
     document.removeEventListener('pointerup', onDragGroupStop);
   };
@@ -263,6 +273,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
+        const groupId = selected()[0].groupId;
 
         for (let i = 0; i < startSize.length; i++) {
           const comp = selected()[i];
@@ -273,6 +284,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
             activeHandle,
             true
           );
+          if (groupId) {
+            const groupBounds = builder.groups[groupId].bounds;
+            const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+            updatedPos = { x: updatedPos.x - groupPosition.x, y: updatedPos.y - groupPosition.y };
+          }
           builder.updateComponentPosition(comp.id, updatedPos);
           const restrictedSize = restrictSize(updatedPos, updatedSize, comp.size);
           builder.updateComponentSize(comp.id, restrictedSize);
@@ -387,10 +403,21 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const measureSelection = () => {
-    const newBounds = getCommonBounds(selected());
+    let newBounds = getCommonBounds(selected().map((comp) => comp.bounds));
+    const groupId = selected()[0].groupId;
 
-    setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-    setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
+    if (groupId) {
+      // builder.updateGroupSize(groupId, {
+      //   width: newBounds.right - newBounds.x,
+      //   height: newBounds.bottom - newBounds.y,
+      // });
+      const groupBounds = builder.groups[groupId];
+      setSelectionPosition({ x: groupBounds.bounds.left, y: groupBounds.bounds.top });
+      setSelectionSize({ ...groupBounds.size });
+    } else {
+      setSelectionPosition({ x: newBounds.x, y: newBounds.y });
+      setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
+    }
   };
 
   createEffect(
@@ -398,9 +425,17 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (!newSelection.length) {
         setSelectionPosition(ZERO_POS);
         setSelectionSize(ZERO_SIZE);
-        return;
+      } else if (newSelection[0].groupId) {
+        const group = builder.groups[newSelection[0].groupId];
+
+        setSelectionPosition({ x: group.bounds.left, y: group.bounds.top });
+        setSelectionSize({
+          width: group.bounds.right - group.bounds.left,
+          height: group.bounds.bottom - group.bounds.top,
+        });
+      } else {
+        measureSelection();
       }
-      measureSelection();
     })
   );
 

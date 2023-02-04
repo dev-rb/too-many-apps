@@ -72,7 +72,6 @@ export function createNewComponent(options: Partial<ILayoutComponent>): ILayoutC
     ...defaults,
     ...options,
     id: createUniqueId(),
-    children: [],
     layer: options.layer ?? defaults.layer,
   };
 }
@@ -145,23 +144,25 @@ export function svgToScreen(x: number, y: number, svg: SVGSVGElement) {
   return point.matrixTransform(svg.getScreenCTM()!);
 }
 
-export function getCommonBounds(elements: ILayoutComponent[]) {
-  const newBounds = elements.reduce(
+export function getCommonBounds(bounds: Bounds[]) {
+  const newBounds = bounds.reduce(
     (acc, curr) => {
-      if (curr.bounds.left < acc.x) {
-        acc.x = curr.bounds.left;
+      const size = { width: curr.right - curr.left, height: curr.bottom - curr.top };
+
+      if (curr.left < acc.x) {
+        acc.x = curr.left;
       }
 
-      if (curr.bounds.top < acc.y) {
-        acc.y = curr.bounds.top;
+      if (curr.top < acc.y) {
+        acc.y = curr.top;
       }
 
-      if (curr.bounds.left + curr.size.width > acc.right) {
-        acc.right = curr.bounds.left + curr.size.width;
+      if (curr.left + size.width > acc.right) {
+        acc.right = curr.left + size.width;
       }
 
-      if (curr.bounds.top + curr.size.height > acc.bottom) {
-        acc.bottom = curr.bounds.top + curr.size.height;
+      if (curr.top + size.height > acc.bottom) {
+        acc.bottom = curr.top + size.height;
       }
 
       return acc;

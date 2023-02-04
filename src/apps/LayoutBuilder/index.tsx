@@ -252,7 +252,7 @@ const LayoutBuilder = () => {
 
   const groupSelected = () => {
     const newGroupId = createUniqueId();
-    const commonBounds = getCommonBounds(componentState.selectedComponent);
+    const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
     setGroups(newGroupId, {
       id: newGroupId,
       bounds: { left: commonBounds.x, top: commonBounds.y, right: commonBounds.right, bottom: commonBounds.bottom },
@@ -304,6 +304,12 @@ const LayoutBuilder = () => {
         right: Math.floor(Math.max(0, resolvedNewPos.x) + p.size.width),
         bottom: Math.floor(Math.max(0, resolvedNewPos.y) + p.size.height),
       },
+    }));
+  };
+
+  const updateGroupSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
+    setGroups(id, 'size', (p) => ({
+      ...access(newSize, { width: access(newSize, p).width, height: access(newSize, p).height }),
     }));
   };
 
@@ -359,6 +365,7 @@ const LayoutBuilder = () => {
     groupSelected,
     removeGroup,
     updateGroupPosition,
+    updateGroupSize,
 
     // Delete/Create component
     deleteComponent,
@@ -441,6 +448,7 @@ interface BuilderContextValues {
   groupSelected: () => void;
   removeGroup: (groupId: string) => void;
   updateGroupPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
+  updateGroupSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
 
   // Delete/Create component
   deleteComponent: (id: ComponentID) => void;
