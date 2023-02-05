@@ -76,22 +76,32 @@ export const Highlighter = () => {
       setRaf(true);
       const newMousePos = { x: e.clientX - dragState.startMousePos.x, y: e.clientY - dragState.startMousePos.y };
 
-      const { updatedPos, updatedSize } = calculateResize(
-        dragState.size,
-        dragState.startElPos,
+      const {
+        left: x,
+        top: y,
+        width,
+        height,
+      } = calculateResize(
+        {
+          ...dragState.size,
+          left: dragState.startElPos.x,
+          top: dragState.startElPos.y,
+          right: dragState.startElPos.x + dragState.size.width,
+          bottom: dragState.startElPos.y + dragState.size.height,
+        },
         newMousePos,
         'top-left'
       );
       setSelfState((p) => ({
         ...p,
-        position: updatedPos,
-        size: { width: Math.abs(updatedSize.width), height: Math.abs(updatedSize.height) },
+        position: { x, y },
+        size: { width: Math.abs(width), height: Math.abs(height) },
       }));
       const bounds: Bounds = {
-        top: updatedPos.y - canvasBounds().y,
-        left: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x,
-        right: updatedPos.x - canvasBounds().x + selfState.offsetPosition.x + Math.abs(updatedSize.width),
-        bottom: updatedPos.y - canvasBounds().y + Math.abs(updatedSize.height),
+        top: y - canvasBounds().y,
+        left: x - canvasBounds().x + selfState.offsetPosition.x,
+        right: x - canvasBounds().x + selfState.offsetPosition.x + Math.abs(width),
+        bottom: y - canvasBounds().y + Math.abs(height),
       };
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {

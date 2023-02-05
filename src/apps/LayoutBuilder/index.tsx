@@ -263,15 +263,20 @@ const LayoutBuilder = () => {
     const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
     setGroups(newGroupId, {
       id: newGroupId,
-      bounds: { left: commonBounds.x, top: commonBounds.y, right: commonBounds.right, bottom: commonBounds.bottom },
-      size: { width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y },
+      bounds: {
+        left: commonBounds.left,
+        top: commonBounds.top,
+        right: commonBounds.right,
+        bottom: commonBounds.bottom,
+      },
+      size: { width: commonBounds.right - commonBounds.left, height: commonBounds.bottom - commonBounds.top },
       components: [...componentState.selected],
     });
     for (const selectedId of componentState.selected) {
       setComponentState('components', selectedId, 'groupId', newGroupId);
       // updateComponentPosition(selectedId, (p) => ({
-      //   x: p.x - commonBounds.x,
-      //   y: p.y - commonBounds.y,
+      //   x: p.x - commonBounds.left,
+      //   y: p.y - commonBounds.top,
       // }));
     }
   };
@@ -284,10 +289,10 @@ const LayoutBuilder = () => {
 
     for (const component of groups[groupId].components) {
       setComponentState('components', component, 'groupId', undefined);
-      updateComponentPosition(component, (p) => ({
-        x: p.x + groupPosition.x,
-        y: p.y + groupPosition.y,
-      }));
+      // updateComponentPosition(component, (p) => ({
+      //   x: p.x + groupPosition.x,
+      //   y: p.y + groupPosition.y,
+      // }));
     }
 
     setGroups(newGroupState);

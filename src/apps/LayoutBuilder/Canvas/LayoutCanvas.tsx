@@ -8,6 +8,7 @@ import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '..';
 import LayoutComponent from '../LayoutComponent/LayoutComponent';
 import { calculateDistances } from '../snapping';
+import { getRelativeTransformedBounds } from '../transform';
 import { calculateResize, closestCorner, createNewComponent, getCommonBounds, isLeftClick } from '../utils';
 import { Selection } from './Selection';
 
@@ -192,36 +193,28 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         if (selected().length > 1) {
           const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-          const { updatedPos, updatedSize } = calculateResize(
-            commonBounds,
+          let { bottom, height, left, right, top, width } = calculateResize(
             commonBounds,
             newMousePos,
             activeHandle,
             false
           );
 
-          let newBounds = {
-            left: updatedPos.x,
-            top: updatedPos.y,
-            right: updatedPos.x + updatedSize.width,
-            bottom: updatedPos.y + updatedSize.height,
-          };
-
-          let scaleX = (newBounds.right - newBounds.left) / Math.abs(commonBounds.width);
-          let scaleY = (newBounds.bottom - newBounds.top) / Math.abs(commonBounds.height);
+          let scaleX = (right - left) / Math.abs(commonBounds.width);
+          let scaleY = (bottom - top) / Math.abs(commonBounds.height);
           let flipX = scaleX < 0;
           let flipY = scaleY < 0;
 
-          if (newBounds.right < newBounds.left) {
-            [newBounds.left, newBounds.right] = [newBounds.right, newBounds.left];
+          if (right < left) {
+            [left, right] = [right, left];
           }
 
-          if (newBounds.bottom < newBounds.top) {
-            [newBounds.top, newBounds.bottom] = [newBounds.bottom, newBounds.top];
+          if (bottom < top) {
+            [top, bottom] = [bottom, top];
           }
 
-          const w = newBounds.right - newBounds.left;
-          const h = newBounds.bottom - newBounds.top;
+          const w = right - left;
+          const h = bottom - top;
 
           scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
           scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
@@ -232,35 +225,33 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           let index = 0;
           for (const original of initialComponents) {
             const latest = selected()[index];
-            const nx =
-              (flipX ? commonBounds.right - original.bounds.right : original.bounds.left - commonBounds.x) /
-              commonBounds.width;
-            const ny =
-              (flipY ? commonBounds.bottom - original.bounds.bottom : original.bounds.top - commonBounds.y) /
-              commonBounds.height;
 
-            const nw = original.size.width / commonBounds.width;
-            const nh = original.size.height / commonBounds.height;
+            let {
+              left: x,
+              top: y,
+              width,
+              height,
+            } = getRelativeTransformedBounds(
+              { bottom, left, right, top, width: w, height: h },
+              commonBounds,
+              { ...original.bounds, ...original.size },
+              flipX,
+              flipY
+            );
 
-            let newX = newBounds.left + w * nx;
-            let newY = newBounds.top + h * ny;
-
-            const width = w * nw;
-            const height = h * nh;
-
-            if (newX > canvasBounds().width - width) {
-              newX = latest.bounds.left;
+            if (x > canvasBounds().width - width) {
+              x = latest.bounds.left;
             }
 
-            if (newY > canvasBounds().height - height) {
-              newY = latest.bounds.top;
+            if (y > canvasBounds().height - height) {
+              y = latest.bounds.top;
             }
 
             builder.updateComponentPosition(original.id, {
-              x: newX,
-              y: newY,
+              x: x,
+              y: y,
             });
-            const restrictedSize = restrictSize({ x: newX, y: newY }, { width, height }, latest.size);
+            const restrictedSize = restrictSize({ x: x, y: y }, { width, height }, latest.size);
 
             builder.updateComponentSize(original.id, restrictedSize);
             index++;
@@ -269,15 +260,14 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         } else {
           const solo = initialComponents[0];
           const latest = selected()[0];
-          let { updatedPos, updatedSize } = calculateResize(
-            solo.size,
-            { x: solo.bounds.left, y: solo.bounds.top },
-            newMousePos,
-            activeHandle,
-            true
-          );
-          builder.updateComponentPosition(solo.id, updatedPos);
-          const restrictedSize = restrictSize(updatedPos, updatedSize, latest.size);
+          const {
+            left: x,
+            top: y,
+            width,
+            height,
+          } = calculateResize({ ...solo.bounds, ...solo.size }, newMousePos, activeHandle, true);
+          builder.updateComponentPosition(solo.id, { x, y });
+          const restrictedSize = restrictSize({ x, y }, { width, height }, latest.size);
           builder.updateComponentSize(solo.id, restrictedSize);
 
           setSelectionPosition({
@@ -387,8 +377,8 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const measureSelection = () => {
     const commonBounds = getCommonBounds(selected().map((comp) => comp.bounds));
-    setSelectionPosition({ x: commonBounds.x, y: commonBounds.y });
-    setSelectionSize({ width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y });
+    setSelectionPosition({ x: commonBounds.left, y: commonBounds.top });
+    setSelectionSize({ width: commonBounds.width, height: commonBounds.height });
   };
 
   createEffect(

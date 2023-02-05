@@ -5,52 +5,54 @@ import { clamp } from '~/utils/math';
 import { ILayoutComponent } from '.';
 
 export function calculateResize(
-  currentSize: Size,
-  currentPos: XYPosition,
+  bounds: Bounds & Size,
   mousePos: XYPosition,
   handle: string,
   handleReverse: boolean = true
 ) {
-  let updatedSize = { ...currentSize };
-  let updatedPos = { ...currentPos };
+  let updatedBounds = { ...bounds };
   if (handle.includes('left')) {
-    let newWidth = currentSize.width - mousePos.x;
-    let newX = currentPos.x + mousePos.x;
+    let newWidth = bounds.width - mousePos.x;
+    let newX = bounds.left + mousePos.x;
     if (newWidth < 0 && handleReverse) {
-      newX = currentPos.x + currentSize.width;
+      newX = bounds.left + bounds.width;
     }
-    updatedSize.width = newWidth;
-    updatedPos.x = newX;
+    updatedBounds.width = newWidth;
+    updatedBounds.left = newX;
   }
 
   if (handle.includes('bottom')) {
-    let newHeight = currentSize.height + mousePos.y;
+    let newHeight = bounds.height + mousePos.y;
     if (newHeight < 0 && handleReverse) {
-      updatedPos.y = currentPos.y + newHeight;
+      updatedBounds.top = bounds.top + newHeight;
     }
-    updatedSize.height = newHeight;
+    updatedBounds.height = newHeight;
   }
 
   if (handle.includes('top')) {
-    let newHeight = currentSize.height - mousePos.y;
-    let newY = currentPos.y + mousePos.y;
+    let newHeight = bounds.height - mousePos.y;
+    let newY = bounds.top + mousePos.y;
     if (newHeight < 0 && handleReverse) {
-      newY = currentSize.height + currentPos.y;
+      newY = bounds.height + bounds.top;
     }
-    updatedSize.height = newHeight;
-    updatedPos.y = newY;
+    updatedBounds.height = newHeight;
+    updatedBounds.top = newY;
   }
 
   if (handle.includes('right')) {
-    let newWidth = currentSize.width + mousePos.x;
+    let newWidth = bounds.width + mousePos.x;
     if (newWidth < 0 && handleReverse) {
-      updatedPos.x = currentPos.x + newWidth;
+      updatedBounds.left = bounds.left + newWidth;
     }
 
-    updatedSize.width = newWidth;
+    updatedBounds.width = newWidth;
   }
 
-  return { updatedSize, updatedPos };
+  return {
+    ...updatedBounds,
+    right: updatedBounds.left + updatedBounds.width,
+    bottom: updatedBounds.top + updatedBounds.height,
+  };
 }
 
 export function isPointInBounds(point: XYPosition, bounds: XYPosition) {
@@ -147,17 +149,17 @@ export function svgToScreen(x: number, y: number, svg: SVGSVGElement) {
 
 export function getCommonBounds(bounds: Bounds[]) {
   const newBounds = bounds.reduce(
-    (acc, curr) => {
-      acc.x = Math.min(acc.x, curr.left);
-      acc.y = Math.min(acc.y, curr.top);
+    (acc: Bounds & Size, curr) => {
+      acc.left = Math.min(acc.left, curr.left);
+      acc.top = Math.min(acc.top, curr.top);
       acc.right = Math.max(acc.right, curr.right);
       acc.bottom = Math.max(acc.bottom, curr.bottom);
-      acc.width = Math.abs(acc.right - acc.x);
-      acc.height = Math.abs(acc.bottom - acc.y);
+      acc.width = Math.abs(acc.right - acc.left);
+      acc.height = Math.abs(acc.bottom - acc.top);
 
-      return acc;
+      return acc as Bounds & Size;
     },
-    { x: Infinity, y: Infinity, right: -Infinity, bottom: -Infinity, width: Infinity, height: Infinity }
+    { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity, width: Infinity, height: Infinity }
   );
 
   return newBounds;
