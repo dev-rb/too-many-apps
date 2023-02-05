@@ -88,7 +88,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
       </foreignObject> */}
       <g
         style={{
-          transform: translate() + scale(),
+          transform: translate(),
           'pointer-events': props.passThrough && props.active ? 'none' : 'auto',
           ...{ 'will-change': props.active ? 'transform' : undefined },
         }}
@@ -97,8 +97,8 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           class={`comp-outline-${props.color}-40 flex items-center justify-center hover:border-${props.color}-8/60`}
           x={0}
           y={0}
-          width={builder.canvasBounds().width}
-          height={builder.canvasBounds().height}
+          width={props.size.width}
+          height={props.size.height}
         />
         <text
           class={`font-400 fill-${props.color}-6`}
@@ -106,7 +106,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
           y={props.size.height / 2}
           text-anchor="middle"
           dominant-baseline="middle"
-          transform={inverseScale()}
+          // transform={inverseScale()}
         >
           {props.name}
         </text>

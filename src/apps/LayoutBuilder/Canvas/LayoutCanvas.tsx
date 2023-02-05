@@ -20,8 +20,7 @@ interface LayoutCanvasProps {
 
 interface TransformState {
   startMousePos: XYPosition;
-  startElPos: XYPosition[];
-  startSize: Size[];
+  initialComponents: ILayoutComponent[];
   isTransforming: boolean;
   activeHandle: string;
 }
@@ -40,8 +39,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
-    startElPos: [ZERO_POS],
-    startSize: [ZERO_SIZE],
+    initialComponents: [],
     isTransforming: false,
     activeHandle: 'top-left',
   });
@@ -68,25 +66,24 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         bottom: selectionPosition().y + selectionSize().height,
       });
       if (handle) {
-        let startPositions = selected().map((v) => ({ x: v.bounds.left, y: v.bounds.top }));
-        let startSizes = selected().map((v) => v.size);
+        // let startPositions = selected().map((v) => ({ x: v.bounds.left, y: v.bounds.top }));
+        // let startSizes = selected().map((v) => v.size);
         let mousePosition = {
           x: e.clientX,
           y: e.clientY,
         };
-        const groupId = selected()[0].groupId;
+        // const groupId = selected()[0].groupId;
 
-        if (groupId) {
-          const groupBounds = builder.groups[groupId].bounds;
-          const groupPosition = { x: groupBounds.left, y: groupBounds.top };
-          startPositions = startPositions.map((v) => ({ x: v.x + groupPosition.x, y: v.y + groupPosition.y }));
-        }
+        // if (groupId) {
+        //   const groupBounds = builder.groups[groupId].bounds;
+        //   const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+        //   startPositions = startPositions.map((v) => ({ x: v.x + groupPosition.x, y: v.y + groupPosition.y }));
+        // }
 
         setTransformState({
           isTransforming: true,
           startMousePos: mousePosition,
-          startElPos: startPositions,
-          startSize: startSizes,
+          initialComponents: [...props.selectedComponents.map((v) => ({ ...v }))],
           activeHandle: handle,
         });
         document.addEventListener('pointermove', dragUpdate);
@@ -136,8 +133,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           x: e.clientX,
           y: e.clientY,
         },
-        startElPos: [mousePos],
-        startSize: [ZERO_SIZE],
+        initialComponents: [newComp],
       });
       document.addEventListener('pointermove', dragUpdate);
       document.addEventListener('pointerup', onMouseUp);
@@ -153,7 +149,13 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
-        startElPos: selected().map((v) => ({ x: e.clientX - v.bounds.left, y: e.clientY - v.bounds.top })),
+        initialComponents: [
+          ...props.selectedComponents.map((v) => {
+            let copy = { ...v };
+            copy.bounds = { ...copy.bounds, left: e.clientX - copy.bounds.left, top: e.clientY - copy.bounds.top };
+            return copy;
+          }),
+        ],
         startMousePos: {
           x: e.clientX - selectionPosition().x,
           y: e.clientY - selectionPosition().y,
@@ -174,7 +176,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
-        startElPos: [{ x: e.clientX - group.bounds.left, y: e.clientY - group.bounds.top }],
+        initialComponents: [...selected()],
         startMousePos: {
           x: e.clientX - group.bounds.left,
           y: e.clientY - group.bounds.top,
@@ -269,29 +271,102 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const onDrag = (e: MouseEvent) => {
     if (transformState.isTransforming) {
       raf = true;
-      const { activeHandle, startElPos, startMousePos, startSize } = { ...transformState };
+      const { activeHandle, initialComponents, startMousePos } = { ...transformState };
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-        const groupId = selected()[0].groupId;
+        if (selected().length > 1) {
+          const groupId = selected()[0].groupId;
+          const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-        for (let i = 0; i < startSize.length; i++) {
-          const comp = selected()[i];
           let { updatedPos, updatedSize } = calculateResize(
-            startSize[i],
-            startElPos[i],
+            { width: commonBounds.width, height: commonBounds.height },
+            { x: commonBounds.x, y: commonBounds.y },
             newMousePos,
             activeHandle,
-            true
+            false
           );
-          if (groupId) {
-            const groupBounds = builder.groups[groupId].bounds;
-            const groupPosition = { x: groupBounds.left, y: groupBounds.top };
-            updatedPos = { x: updatedPos.x - groupPosition.x, y: updatedPos.y - groupPosition.y };
+
+          let newBounds = {
+            left: updatedPos.x,
+            top: updatedPos.y,
+            right: updatedPos.x + updatedSize.width,
+            bottom: updatedPos.y + updatedSize.height,
+          };
+
+          const scaleX = (newBounds.right - newBounds.left) / Math.abs(commonBounds.width);
+          const scaleY = (newBounds.bottom - newBounds.top) / Math.abs(commonBounds.height);
+          let isFlippedX = scaleX < 0;
+          let isFlippedY = scaleY < 0;
+
+          if (newBounds.right < newBounds.left) {
+            const left = newBounds.left;
+            newBounds.left = newBounds.right;
+            newBounds.right = left;
           }
-          builder.updateComponentPosition(comp.id, updatedPos);
-          const restrictedSize = restrictSize(updatedPos, updatedSize, comp.size);
-          builder.updateComponentSize(comp.id, restrictedSize);
+
+          if (newBounds.bottom < newBounds.top) {
+            const top = newBounds.top;
+            newBounds.top = newBounds.bottom;
+            newBounds.bottom = top;
+          }
+
+          const newScaleX =
+            ((newBounds.right - newBounds.left) / (Math.abs(commonBounds.width) || 1)) * (isFlippedX ? -1 : 1);
+          const newScaleY =
+            ((newBounds.right - newBounds.left) / (Math.abs(commonBounds.height) || 1)) * (isFlippedY ? -1 : 1);
+          isFlippedX = newScaleX < 0;
+          isFlippedY = newScaleY < 0;
+
+          let index = 0;
+          for (const initialComponent of initialComponents) {
+            const latest = selected()[index];
+            const nx =
+              (isFlippedX
+                ? commonBounds.right - initialComponent.bounds.right
+                : initialComponent.bounds.left - commonBounds.x) / commonBounds.width;
+            const ny =
+              (isFlippedY
+                ? commonBounds.bottom - initialComponent.bounds.bottom
+                : initialComponent.bounds.top - commonBounds.y) / commonBounds.height;
+
+            const nw = initialComponent.size.width / commonBounds.width;
+            const nh = initialComponent.size.height / commonBounds.height;
+
+            const newX = newBounds.left + (newBounds.right - newBounds.left) * nx;
+            const newY = newBounds.top + (newBounds.bottom - newBounds.top) * ny;
+
+            const width = (newBounds.right - newBounds.left) * nw;
+            const height = (newBounds.bottom - newBounds.top) * nh;
+
+            builder.updateComponentPosition(initialComponent.id, {
+              x: newX,
+              y: newY,
+            });
+            const restrictedSize = restrictSize({ x: newX, y: newY }, { width, height }, latest.size);
+
+            builder.updateComponentSize(initialComponent.id, {
+              width: Math.abs(restrictedSize.width),
+              height: Math.abs(restrictedSize.height),
+            });
+            index++;
+          }
+        } else {
+          let index = 0;
+          for (const initialComponent of initialComponents) {
+            const latest = selected()[index];
+            let { updatedPos, updatedSize } = calculateResize(
+              initialComponent.size,
+              { x: initialComponent.bounds.left, y: initialComponent.bounds.top },
+              newMousePos,
+              activeHandle,
+              true
+            );
+            builder.updateComponentPosition(initialComponent.id, updatedPos);
+            const restrictedSize = restrictSize(updatedPos, updatedSize, latest.size);
+            builder.updateComponentSize(initialComponent.id, restrictedSize);
+            index++;
+          }
         }
 
         // If we have multiple selected components being resized, we can use the measureSelection function for better measurements.
@@ -335,23 +410,25 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           newPos.y = selectionBounds.top + alignDistance.yAlign;
         }
 
-        for (let i = 0; i < startElPos.length; i++) {
-          const comp = selected()[i];
+        let index = 0;
+        for (const initialComponent of initialComponents) {
+          const latest = selected()[index];
           const newElPos = {
             x: clamp(
-              e.clientX - startElPos[i].x,
-              comp.bounds.left - newPos.x,
-              newPos.x + (comp.bounds.left - selectionPosition().x)
+              e.clientX - initialComponent.bounds.left,
+              latest.bounds.left - newPos.x,
+              newPos.x + (latest.bounds.left - selectionPosition().x)
             ),
             y: clamp(
-              e.clientY - startElPos[i].y,
-              comp.bounds.top - newPos.y,
-              newPos.y + (comp.bounds.top - selectionPosition().y)
+              e.clientY - initialComponent.bounds.top,
+              latest.bounds.top - newPos.y,
+              newPos.y + (latest.bounds.top - selectionPosition().y)
             ),
           };
-
-          builder.updateComponentPosition(comp.id, newElPos);
+          builder.updateComponentPosition(initialComponent.id, { ...newElPos });
+          index++;
         }
+
         measureSelection();
       }
 

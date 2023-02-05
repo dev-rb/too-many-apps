@@ -127,7 +127,6 @@ const LayoutBuilder = () => {
       ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
     };
 
-    // updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -141,10 +140,19 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    // updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
+    }));
+
+    const currentBounds = getComponent(id).bounds;
+    setComponentState('components', id, (p) => ({
+      ...p,
+      bounds: {
+        ...currentBounds,
+        right: currentBounds.left + access(newSize, p.size).width,
+        bottom: currentBounds.top + access(newSize, p.size).height,
+      },
     }));
   };
 

@@ -1,6 +1,7 @@
 import { createUniqueId } from 'solid-js';
 import { ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
+import { clamp } from '~/utils/math';
 import { ILayoutComponent } from '.';
 
 export function calculateResize(
@@ -12,7 +13,7 @@ export function calculateResize(
 ) {
   let updatedSize = { ...currentSize };
   let updatedPos = { ...currentPos };
-  if (['bottom-left', 'top-left'].includes(handle)) {
+  if (handle.includes('left')) {
     let newWidth = currentSize.width - mousePos.x;
     let newX = currentPos.x + mousePos.x;
     if (newWidth < 0 && handleReverse) {
@@ -22,7 +23,7 @@ export function calculateResize(
     updatedPos.x = newX;
   }
 
-  if (['bottom-left', 'bottom-right'].includes(handle)) {
+  if (handle.includes('bottom')) {
     let newHeight = currentSize.height + mousePos.y;
     if (newHeight < 0 && handleReverse) {
       updatedPos.y = currentPos.y + newHeight;
@@ -30,7 +31,7 @@ export function calculateResize(
     updatedSize.height = newHeight;
   }
 
-  if (['top-left', 'top-right'].includes(handle)) {
+  if (handle.includes('top')) {
     let newHeight = currentSize.height - mousePos.y;
     let newY = currentPos.y + mousePos.y;
     if (newHeight < 0 && handleReverse) {
@@ -40,7 +41,7 @@ export function calculateResize(
     updatedPos.y = newY;
   }
 
-  if (['bottom-right', 'top-right'].includes(handle)) {
+  if (handle.includes('right')) {
     let newWidth = currentSize.width + mousePos.x;
     if (newWidth < 0 && handleReverse) {
       updatedPos.x = currentPos.x + newWidth;
@@ -147,27 +148,16 @@ export function svgToScreen(x: number, y: number, svg: SVGSVGElement) {
 export function getCommonBounds(bounds: Bounds[]) {
   const newBounds = bounds.reduce(
     (acc, curr) => {
-      const size = { width: curr.right - curr.left, height: curr.bottom - curr.top };
-
-      if (curr.left < acc.x) {
-        acc.x = curr.left;
-      }
-
-      if (curr.top < acc.y) {
-        acc.y = curr.top;
-      }
-
-      if (curr.left + size.width > acc.right) {
-        acc.right = curr.left + size.width;
-      }
-
-      if (curr.top + size.height > acc.bottom) {
-        acc.bottom = curr.top + size.height;
-      }
+      acc.x = Math.min(acc.x, curr.left);
+      acc.y = Math.min(acc.y, curr.top);
+      acc.right = Math.max(acc.right, curr.right);
+      acc.bottom = Math.max(acc.bottom, curr.bottom);
+      acc.width = Math.abs(acc.right - acc.x);
+      acc.height = Math.abs(acc.bottom - acc.y);
 
       return acc;
     },
-    { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
+    { x: Infinity, y: Infinity, right: -Infinity, bottom: -Infinity, width: Infinity, height: Infinity }
   );
 
   return newBounds;
