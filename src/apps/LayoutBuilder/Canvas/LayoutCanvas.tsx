@@ -193,12 +193,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         if (selected().length > 1) {
           const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-          let { bottom, height, left, right, top, width } = calculateResize(
-            commonBounds,
-            newMousePos,
-            activeHandle,
-            false
-          );
+          let { bottom, left, right, top } = calculateResize(commonBounds, newMousePos, activeHandle, false);
 
           let scaleX = (right - left) / Math.abs(commonBounds.width);
           let scaleY = (bottom - top) / Math.abs(commonBounds.height);

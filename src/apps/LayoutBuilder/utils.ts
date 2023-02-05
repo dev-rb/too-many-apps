@@ -93,7 +93,7 @@ export const closestZero = (nums: number[]) => {
   }, Number.MAX_SAFE_INTEGER);
 };
 
-export function closestCorner(mousePos: XYPosition, elBounds: Bounds) {
+export function closestCorner(mousePos: XYPosition, elBounds: Bounds, offset: number = 10) {
   const distance = {
     top: mousePos.y - elBounds.top,
     left: mousePos.x - elBounds.left,
@@ -101,16 +101,26 @@ export function closestCorner(mousePos: XYPosition, elBounds: Bounds) {
     bottom: mousePos.y - elBounds.bottom,
   };
 
-  if (Math.abs(distance.top) < 10 && Math.abs(distance.left) < 10) {
-    return 'top-left';
-  } else if (Math.abs(distance.top) < 10 && Math.abs(distance.right) < 10) {
-    return 'top-right';
-  } else if (Math.abs(distance.bottom) < 10 && Math.abs(distance.left) < 10) {
-    return 'bottom-left';
-  } else if (Math.abs(distance.bottom) < 10 && Math.abs(distance.right) < 10) {
-    return 'bottom-right';
+  let handle: string[] = [];
+  if (Math.abs(distance.top) < offset) {
+    handle.push('top');
   }
-  return undefined;
+
+  if (Math.abs(distance.bottom) < offset) {
+    handle.push('bottom');
+  }
+
+  if (Math.abs(distance.left) < offset) {
+    handle.push('left');
+  }
+
+  if (Math.abs(distance.right) < offset) {
+    handle.push('right');
+  }
+
+  let finalHandle = handle[0] || handle[1] ? handle.join('-') : undefined;
+
+  return finalHandle;
 }
 
 export function isInside(innerBounds: Bounds, outerBounds: Bounds) {
