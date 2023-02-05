@@ -1,5 +1,6 @@
 import { BiRegularText, BiSolidTrash, BiRegularDotsVerticalRounded } from 'solid-icons/bi';
 import { createSignal, JSX, Show } from 'solid-js';
+import { useTree } from '~/apps/TreeProvider';
 import { useMenu } from '~/components/Menu/MenuProvider';
 import { useBuilder } from '..';
 
@@ -19,6 +20,7 @@ const Layer = (props: LayerProps) => {
   const [inputRef, setInputRef] = createSignal<HTMLInputElement>();
   const builder = useBuilder();
   const menu = useMenu();
+  const tree = useTree()!;
 
   const showMenu = (e: MouseEvent) => {
     if (layerRef()) {
@@ -43,6 +45,20 @@ const Layer = (props: LayerProps) => {
             label: 'Delete',
             onClick() {
               builder.deleteComponent(props.id);
+
+              const selfParent = tree.tree[props.id].parent;
+              const selfChildren = tree.tree[props.id].children;
+
+              if (selfParent) {
+                tree.removeChild(selfParent, props.id);
+              }
+
+              for (const child of selfChildren) {
+                tree.updateParent(child, selfParent);
+                if (selfParent) {
+                  tree.addChild(selfParent, child);
+                }
+              }
             },
           },
         ],

@@ -1,13 +1,14 @@
 import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
+import { useTree } from '~/apps/TreeProvider';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import type { Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '..';
 import LayoutComponent from '../LayoutComponent/LayoutComponent';
 import { calculateDistances } from '../snapping';
-import { calculateResize, closestCorner, createNewComponent, isLeftClick } from '../utils';
+import { calculateResize, closestCorner, createNewComponent, getCommonBounds, isLeftClick } from '../utils';
 import { Selection } from './Selection';
 
 export type TransformOp = 'draw' | 'resize' | 'drag';
@@ -19,8 +20,7 @@ interface LayoutCanvasProps {
 
 interface TransformState {
   startMousePos: XYPosition;
-  startElPos: XYPosition[];
-  startSize: Size[];
+  initialComponents: ILayoutComponent[];
   isTransforming: boolean;
   activeHandle: string;
 }
@@ -29,6 +29,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
+  const tree = useTree()!;
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
@@ -38,8 +39,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
-    startElPos: [ZERO_POS],
-    startSize: [ZERO_SIZE],
+    initialComponents: [],
     isTransforming: false,
     activeHandle: 'top-left',
   });
@@ -57,10 +57,13 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
     if (selected().length) {
       setTransformOp('resize');
-      let currentElementPosition = selectionPosition();
+      const mousePosition = {
+        x: e.clientX,
+        y: e.clientY,
+      };
 
-      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const handle = closestCorner(mousePos, {
+      const relativeMousePos = positionRelativeToCanvas(mousePosition);
+      const handle = closestCorner(relativeMousePos, {
         left: selectionPosition().x,
         right: selectionPosition().x + selectionSize().width,
         top: selectionPosition().y,
@@ -69,16 +72,12 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (handle) {
         setTransformState({
           isTransforming: true,
-          startMousePos: {
-            x: e.clientX,
-            y: e.clientY,
-          },
-          startElPos: selected().map((v) => {
-            return { x: v.bounds.left, y: v.bounds.top };
-          }),
-          startSize: selected().map((v) => v.size),
+          startMousePos: mousePosition,
+          initialComponents: [...props.selectedComponents.map((v) => ({ ...v }))],
           activeHandle: handle,
         });
+        document.addEventListener('pointermove', dragUpdate);
+        document.addEventListener('pointerup', onMouseUp);
       }
     }
   };
@@ -117,15 +116,17 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setSelectionSize(ZERO_SIZE);
       builder.createNewComponent(newComp);
       builder.selectComponent(newComp.id);
+      tree.addNewLeaf(newComp.id);
       setTransformState({
         isTransforming: true,
         startMousePos: {
           x: e.clientX,
           y: e.clientY,
         },
-        startElPos: [mousePos],
-        startSize: [ZERO_SIZE],
+        initialComponents: [newComp],
       });
+      document.addEventListener('pointermove', dragUpdate);
+      document.addEventListener('pointerup', onMouseUp);
     }
   };
 
@@ -138,14 +139,20 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setTransformOp('drag');
       setTransformState({
         isTransforming: true,
-        startElPos: selected().map((v) => {
-          return { x: e.clientX - v.bounds.left, y: e.clientY - v.bounds.top };
-        }),
+        initialComponents: [
+          ...props.selectedComponents.map((v) => {
+            let copy = { ...v };
+            copy.bounds = { ...copy.bounds, left: e.clientX - copy.bounds.left, top: e.clientY - copy.bounds.top };
+            return copy;
+          }),
+        ],
         startMousePos: {
           x: e.clientX - selectionPosition().x,
           y: e.clientY - selectionPosition().y,
         },
       });
+      document.addEventListener('pointermove', dragUpdate);
+      document.addEventListener('pointerup', onMouseUp);
     }
   };
 
@@ -166,42 +173,113 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     return { width: newWidth, height: newHeight };
   };
 
-  const [raf, setRaf] = createSignal(true);
+  let raf = true;
 
   const dragUpdate = (e: MouseEvent) => {
-    if (transformState.isTransforming && raf()) {
-      setRaf(false);
+    if (transformState.isTransforming && raf) {
+      raf = false;
       requestAnimationFrame(() => onDrag(e));
     }
   };
 
   const onDrag = (e: MouseEvent) => {
     if (transformState.isTransforming) {
-      setRaf(true);
-      const { activeHandle, startElPos, startMousePos, startSize } = { ...transformState };
+      raf = true;
+      const { activeHandle, initialComponents, startMousePos } = { ...transformState };
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
+        if (selected().length > 1) {
+          const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-        for (let i = 0; i < startSize.length; i++) {
-          const comp = selected()[i];
+          const { updatedPos, updatedSize } = calculateResize(
+            commonBounds,
+            commonBounds,
+            newMousePos,
+            activeHandle,
+            false
+          );
+
+          let newBounds = {
+            left: updatedPos.x,
+            top: updatedPos.y,
+            right: updatedPos.x + updatedSize.width,
+            bottom: updatedPos.y + updatedSize.height,
+          };
+
+          let scaleX = (newBounds.right - newBounds.left) / Math.abs(commonBounds.width);
+          let scaleY = (newBounds.bottom - newBounds.top) / Math.abs(commonBounds.height);
+          let flipX = scaleX < 0;
+          let flipY = scaleY < 0;
+
+          if (newBounds.right < newBounds.left) {
+            [newBounds.left, newBounds.right] = [newBounds.right, newBounds.left];
+          }
+
+          if (newBounds.bottom < newBounds.top) {
+            [newBounds.top, newBounds.bottom] = [newBounds.bottom, newBounds.top];
+          }
+
+          const w = newBounds.right - newBounds.left;
+          const h = newBounds.bottom - newBounds.top;
+
+          scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
+          scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
+
+          flipX = scaleX < 0;
+          flipY = scaleY < 0;
+
+          let index = 0;
+          for (const original of initialComponents) {
+            const latest = selected()[index];
+            const nx =
+              (flipX ? commonBounds.right - original.bounds.right : original.bounds.left - commonBounds.x) /
+              commonBounds.width;
+            const ny =
+              (flipY ? commonBounds.bottom - original.bounds.bottom : original.bounds.top - commonBounds.y) /
+              commonBounds.height;
+
+            const nw = original.size.width / commonBounds.width;
+            const nh = original.size.height / commonBounds.height;
+
+            let newX = newBounds.left + w * nx;
+            let newY = newBounds.top + h * ny;
+
+            const width = w * nw;
+            const height = h * nh;
+
+            if (newX > canvasBounds().width - width) {
+              newX = latest.bounds.left;
+            }
+
+            if (newY > canvasBounds().height - height) {
+              newY = latest.bounds.top;
+            }
+
+            builder.updateComponentPosition(original.id, {
+              x: newX,
+              y: newY,
+            });
+            const restrictedSize = restrictSize({ x: newX, y: newY }, { width, height }, latest.size);
+
+            builder.updateComponentSize(original.id, restrictedSize);
+            index++;
+          }
+          measureSelection();
+        } else {
+          const solo = initialComponents[0];
+          const latest = selected()[0];
           let { updatedPos, updatedSize } = calculateResize(
-            startSize[i],
-            startElPos[i],
+            solo.size,
+            { x: solo.bounds.left, y: solo.bounds.top },
             newMousePos,
             activeHandle,
             true
           );
-          builder.updateComponentPosition(comp.id, updatedPos);
-          const restrictedSize = restrictSize(updatedPos, updatedSize, comp.size);
-          builder.updateComponentSize(comp.id, restrictedSize);
-        }
+          builder.updateComponentPosition(solo.id, updatedPos);
+          const restrictedSize = restrictSize(updatedPos, updatedSize, latest.size);
+          builder.updateComponentSize(solo.id, restrictedSize);
 
-        // If we have multiple selected components being resized, we can use the measureSelection function for better measurements.
-        // Otherwise, setting the size and position manually is fine.
-        if (selected().length > 1) {
-          measureSelection();
-        } else {
           setSelectionPosition({
             x: Math.max(0, selected()[0].bounds.left),
             y: Math.max(0, selected()[0].bounds.top),
@@ -238,24 +316,25 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           newPos.y = selectionBounds.top + alignDistance.yAlign;
         }
 
-        for (let i = 0; i < startElPos.length; i++) {
-          const comp = selected()[i];
-
+        let index = 0;
+        for (const initialComponent of initialComponents) {
+          const latest = selected()[index];
           const newElPos = {
             x: clamp(
-              e.clientX - startElPos[i].x,
-              comp.bounds.left - newPos.x,
-              newPos.x + (comp.bounds.left - selectionPosition().x)
+              e.clientX - initialComponent.bounds.left,
+              latest.bounds.left - newPos.x,
+              newPos.x + (latest.bounds.left - selectionPosition().x)
             ),
             y: clamp(
-              e.clientY - startElPos[i].y,
-              comp.bounds.top - newPos.y,
-              newPos.y + (comp.bounds.top - selectionPosition().y)
+              e.clientY - initialComponent.bounds.top,
+              latest.bounds.top - newPos.y,
+              newPos.y + (latest.bounds.top - selectionPosition().y)
             ),
           };
-
-          builder.updateComponentPosition(comp.id, newElPos);
+          builder.updateComponentPosition(initialComponent.id, { ...newElPos });
+          index++;
         }
+
         measureSelection();
       }
 
@@ -270,7 +349,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
         let parent: string = comp.id;
 
         while (parent && builder.componentState.selected.includes(parent)) {
-          let grandparent: string | undefined = props.components[parent].parent;
+          let grandparent: string | undefined = tree.tree[parent].parent;
           if (grandparent && !builder.componentState.selected.includes(grandparent)) break;
           parent = grandparent!;
         }
@@ -279,14 +358,14 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           farthestParents.add(props.components[parent]);
         }
 
-        if (comp.parent === undefined) {
+        if (tree.tree[comp.id].parent === undefined) {
           farthestParents.add(comp);
         }
       }
 
       batch(() => {
         for (const comp of farthestParents) {
-          builder.updateTree(comp.id, comp.bounds);
+          tree.updateTree(comp.id, comp.bounds);
         }
       });
     }
@@ -297,7 +376,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       isTransforming: false,
     });
     setTransformOp('draw');
-    setRaf(true);
+    raf = true;
+    document.removeEventListener('pointermove', dragUpdate);
+    document.removeEventListener('pointerup', onMouseUp);
   };
 
   const selectElement = (id: string) => {
@@ -305,31 +386,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const measureSelection = () => {
-    const newBounds = selected().reduce(
-      (acc, curr) => {
-        if (curr.bounds.left < acc.x) {
-          acc.x = curr.bounds.left;
-        }
-
-        if (curr.bounds.top < acc.y) {
-          acc.y = curr.bounds.top;
-        }
-
-        if (curr.bounds.left + curr.size.width > acc.right) {
-          acc.right = curr.bounds.left + curr.size.width;
-        }
-
-        if (curr.bounds.top + curr.size.height > acc.bottom) {
-          acc.bottom = curr.bounds.top + curr.size.height;
-        }
-
-        return acc;
-      },
-      { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER, right: 0, bottom: 0 }
-    );
-
-    setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-    setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
+    const commonBounds = getCommonBounds(selected().map((comp) => comp.bounds));
+    setSelectionPosition({ x: commonBounds.x, y: commonBounds.y });
+    setSelectionSize({ width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y });
   };
 
   createEffect(
@@ -353,29 +412,42 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     });
   };
 
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey) {
+      setCtrl(true);
+    }
+
+    const group = e.ctrlKey && e.key === 'g';
+
+    if (group) {
+      e.preventDefault();
+      builder.groupSelected();
+    }
+
+    const ungroup = e.ctrlKey && e.shiftKey && e.key === 'G' && selected().length;
+
+    if (ungroup) {
+      e.preventDefault();
+      const groupId = selected()[0].groupId;
+      if (groupId) {
+        builder.removeGroup(groupId);
+      }
+    }
+  };
+
+  const onKeyUp = (e: KeyboardEvent) => {
+    if (e.key === 'Control') {
+      setCtrl(false);
+    }
+  };
+
   onMount(() => {
-    document.addEventListener('pointermove', dragUpdate);
-    document.addEventListener('pointerup', onMouseUp);
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey) {
-        setCtrl(true);
-      }
-
-      if (e.ctrlKey && e.key === 'g') {
-        e.preventDefault();
-        builder.groupSelected();
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'Control') {
-        setCtrl(false);
-      }
-    });
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
 
     onCleanup(() => {
-      document.removeEventListener('pointermove', dragUpdate);
-      document.removeEventListener('pointerup', onMouseUp);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
     });
   });
 
@@ -391,30 +463,6 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     })
   );
 
-  const comps = createMemo(() => {
-    let allComponents = Object.values(props.components);
-
-    for (const comp of allComponents) {
-      const findSame = allComponents.findIndex((c) => {
-        if (c.grouped && comp.grouped && c.grouped.length === comp.grouped.length) {
-          return c.grouped.every((v) => (comp.grouped as Array<string>).includes(v));
-        }
-
-        return false;
-      });
-
-      if (findSame !== -1) {
-        allComponents.splice(findSame, 1);
-      }
-    }
-
-    console.log('rerun');
-
-    const sortedComponents = Object.values(allComponents).sort((a, b) => a.layer - b.layer);
-
-    return sortedComponents;
-  });
-
   return (
     <div class="flex flex-col w-6xl h-2xl ">
       {/* Display header */}
@@ -427,36 +475,16 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <For each={comps()}>
+        <For each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
           {(comp) => (
-            <Switch>
-              <Match when={comp.grouped}>
-                <g>
-                  <For each={comp.grouped}>
-                    {(member) => (
-                      <LayoutComponent
-                        {...props.components[member]}
-                        active={builder.componentState.selected?.includes(comp.id)}
-                        selectElement={selectElement}
-                        variant="outline"
-                        onDragStart={() => {}}
-                        passThrough={ctrl()}
-                      />
-                    )}
-                  </For>
-                </g>
-              </Match>
-              <Match when={!comp.grouped}>
-                <LayoutComponent
-                  {...comp}
-                  active={builder.componentState.selected?.includes(comp.id)}
-                  selectElement={selectElement}
-                  variant="outline"
-                  onDragStart={onDragStart}
-                  passThrough={ctrl()}
-                />
-              </Match>
-            </Switch>
+            <LayoutComponent
+              {...comp}
+              active={builder.componentState.selected?.includes(comp.id)}
+              selectElement={selectElement}
+              variant="outline"
+              onDragStart={onDragStart}
+              passThrough={ctrl()}
+            />
           )}
         </For>
         <Selection

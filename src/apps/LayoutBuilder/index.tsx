@@ -10,19 +10,20 @@ import {
   onMount,
   useContext,
 } from 'solid-js';
-import { createStore, reconcile, unwrap } from 'solid-js/store';
+import { createStore, reconcile } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
-import { access } from '~/utils/common';
+import { access, removeFromObject } from '~/utils/common';
 import Preview from './Preview/Preview';
 import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
 import Toolbar, { Tools } from './Toolbar';
-import { isInside } from './utils';
+import { getCommonBounds } from './utils';
 import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
 import { CssEditor } from './CssEditor';
+import { TreeProvider } from '../TreeProvider';
 
 export const MIN_LAYER = 4;
 
@@ -30,6 +31,7 @@ type ComponentID = string;
 type DrawableID = string;
 
 export interface ILayoutComponent {
+  type: 'component';
   id: ComponentID;
   name: string;
   color?: string;
@@ -37,9 +39,7 @@ export interface ILayoutComponent {
   size: Size;
   css?: JSX.CSSProperties;
   layer: number;
-  children: string[];
-  parent?: string;
-  grouped?: false | string[];
+  groupId?: string;
 }
 
 const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'>[] = [
@@ -63,6 +63,19 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
   },
 ];
 
+export interface Group {
+  type: 'group';
+  id: string;
+  name?: string;
+  bounds: Bounds;
+  size: Size;
+  components: string[];
+}
+
+interface GroupList {
+  [key: string]: Group;
+}
+
 interface ComponentState {
   selected: ComponentID[];
   displayBounds: XYPosition & Size;
@@ -85,6 +98,8 @@ const LayoutBuilder = () => {
     drawItem: undefined,
   });
 
+  const [groups, setGroups] = createStore<GroupList>({});
+
   const [componentState, setComponentState] = createStore<ComponentState>({
     selected: [],
     displayBounds: { ...ZERO_SIZE, ...ZERO_POS },
@@ -94,138 +109,6 @@ const LayoutBuilder = () => {
       return this.selected.map((id: string) => this.components[id]);
     },
   });
-
-  /** HIERARCHY  */
-  const updateParent = (childId: ComponentID, newParentId: ComponentID | undefined) => {
-    if (componentState.components[childId].parent === newParentId) return;
-    // console.log('update parent', childId, newParentId);
-    setComponentState('components', childId, 'parent', newParentId);
-  };
-
-  const addChild = (parentId: ComponentID, childId: ComponentID) => {
-    if (componentState.components[parentId].children.includes(childId)) return;
-    // console.log('add child', componentState.components[parentId].children.includes(childId));
-    setComponentState('components', parentId, 'children', (p) => {
-      // If the child already exists, we can skip adding it.
-      if (p.includes(childId)) {
-        return p;
-      }
-      updateParent(childId, parentId);
-      return [...p, childId];
-    });
-  };
-
-  const removeChild = (parentId: ComponentID, childId: ComponentID) => {
-    if (!componentState.components[parentId].children.includes(childId)) return;
-    // console.log('remove child');
-    setComponentState('components', parentId, 'children', (p) => p.filter((child) => child !== childId));
-  };
-
-  const areChildrenOutside = (id: ComponentID, bounds: Bounds) => {
-    const childrenOfComponent = componentState.components[id].children;
-
-    if (!childrenOfComponent.length) return;
-
-    for (const child of childrenOfComponent) {
-      const childBounds = componentState.components[child].bounds;
-
-      // If any side of the child is outside the current element
-      if (
-        childBounds.left < bounds.left ||
-        childBounds.top < bounds.top ||
-        childBounds.right > bounds.right ||
-        childBounds.bottom > bounds.bottom
-      ) {
-        // console.log(`Child with ID: ${child} is outside it's parent. Moving ${child} to ${getComponent(id).parent}`);
-        // Update parent of child to grandparent.
-        updateParent(child, getComponent(id).parent);
-        if (getComponent(id).parent) {
-          addChild(getComponent(id).parent!, child);
-        }
-        removeChild(id, child);
-        // Resolve tree for child changes
-        // updateTree(child, childBounds);
-      }
-    }
-
-    // console.log('after child changes: ', componentState.components);
-  };
-
-  const isOutsideParent = (id: ComponentID, bounds: Bounds) => {
-    const parent = componentState.components[id].parent;
-    if (!parent) return;
-    if (parent) {
-      const parentComponent = componentState.components[parent];
-
-      const outTop = bounds.top < parentComponent.bounds.top && bounds.bottom < parentComponent.bounds.top;
-      const outLeft = bounds.left < parentComponent.bounds.left && bounds.right < parentComponent.bounds.left;
-      const outRight = bounds.left > parentComponent.bounds.right && bounds.right > parentComponent.bounds.right;
-      const outBottom = bounds.top > parentComponent.bounds.bottom && bounds.bottom > parentComponent.bounds.bottom;
-
-      if (outTop || outLeft || outRight || outBottom) {
-        // Remove this element from it's parent since it's outside it
-        removeChild(parent, id);
-        // Set elements' parent to grandparent
-        updateParent(id, parentComponent.parent);
-      }
-    }
-  };
-
-  const updateTree = (updatedComponentId: ComponentID, bounds: Bounds) => {
-    isOutsideParent(updatedComponentId, bounds);
-    areChildrenOutside(updatedComponentId, bounds);
-    let currentMin = {
-      x: 99999,
-      y: 99999,
-    };
-    let closestParent: string | undefined = undefined;
-    for (const component of Object.values(componentState.components)) {
-      if (component.id === updatedComponentId) {
-        continue;
-      }
-      let minDistance = {
-        x: component.bounds.left - bounds.left,
-        y: component.bounds.top - bounds.top,
-      };
-      // Inside check. Are all sides of the selected/changed component inside the current component?
-      if (isInside(bounds, component.bounds)) {
-        // Find the closest parent by distance
-        if (Math.abs(minDistance.x) < currentMin.x && Math.abs(minDistance.y) < currentMin.y) {
-          currentMin.x = Math.abs(minDistance.x);
-          currentMin.y = Math.abs(minDistance.y);
-          closestParent = component.id;
-        }
-      }
-      // Outside check. Is the current component inside the selected/changed component?
-      if (isInside(component.bounds, bounds)) {
-        // If component already has a parent, we don't need to change it's parent.
-        // If there is no parent, the component is a "root" component that the selected/changed component is covering/surrounding.
-        if (!component.parent) {
-          updateTree(component.id, component.bounds);
-        }
-      }
-    }
-
-    if (closestParent) {
-      // If we have found the closest parent for this component, check if this component also covers any of the found parents children.
-      // Move the covered children to be children on this component and remove them from the previous parent.
-      for (const child of componentState.components[closestParent].children) {
-        if (child === updatedComponentId) continue;
-        const childComponent = getComponent(child);
-        if (isInside(childComponent.bounds, bounds)) {
-          if (childComponent.parent) {
-            removeChild(childComponent.parent, child);
-          }
-          addChild(updatedComponentId, child);
-        }
-      }
-      if (getComponent(updatedComponentId).parent === closestParent) return;
-      if (getComponent(updatedComponentId).parent) {
-        removeChild(getComponent(updatedComponentId).parent!, updatedComponentId);
-      }
-      addChild(closestParent, updatedComponentId);
-    }
-  };
 
   /** COMPONENT STATE  */
   const getComponent = (id: ComponentID) => {
@@ -244,7 +127,6 @@ const LayoutBuilder = () => {
       ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
     };
 
-    // updateTree(id, { ...currentBounds, top: Math.floor(resolvedNewPos.y), left: Math.floor(resolvedNewPos.x) });
     setComponentState('components', id, (p) => ({
       ...p,
       bounds: {
@@ -258,10 +140,19 @@ const LayoutBuilder = () => {
   };
 
   const updateComponentSize = (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => {
-    // updateTree(id, getComponent(id).bounds);
     setComponentState('components', id, (p) => ({
       ...p,
       size: { width: access(newSize, p.size).width, height: access(newSize, p.size).height },
+    }));
+
+    const currentBounds = getComponent(id).bounds;
+    setComponentState('components', id, (p) => ({
+      ...p,
+      bounds: {
+        ...currentBounds,
+        right: currentBounds.left + access(newSize, p.size).width,
+        bottom: currentBounds.top + access(newSize, p.size).height,
+      },
     }));
   };
 
@@ -275,13 +166,25 @@ const LayoutBuilder = () => {
   };
 
   const bringToFront = (id: ComponentID) => {
-    const currentMaxLayer = componentState.maxLayer;
-    setComponentState('components', id, 'layer', currentMaxLayer + 1);
-    setComponentState('maxLayer', currentMaxLayer + 1);
+    const currentMaxLayer = Object.values(componentState.components).reduce(
+      (maxLayer, current) => (current.layer > maxLayer.layer ? current : maxLayer),
+      componentState.components[id]
+    );
+    setComponentState('components', id, 'layer', currentMaxLayer.layer + 1);
+    setComponentState('maxLayer', currentMaxLayer.layer + 1);
   };
 
   const sendToBack = (id: ComponentID) => {
-    setComponentState('components', id, 'layer', MIN_LAYER - 1);
+    const currentMinLayer = Object.values(componentState.components).reduce(
+      (minLayer, current) => (current.layer < minLayer.layer ? current : minLayer),
+      componentState.components[id]
+    );
+    for (const component of Object.values(componentState.components)) {
+      if (component.layer >= currentMinLayer.layer && component.id !== id) {
+        setComponentState('components', component.id, 'layer', (p) => p + 1);
+      }
+    }
+    setComponentState('components', id, 'layer', currentMinLayer.layer - 1);
   };
 
   const bringForward = (id: ComponentID) => {
@@ -356,29 +259,46 @@ const LayoutBuilder = () => {
   };
 
   const groupSelected = () => {
+    const newGroupId = createUniqueId();
+    const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
+    setGroups(newGroupId, {
+      id: newGroupId,
+      bounds: { left: commonBounds.x, top: commonBounds.y, right: commonBounds.right, bottom: commonBounds.bottom },
+      size: { width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y },
+      components: [...componentState.selected],
+    });
     for (const selectedId of componentState.selected) {
-      setComponentState('components', selectedId, 'grouped', [...componentState.selected]);
+      setComponentState('components', selectedId, 'groupId', newGroupId);
+      // updateComponentPosition(selectedId, (p) => ({
+      //   x: p.x - commonBounds.x,
+      //   y: p.y - commonBounds.y,
+      // }));
     }
   };
 
+  const removeGroup = (groupId: string) => {
+    const newGroupState = removeFromObject({ ...groups }, groupId);
+
+    const groupBounds = groups[groupId].bounds;
+    const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+
+    for (const component of groups[groupId].components) {
+      setComponentState('components', component, 'groupId', undefined);
+      updateComponentPosition(component, (p) => ({
+        x: p.x + groupPosition.x,
+        y: p.y + groupPosition.y,
+      }));
+    }
+
+    setGroups(newGroupState);
+  };
+
+  const getComponentsInGroup = (groupId: string) => {
+    return groups[groupId].components;
+  };
+
   const deleteComponent = (toRemove: ComponentID) => {
-    let newState = Object.fromEntries(
-      Object.entries(unwrap(componentState.components)).filter(([compId]) => compId !== toRemove)
-    );
-
-    const selfParent = componentState.components[toRemove].parent;
-    const selfChildren = componentState.components[toRemove].children;
-
-    if (selfParent) {
-      removeChild(selfParent, toRemove);
-    }
-
-    for (const child of selfChildren) {
-      updateParent(child, selfParent);
-      if (selfParent) {
-        addChild(selfParent, child);
-      }
-    }
+    let newState = removeFromObject({ ...componentState.components }, toRemove);
 
     setComponentState('selected', (p) => p.filter((id) => id !== toRemove));
     setComponentState('components', reconcile(newState));
@@ -406,22 +326,37 @@ const LayoutBuilder = () => {
   });
 
   const contextValues = {
+    // States
     canvasBounds,
     componentState,
+    groups,
     toolState,
-    updateTree,
+
+    // Component updates
     updateComponentPosition,
     updateComponentSize,
     updateComponentName,
+
+    // Selection
     toggleSelect,
     selectComponent,
     unselectComponent,
     selectMultipleComponents,
+    clearSelection,
+
+    // Groups
+    getComponentsInGroup,
     groupSelected,
+    removeGroup,
+
+    // Delete/Create component
     deleteComponent,
     createNewComponent,
+
+    // Drawable
     getDrawable,
-    clearSelection,
+
+    // Layers
     layerControls: {
       sendBackward,
       sendToBack,
@@ -434,27 +369,31 @@ const LayoutBuilder = () => {
     <MenuProvider>
       <BuilderContext.Provider value={contextValues}>
         <Highlighter />
-        <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-          <Menu />
-          <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
-          <div class="flex items-start justify-evenly max-h-2xl">
-            <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
-            <LayoutCanvas
-              components={componentState.components}
-              selectedComponents={componentState.selectedComponent}
-            />
-            <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
-            <CssEditor />
+        <TreeProvider>
+          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+            <Menu />
+            <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
+            <div class="flex items-start justify-evenly max-h-2xl">
+              <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
+              <LayoutCanvas
+                components={componentState.components}
+                selectedComponents={componentState.selectedComponent}
+              />
+              <Preview components={componentState.components} selectedComponent={componentState.selectedComponent} />
+              <CssEditor />
+            </div>
+            <div
+              class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <For each={DEFAULT_COMPONENTS}>
+                {(comp) => (
+                  <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />
+                )}
+              </For>
+            </div>
           </div>
-          <div
-            class="w-fit bg-dark-5 h-fit p-5 flex flex-wrap gap-4 content-start self-center rounded-md"
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            <For each={DEFAULT_COMPONENTS}>
-              {(comp) => <ComponentDisplay {...comp} active={isDrawItemActive(comp.id)} selectTool={selectDrawItem} />}
-            </For>
-          </div>
-        </div>
+        </TreeProvider>
       </BuilderContext.Provider>
     </MenuProvider>
   );
@@ -463,6 +402,7 @@ const LayoutBuilder = () => {
 export default LayoutBuilder;
 
 interface BuilderContextValues {
+  // States
   canvasBounds: Accessor<{
     width: number;
     height: number;
@@ -470,20 +410,34 @@ interface BuilderContextValues {
     y: number;
   }>;
   componentState: ComponentState;
+  groups: GroupList;
   toolState: ToolState;
-  updateTree: (updatedComponentId: ComponentID, bounds: Bounds) => void;
+
+  // Component updates
   updateComponentPosition: (id: ComponentID, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
   updateComponentSize: (id: ComponentID, newSize: Size | ((previous: Size) => Size)) => void;
   updateComponentName: (id: ComponentID, newName: ComponentID) => void;
+
+  // Selection
   toggleSelect: (ids: ComponentID | ComponentID[]) => void;
   selectComponent: (id: ComponentID) => void;
   unselectComponent: (id: ComponentID) => void;
   selectMultipleComponents: (ids: ComponentID[]) => void;
+  clearSelection: () => void;
+
+  // Groups
+  getComponentsInGroup: (groupId: string) => string[];
   groupSelected: () => void;
+  removeGroup: (groupId: string) => void;
+
+  // Delete/Create component
   deleteComponent: (id: ComponentID) => void;
   createNewComponent: (component: ILayoutComponent) => void;
-  clearSelection: () => void;
+
+  // Drawable
   getDrawable: (id: DrawableID) => Pick<ILayoutComponent, 'id' | 'name' | 'color' | 'css'> | undefined;
+
+  // Layers
   layerControls: {
     sendBackward: (id: ComponentID) => void;
     sendToBack: (id: ComponentID) => void;
