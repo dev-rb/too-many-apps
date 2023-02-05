@@ -269,10 +269,10 @@ const LayoutBuilder = () => {
     });
     for (const selectedId of componentState.selected) {
       setComponentState('components', selectedId, 'groupId', newGroupId);
-      updateComponentPosition(selectedId, (p) => ({
-        x: p.x - commonBounds.x,
-        y: p.y - commonBounds.y,
-      }));
+      // updateComponentPosition(selectedId, (p) => ({
+      //   x: p.x - commonBounds.x,
+      //   y: p.y - commonBounds.y,
+      // }));
     }
   };
 
@@ -295,30 +295,6 @@ const LayoutBuilder = () => {
 
   const getComponentsInGroup = (groupId: string) => {
     return groups[groupId].components;
-  };
-
-  const updateGroupPosition = (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => {
-    const currentBounds = groups[id].bounds;
-    const resolvedNewPos = {
-      ...access(newPosition, { x: Math.floor(currentBounds.left), y: Math.floor(currentBounds.top) }),
-    };
-
-    setGroups(id, (p) => ({
-      ...p,
-      bounds: {
-        ...p.bounds,
-        left: Math.floor(Math.max(0, resolvedNewPos.x)),
-        top: Math.floor(Math.max(0, resolvedNewPos.y)),
-        right: Math.floor(Math.max(0, resolvedNewPos.x) + p.size.width),
-        bottom: Math.floor(Math.max(0, resolvedNewPos.y) + p.size.height),
-      },
-    }));
-  };
-
-  const updateGroupSize = (id: string, newSize: Size | ((previous: Size) => Size)) => {
-    setGroups(id, 'size', (p) => ({
-      ...access(newSize, { width: access(newSize, p).width, height: access(newSize, p).height }),
-    }));
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -372,8 +348,6 @@ const LayoutBuilder = () => {
     getComponentsInGroup,
     groupSelected,
     removeGroup,
-    updateGroupPosition,
-    updateGroupSize,
 
     // Delete/Create component
     deleteComponent,
@@ -455,8 +429,6 @@ interface BuilderContextValues {
   getComponentsInGroup: (groupId: string) => string[];
   groupSelected: () => void;
   removeGroup: (groupId: string) => void;
-  updateGroupPosition: (id: string, newPosition: XYPosition | ((previous: XYPosition) => XYPosition)) => void;
-  updateGroupSize: (id: string, newSize: Size | ((previous: Size) => Size)) => void;
 
   // Delete/Create component
   deleteComponent: (id: ComponentID) => void;

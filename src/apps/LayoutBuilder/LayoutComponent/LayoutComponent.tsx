@@ -7,7 +7,6 @@ interface LayoutComponentProps extends ILayoutComponent {
   active: boolean;
   variant: keyof typeof styleTypes;
   onDragStart: (e: MouseEvent) => void;
-  onDragGroup?: (e: MouseEvent) => void;
   passThrough: boolean;
 }
 
@@ -33,16 +32,13 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     if (!builder.componentState.selected.includes(props.id)) {
       if (props.groupId) {
         builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
+        props.onDragStart(e);
         return;
       }
       selectElement();
     }
 
-    if (props.groupId) {
-      props.onDragGroup?.(e);
-    } else {
-      props.onDragStart(e);
-    }
+    props.onDragStart(e);
   };
 
   onMount(() => {

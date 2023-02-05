@@ -57,29 +57,19 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
     if (selected().length) {
       setTransformOp('resize');
+      const mousePosition = {
+        x: e.clientX,
+        y: e.clientY,
+      };
 
-      const mousePos = positionRelativeToCanvas({ x: e.clientX, y: e.clientY });
-      const handle = closestCorner(mousePos, {
+      const relativeMousePos = positionRelativeToCanvas(mousePosition);
+      const handle = closestCorner(relativeMousePos, {
         left: selectionPosition().x,
         right: selectionPosition().x + selectionSize().width,
         top: selectionPosition().y,
         bottom: selectionPosition().y + selectionSize().height,
       });
       if (handle) {
-        // let startPositions = selected().map((v) => ({ x: v.bounds.left, y: v.bounds.top }));
-        // let startSizes = selected().map((v) => v.size);
-        let mousePosition = {
-          x: e.clientX,
-          y: e.clientY,
-        };
-        // const groupId = selected()[0].groupId;
-
-        // if (groupId) {
-        //   const groupBounds = builder.groups[groupId].bounds;
-        //   const groupPosition = { x: groupBounds.left, y: groupBounds.top };
-        //   startPositions = startPositions.map((v) => ({ x: v.x + groupPosition.x, y: v.y + groupPosition.y }));
-        // }
-
         setTransformState({
           isTransforming: true,
           startMousePos: mousePosition,
@@ -166,82 +156,6 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     }
   };
 
-  const onDragGroupStart = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isLeftClick(e)) return;
-
-    if (builder.toolState.activeTool === 'pointer' && selected().length) {
-      const group = builder.groups[selected()[0].groupId!];
-      setTransformOp('drag');
-      setTransformState({
-        isTransforming: true,
-        initialComponents: [...selected()],
-        startMousePos: {
-          x: e.clientX - group.bounds.left,
-          y: e.clientY - group.bounds.top,
-        },
-      });
-      setSelectionPosition({
-        x: Math.max(0, group.bounds.left),
-        y: Math.max(0, group.bounds.top),
-      });
-      setSelectionSize(() => ({ ...group.size }));
-      document.addEventListener('pointermove', onDragGroup);
-      document.addEventListener('pointerup', onDragGroupStop);
-    }
-  };
-
-  const onDragGroup = (e: MouseEvent) => {
-    const { startMousePos } = { ...transformState };
-    let newPos = {
-      x: clamp(e.clientX - startMousePos.x, 0, canvasBounds().width - selectionSize().width),
-      y: clamp(e.clientY - startMousePos.y, 0, canvasBounds().height - selectionSize().height),
-    };
-
-    const selectionBounds = {
-      left: selectionPosition().x,
-      top: selectionPosition().y,
-      bottom: selectionPosition().y + selectionSize().height,
-      right: selectionPosition().x + selectionSize().width,
-    };
-    const otherComponents = Object.values(props.components).filter((comp) => !selected().includes(comp));
-
-    const alignDistance = calculateDistances(
-      selectionBounds,
-      otherComponents.map((v) => v.bounds)
-    );
-    const xDiff = Math.abs(newPos.x - selectionBounds.left);
-    const xLock = Math.abs(xDiff + alignDistance.xAlign - 4) < 4;
-    if (xLock) {
-      newPos.x = selectionBounds.left + alignDistance.xAlign;
-    }
-
-    const yDiff = Math.abs(newPos.y - selectionBounds.top);
-    const yLock = Math.abs(yDiff + alignDistance.yAlign - 4) < 4;
-    if (yLock) {
-      newPos.y = selectionBounds.top + alignDistance.yAlign;
-    }
-    const groupId = selected()[0].groupId;
-    if (groupId) {
-      builder.updateGroupPosition(groupId, newPos);
-      setSelectionPosition({
-        x: Math.max(0, builder.groups[groupId].bounds.left),
-        y: Math.max(0, builder.groups[groupId].bounds.top),
-      });
-      setSelectionSize(() => ({ ...builder.groups[groupId].size }));
-    }
-  };
-
-  const onDragGroupStop = () => {
-    setTransformState({
-      isTransforming: false,
-    });
-    setTransformOp('draw');
-    document.removeEventListener('pointermove', onDragGroup);
-    document.removeEventListener('pointerup', onDragGroupStop);
-  };
-
   const restrictSize = (position: XYPosition, newSize: Size, previousSize: Size) => {
     let newWidth = Math.abs(newSize.width);
     let newHeight = Math.abs(newSize.height);
@@ -276,12 +190,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
         if (selected().length > 1) {
-          const groupId = selected()[0].groupId;
           const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-          let { updatedPos, updatedSize } = calculateResize(
-            { width: commonBounds.width, height: commonBounds.height },
-            { x: commonBounds.x, y: commonBounds.y },
+          const { updatedPos, updatedSize } = calculateResize(
+            commonBounds,
+            commonBounds,
             newMousePos,
             activeHandle,
             false
@@ -480,21 +393,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const measureSelection = () => {
-    let newBounds = getCommonBounds(selected().map((comp) => comp.bounds));
-    const groupId = selected()[0].groupId;
-
-    if (groupId) {
-      // builder.updateGroupSize(groupId, {
-      //   width: newBounds.right - newBounds.x,
-      //   height: newBounds.bottom - newBounds.y,
-      // });
-      const groupBounds = builder.groups[groupId];
-      setSelectionPosition({ x: groupBounds.bounds.left, y: groupBounds.bounds.top });
-      setSelectionSize({ ...groupBounds.size });
-    } else {
-      setSelectionPosition({ x: newBounds.x, y: newBounds.y });
-      setSelectionSize({ width: newBounds.right - newBounds.x, height: newBounds.bottom - newBounds.y });
-    }
+    const commonBounds = getCommonBounds(selected().map((comp) => comp.bounds));
+    setSelectionPosition({ x: commonBounds.x, y: commonBounds.y });
+    setSelectionSize({ width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y });
   };
 
   createEffect(
@@ -502,17 +403,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (!newSelection.length) {
         setSelectionPosition(ZERO_POS);
         setSelectionSize(ZERO_SIZE);
-      } else if (newSelection[0].groupId) {
-        const group = builder.groups[newSelection[0].groupId];
-
-        setSelectionPosition({ x: group.bounds.left, y: group.bounds.top });
-        setSelectionSize({
-          width: group.bounds.right - group.bounds.left,
-          height: group.bounds.bottom - group.bounds.top,
-        });
-      } else {
-        measureSelection();
+        return;
       }
+      measureSelection();
     })
   );
 
@@ -577,29 +470,6 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     })
   );
 
-  const comps = createMemo(() => {
-    let allComponents = Object.values(props.components);
-
-    // Remove duplicates
-    for (const comp of allComponents) {
-      const findSame = allComponents.findIndex((c) => {
-        if (c.groupId && comp.groupId && c.groupId === comp.groupId) {
-          return true;
-        }
-
-        return false;
-      });
-
-      if (findSame !== -1) {
-        allComponents.splice(findSame, 1);
-      }
-    }
-
-    const sortedComponents = Object.values(allComponents).sort((a, b) => a.layer - b.layer);
-
-    return sortedComponents;
-  });
-
   return (
     <div class="flex flex-col w-6xl h-2xl ">
       {/* Display header */}
@@ -612,45 +482,16 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <For each={comps()}>
+        <For each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
           {(comp) => (
-            <Switch>
-              <Match when={comp.groupId}>
-                <g>
-                  <g
-                    style={{
-                      transform: `translate(${builder.groups[comp.groupId!].bounds.left}px, ${
-                        builder.groups[comp.groupId!].bounds.top
-                      }px)`,
-                    }}
-                  >
-                    <For each={builder.getComponentsInGroup(comp.groupId!)}>
-                      {(member) => (
-                        <LayoutComponent
-                          {...props.components[member]}
-                          active={builder.componentState.selected?.includes(member)}
-                          selectElement={selectElement}
-                          variant="outline"
-                          onDragStart={onDragStart}
-                          onDragGroup={onDragGroupStart}
-                          passThrough={false}
-                        />
-                      )}
-                    </For>
-                  </g>
-                </g>
-              </Match>
-              <Match when={!comp.groupId}>
-                <LayoutComponent
-                  {...comp}
-                  active={builder.componentState.selected?.includes(comp.id)}
-                  selectElement={selectElement}
-                  variant="outline"
-                  onDragStart={onDragStart}
-                  passThrough={ctrl()}
-                />
-              </Match>
-            </Switch>
+            <LayoutComponent
+              {...comp}
+              active={builder.componentState.selected?.includes(comp.id)}
+              selectElement={selectElement}
+              variant="outline"
+              onDragStart={onDragStart}
+              passThrough={ctrl()}
+            />
           )}
         </For>
         <Selection
