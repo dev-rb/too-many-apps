@@ -207,86 +207,79 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
             bottom: updatedPos.y + updatedSize.height,
           };
 
-          const scaleX = (newBounds.right - newBounds.left) / Math.abs(commonBounds.width);
-          const scaleY = (newBounds.bottom - newBounds.top) / Math.abs(commonBounds.height);
-          let isFlippedX = scaleX < 0;
-          let isFlippedY = scaleY < 0;
+          let scaleX = (newBounds.right - newBounds.left) / Math.abs(commonBounds.width);
+          let scaleY = (newBounds.bottom - newBounds.top) / Math.abs(commonBounds.height);
+          let flipX = scaleX < 0;
+          let flipY = scaleY < 0;
 
           if (newBounds.right < newBounds.left) {
-            const left = newBounds.left;
-            newBounds.left = newBounds.right;
-            newBounds.right = left;
+            [newBounds.left, newBounds.right] = [newBounds.right, newBounds.left];
           }
 
           if (newBounds.bottom < newBounds.top) {
-            const top = newBounds.top;
-            newBounds.top = newBounds.bottom;
-            newBounds.bottom = top;
+            [newBounds.top, newBounds.bottom] = [newBounds.bottom, newBounds.top];
           }
 
-          const newScaleX =
-            ((newBounds.right - newBounds.left) / (Math.abs(commonBounds.width) || 1)) * (isFlippedX ? -1 : 1);
-          const newScaleY =
-            ((newBounds.right - newBounds.left) / (Math.abs(commonBounds.height) || 1)) * (isFlippedY ? -1 : 1);
-          isFlippedX = newScaleX < 0;
-          isFlippedY = newScaleY < 0;
+          const w = newBounds.right - newBounds.left;
+          const h = newBounds.bottom - newBounds.top;
+
+          scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
+          scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
+
+          flipX = scaleX < 0;
+          flipY = scaleY < 0;
 
           let index = 0;
-          for (const initialComponent of initialComponents) {
+          for (const original of initialComponents) {
             const latest = selected()[index];
             const nx =
-              (isFlippedX
-                ? commonBounds.right - initialComponent.bounds.right
-                : initialComponent.bounds.left - commonBounds.x) / commonBounds.width;
+              (flipX ? commonBounds.right - original.bounds.right : original.bounds.left - commonBounds.x) /
+              commonBounds.width;
             const ny =
-              (isFlippedY
-                ? commonBounds.bottom - initialComponent.bounds.bottom
-                : initialComponent.bounds.top - commonBounds.y) / commonBounds.height;
+              (flipY ? commonBounds.bottom - original.bounds.bottom : original.bounds.top - commonBounds.y) /
+              commonBounds.height;
 
-            const nw = initialComponent.size.width / commonBounds.width;
-            const nh = initialComponent.size.height / commonBounds.height;
+            const nw = original.size.width / commonBounds.width;
+            const nh = original.size.height / commonBounds.height;
 
-            const newX = newBounds.left + (newBounds.right - newBounds.left) * nx;
-            const newY = newBounds.top + (newBounds.bottom - newBounds.top) * ny;
+            let newX = newBounds.left + w * nx;
+            let newY = newBounds.top + h * ny;
 
-            const width = (newBounds.right - newBounds.left) * nw;
-            const height = (newBounds.bottom - newBounds.top) * nh;
+            const width = w * nw;
+            const height = h * nh;
 
-            builder.updateComponentPosition(initialComponent.id, {
+            if (newX > canvasBounds().width - width) {
+              newX = latest.bounds.left;
+            }
+
+            if (newY > canvasBounds().height - height) {
+              newY = latest.bounds.top;
+            }
+
+            builder.updateComponentPosition(original.id, {
               x: newX,
               y: newY,
             });
             const restrictedSize = restrictSize({ x: newX, y: newY }, { width, height }, latest.size);
 
-            builder.updateComponentSize(initialComponent.id, {
-              width: Math.abs(restrictedSize.width),
-              height: Math.abs(restrictedSize.height),
-            });
+            builder.updateComponentSize(original.id, restrictedSize);
             index++;
           }
-        } else {
-          let index = 0;
-          for (const initialComponent of initialComponents) {
-            const latest = selected()[index];
-            let { updatedPos, updatedSize } = calculateResize(
-              initialComponent.size,
-              { x: initialComponent.bounds.left, y: initialComponent.bounds.top },
-              newMousePos,
-              activeHandle,
-              true
-            );
-            builder.updateComponentPosition(initialComponent.id, updatedPos);
-            const restrictedSize = restrictSize(updatedPos, updatedSize, latest.size);
-            builder.updateComponentSize(initialComponent.id, restrictedSize);
-            index++;
-          }
-        }
-
-        // If we have multiple selected components being resized, we can use the measureSelection function for better measurements.
-        // Otherwise, setting the size and position manually is fine.
-        if (selected().length > 1) {
           measureSelection();
         } else {
+          const solo = initialComponents[0];
+          const latest = selected()[0];
+          let { updatedPos, updatedSize } = calculateResize(
+            solo.size,
+            { x: solo.bounds.left, y: solo.bounds.top },
+            newMousePos,
+            activeHandle,
+            true
+          );
+          builder.updateComponentPosition(solo.id, updatedPos);
+          const restrictedSize = restrictSize(updatedPos, updatedSize, latest.size);
+          builder.updateComponentSize(solo.id, restrictedSize);
+
           setSelectionPosition({
             x: Math.max(0, selected()[0].bounds.left),
             y: Math.max(0, selected()[0].bounds.top),
