@@ -1,57 +1,121 @@
 import { createUniqueId } from 'solid-js';
 import { ZERO_SIZE } from '~/constants';
-import { Bounds, Size, XYPosition } from '~/types';
+import { Bounds, Handles, Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent } from '.';
 
 export function calculateResize(
   bounds: Bounds & Size,
   mousePos: XYPosition,
-  handle: string,
-  handleReverse: boolean = true
+  handle: Handles,
+  aspectRatioLock: boolean = false
 ) {
-  let updatedBounds = { ...bounds };
+  let { bottom, left, right, top, width, height } = { ...bounds };
+
   if (handle.includes('left')) {
-    let newWidth = bounds.width - mousePos.x;
-    let newX = bounds.left + mousePos.x;
-    if (newWidth < 0 && handleReverse) {
-      newX = bounds.left + bounds.width;
-    }
-    updatedBounds.width = newWidth;
-    updatedBounds.left = newX;
+    width = bounds.width - mousePos.x;
+    left = bounds.left + mousePos.x;
   }
 
   if (handle.includes('bottom')) {
-    let newHeight = bounds.height + mousePos.y;
-    if (newHeight < 0 && handleReverse) {
-      updatedBounds.top = bounds.top + newHeight;
-    }
-    updatedBounds.height = newHeight;
+    height = bounds.height + mousePos.y;
   }
 
   if (handle.includes('top')) {
-    let newHeight = bounds.height - mousePos.y;
-    let newY = bounds.top + mousePos.y;
-    if (newHeight < 0 && handleReverse) {
-      newY = bounds.height + bounds.top;
-    }
-    updatedBounds.height = newHeight;
-    updatedBounds.top = newY;
+    height = bounds.height - mousePos.y;
+    top = bounds.top + mousePos.y;
   }
 
   if (handle.includes('right')) {
-    let newWidth = bounds.width + mousePos.x;
-    if (newWidth < 0 && handleReverse) {
-      updatedBounds.left = bounds.left + newWidth;
-    }
+    width = bounds.width + mousePos.x;
+  }
 
-    updatedBounds.width = newWidth;
+  right = left + width;
+  bottom = top + height;
+
+  const scaleX = (right - left) / (Math.abs(bounds.width) || 1);
+  const scaleY = (bottom - top) / (Math.abs(bounds.height) || 1);
+  const flipX = scaleX < 0;
+  const flipY = scaleY < 0;
+
+  const w = Math.abs(right - left);
+  const h = Math.abs(bottom - top);
+
+  if (aspectRatioLock) {
+    const originalRatio = bounds.width / bounds.height;
+    const isTall = originalRatio < w / h;
+    const tallWidth = w * (scaleY < 0 ? 1 : -1) * (1 / originalRatio);
+    const tallHeight = h * (scaleX < 0 ? 1 : -1) * originalRatio;
+
+    switch (handle) {
+      case 'top-left': {
+        if (isTall) {
+          top = bottom + tallWidth;
+        } else {
+          left = right + tallHeight;
+        }
+        break;
+      }
+      case 'top-right': {
+        if (isTall) {
+          top = bottom + tallWidth;
+        } else {
+          right = left - tallHeight;
+        }
+        break;
+      }
+      case 'bottom-right': {
+        if (isTall) {
+          bottom = top - tallWidth;
+        } else {
+          right = left - tallHeight;
+        }
+        break;
+      }
+      case 'bottom-left': {
+        if (isTall) {
+          bottom = top - tallWidth;
+        } else {
+          left = right + tallHeight;
+        }
+        break;
+      }
+      case 'bottom':
+      case 'top': {
+        const center = (left + right) / 2;
+        const newW = h * originalRatio;
+        left = center - newW / 2;
+        right = center + newW / 2;
+        break;
+      }
+      case 'left':
+      case 'right': {
+        const center = (top + bottom) / 2;
+        const newH = w / originalRatio;
+        top = center - newH / 2;
+        bottom = center + newH / 2;
+        break;
+      }
+    }
+  }
+
+  if (right < left) {
+    [left, right] = [right, left];
+  }
+
+  if (bottom < top) {
+    [top, bottom] = [bottom, top];
   }
 
   return {
-    ...updatedBounds,
-    right: updatedBounds.left + updatedBounds.width,
-    bottom: updatedBounds.top + updatedBounds.height,
+    left: left,
+    top: top,
+    bottom: bottom,
+    right: right,
+    width: right - left,
+    height: bottom - top,
+    scaleX: ((right - left) / (Math.abs(bounds.width) || 1)) * (flipX ? -1 : 1),
+    scaleY: ((bottom - top) / (Math.abs(bounds.height) || 1)) * (flipY ? -1 : 1),
   };
 }
 
@@ -118,7 +182,7 @@ export function closestCorner(mousePos: XYPosition, elBounds: Bounds, offset: nu
     handle.push('right');
   }
 
-  let finalHandle = handle[0] || handle[1] ? handle.join('-') : undefined;
+  let finalHandle = (handle[0] as Handles) || handle[1] ? (handle.join('-') as Handles) : undefined;
 
   return finalHandle;
 }

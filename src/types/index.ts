@@ -14,3 +14,8 @@ export interface Bounds {
   right: number;
   bottom: number;
 }
+
+export type EdgeHandles = 'top' | 'left' | 'right' | 'bottom';
+export type CornerHandles = 'top-left' | 'bottom-left' | 'top-right' | 'bottom-right';
+
+export type Handles = EdgeHandles | CornerHandles;

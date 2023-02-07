@@ -3,7 +3,7 @@ import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
 import { useTree } from '~/apps/TreeProvider';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
-import type { Size, XYPosition } from '~/types';
+import type { Handles, Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '..';
 import LayoutComponent from '../LayoutComponent/LayoutComponent';
@@ -23,7 +23,7 @@ interface TransformState {
   startMousePos: XYPosition;
   initialComponents: ILayoutComponent[];
   isTransforming: boolean;
-  activeHandle: string;
+  activeHandle: Handles;
 }
 
 export const LayoutCanvas = (props: LayoutCanvasProps) => {
@@ -39,6 +39,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [groupOutline, setGroupOutline] = createSignal({ position: ZERO_POS, size: ZERO_SIZE }, { equals: false });
 
   const [ctrl, setCtrl] = createSignal(false);
+  const [shift, setShift] = createSignal(false);
 
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
@@ -203,29 +204,19 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           commonBounds.height = 1;
         }
 
-        let { bottom, left, right, top } = calculateResize(commonBounds, newMousePos, activeHandle, false);
+        const {
+          bottom,
+          left,
+          right,
+          top,
+          scaleX,
+          scaleY,
+          width: w,
+          height: h,
+        } = calculateResize(commonBounds, newMousePos, activeHandle, shift());
 
-        let scaleX = (right - left) / (Math.abs(commonBounds.width) || 1);
-        let scaleY = (bottom - top) / (Math.abs(commonBounds.height) || 1);
-        let flipX = scaleX < 0;
-        let flipY = scaleY < 0;
-
-        if (right < left) {
-          [left, right] = [right, left];
-        }
-
-        if (bottom < top) {
-          [top, bottom] = [bottom, top];
-        }
-
-        const w = right - left;
-        const h = bottom - top;
-
-        scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
-        scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
-
-        flipX = scaleX < 0;
-        flipY = scaleY < 0;
+        const flipX = scaleX < 0;
+        const flipY = scaleY < 0;
 
         let index = 0;
         for (const original of initialComponents) {
@@ -427,6 +418,10 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setCtrl(true);
     }
 
+    if (e.shiftKey) {
+      setShift(true);
+    }
+
     const group = e.ctrlKey && e.key === 'g';
 
     if (group) {
@@ -448,6 +443,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const onKeyUp = (e: KeyboardEvent) => {
     if (e.key === 'Control') {
       setCtrl(false);
+    }
+    if (e.key === 'Shift') {
+      setShift(false);
     }
   };
 
