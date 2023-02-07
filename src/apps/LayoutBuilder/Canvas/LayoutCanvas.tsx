@@ -325,13 +325,12 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           index++;
         }
 
-        if (initialComponents.length === 1 && initialComponents[0].groupId) {
-          outlineGroup(initialComponents[0].groupId);
-        }
-
         measureSelection();
       }
 
+      if (initialComponents.length === 1 && initialComponents[0].groupId) {
+        outlineGroup(initialComponents[0].groupId);
+      }
       // Instead of updating the tree after moving each and every selected component,
       // we can only update the tree for the most outer elements in the selection that would need to be updated
       // because of their parent status.
@@ -400,10 +399,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       if (!newSelection.length) {
         setSelectionPosition(ZERO_POS);
         setSelectionSize(ZERO_SIZE);
+        setGroupOutline({ position: ZERO_POS, size: ZERO_SIZE });
         return;
       }
 
-      if (!newSelection.length || newSelection.length > 1) {
+      if (newSelection.length > 1) {
         setGroupOutline({ position: ZERO_POS, size: ZERO_SIZE });
       }
 

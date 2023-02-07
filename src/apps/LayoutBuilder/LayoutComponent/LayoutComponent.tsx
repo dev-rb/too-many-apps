@@ -26,10 +26,14 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     if (builder.toolState.activeTool === 'draw') return;
     e.stopPropagation();
     if (shift()) {
-      builder.toggleSelect(props.id);
+      if (props.groupId) {
+        builder.selectComponent(props.id);
+      } else {
+        builder.toggleSelect(props.id);
+      }
       return;
     }
-    if (!builder.componentState.selected.includes(props.id)) {
+    if (!props.active) {
       if (props.groupId) {
         builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
         props.onDragStart(e);
