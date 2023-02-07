@@ -126,7 +126,8 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           x: e.clientX,
           y: e.clientY,
         },
-        initialComponents: [newComp],
+        initialComponents: [{ ...newComp }],
+        activeHandle: 'bottom-right',
       });
       document.addEventListener('pointermove', dragUpdate);
       document.addEventListener('pointerup', onMouseUp);
@@ -192,89 +193,86 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
       if (transformOp() === 'draw' || transformOp() === 'resize') {
         const newMousePos = { x: e.clientX - startMousePos.x, y: e.clientY - startMousePos.y };
-        if (selected().length > 1) {
-          const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-          let { bottom, left, right, top } = calculateResize(commonBounds, newMousePos, activeHandle, false);
+        const commonBounds = getCommonBounds(initialComponents.map((v) => v.bounds));
 
-          let scaleX = (right - left) / Math.abs(commonBounds.width);
-          let scaleY = (bottom - top) / Math.abs(commonBounds.height);
-          let flipX = scaleX < 0;
-          let flipY = scaleY < 0;
+        if (commonBounds.width === 0) {
+          commonBounds.width = 1;
+        }
+        if (commonBounds.height === 0) {
+          commonBounds.height = 1;
+        }
 
-          if (right < left) {
-            [left, right] = [right, left];
-          }
+        let { bottom, left, right, top } = calculateResize(commonBounds, newMousePos, activeHandle, false);
 
-          if (bottom < top) {
-            [top, bottom] = [bottom, top];
-          }
+        let scaleX = (right - left) / (Math.abs(commonBounds.width) || 1);
+        let scaleY = (bottom - top) / (Math.abs(commonBounds.height) || 1);
+        let flipX = scaleX < 0;
+        let flipY = scaleY < 0;
 
-          const w = right - left;
-          const h = bottom - top;
+        if (right < left) {
+          [left, right] = [right, left];
+        }
 
-          scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
-          scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
+        if (bottom < top) {
+          [top, bottom] = [bottom, top];
+        }
 
-          flipX = scaleX < 0;
-          flipY = scaleY < 0;
+        const w = right - left;
+        const h = bottom - top;
 
-          let index = 0;
-          for (const original of initialComponents) {
-            const latest = selected()[index];
+        scaleX = (w / (Math.abs(commonBounds.width) || 1)) * (flipX ? -1 : 1);
+        scaleY = (h / (Math.abs(commonBounds.height) || 1)) * (flipY ? -1 : 1);
 
-            let {
-              left: x,
-              top: y,
-              width,
-              height,
-            } = getRelativeTransformedBounds(
-              { bottom, left, right, top, width: w, height: h },
-              commonBounds,
-              { ...original.bounds, ...original.size },
-              flipX,
-              flipY
-            );
+        flipX = scaleX < 0;
+        flipY = scaleY < 0;
 
-            if (x > canvasBounds().width - width) {
-              x = latest.bounds.left;
-            }
+        let index = 0;
+        for (const original of initialComponents) {
+          const latest = selected()[index];
 
-            if (y > canvasBounds().height - height) {
-              y = latest.bounds.top;
-            }
-
-            builder.updateComponentPosition(original.id, {
-              x: x,
-              y: y,
-            });
-            const restrictedSize = restrictSize({ x: x, y: y }, { width, height }, latest.size);
-
-            builder.updateComponentSize(original.id, restrictedSize);
-            index++;
-          }
-          measureSelection();
-          if (initialComponents.length === 1 && initialComponents[0].groupId) {
-            outlineGroup(initialComponents[0].groupId);
-          }
-        } else {
-          const solo = initialComponents[0];
-          const latest = selected()[0];
-          const {
+          let {
             left: x,
             top: y,
             width,
             height,
-          } = calculateResize({ ...solo.bounds, ...solo.size }, newMousePos, activeHandle, true);
-          builder.updateComponentPosition(solo.id, { x, y });
-          const restrictedSize = restrictSize({ x, y }, { width, height }, latest.size);
-          builder.updateComponentSize(solo.id, restrictedSize);
+          } = getRelativeTransformedBounds(
+            { bottom, left, right, top, width: w, height: h },
+            commonBounds,
+            { ...original.bounds, width: original.size.width || 1, height: original.size.height || 1 },
+            flipX,
+            flipY
+          );
 
+          if (x > canvasBounds().width - width) {
+            x = latest.bounds.left;
+          }
+
+          if (y > canvasBounds().height - height) {
+            y = latest.bounds.top;
+          }
+
+          builder.updateComponentPosition(original.id, {
+            x: x,
+            y: y,
+          });
+          const restrictedSize = restrictSize({ x: x, y: y }, { width, height }, latest.size);
+
+          builder.updateComponentSize(original.id, restrictedSize);
+          index++;
+        }
+        if (initialComponents.length === 1 && initialComponents[0].groupId) {
+          outlineGroup(initialComponents[0].groupId);
+        }
+
+        if (initialComponents.length === 1) {
           setSelectionPosition({
             x: Math.max(0, selected()[0].bounds.left),
             y: Math.max(0, selected()[0].bounds.top),
           });
           setSelectionSize(() => ({ ...selected()[0].size }));
+        } else {
+          measureSelection();
         }
       } else if (transformOp() === 'drag') {
         let newPos = {
