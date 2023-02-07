@@ -40,6 +40,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
 
   const [ctrl, setCtrl] = createSignal(false);
   const [shift, setShift] = createSignal(false);
+  const [alt, setAlt] = createSignal(false);
 
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
@@ -213,7 +214,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           scaleY,
           width: w,
           height: h,
-        } = calculateResize(commonBounds, newMousePos, activeHandle, shift());
+        } = calculateResize(commonBounds, newMousePos, activeHandle, shift(), alt());
 
         const flipX = scaleX < 0;
         const flipY = scaleY < 0;
@@ -422,6 +423,10 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       setShift(true);
     }
 
+    if (e.altKey) {
+      setAlt(true);
+    }
+
     const group = e.ctrlKey && e.key === 'g';
 
     if (group) {
@@ -446,6 +451,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     }
     if (e.key === 'Shift') {
       setShift(false);
+    }
+    if (e.key === 'Alt') {
+      setAlt(false);
     }
   };
 

@@ -8,7 +8,8 @@ export function calculateResize(
   bounds: Bounds & Size,
   mousePos: XYPosition,
   handle: Handles,
-  aspectRatioLock: boolean = false
+  aspectRatioLock: boolean = false,
+  scaleFromCenter: boolean = false
 ) {
   let { bottom, left, right, top, width, height } = { ...bounds };
 
@@ -97,6 +98,28 @@ export function calculateResize(
         break;
       }
     }
+  }
+
+  if (scaleFromCenter) {
+    const scaleX = w / (Math.abs(bounds.width) || 1);
+    const scaleY = h / (Math.abs(bounds.height) || 1);
+    const scale = Math.max(scaleX, scaleY);
+
+    const width = bounds.width * scale;
+    const height = bounds.height * scale;
+    const left = bounds.left - (Math.abs(width) - bounds.width) / 2;
+    const top = bounds.top - (Math.abs(height) - bounds.height) / 2;
+
+    return {
+      left,
+      top,
+      bottom: top + height,
+      right: left + width,
+      width,
+      height,
+      scaleX: scale,
+      scaleY: scale,
+    };
   }
 
   if (right < left) {
