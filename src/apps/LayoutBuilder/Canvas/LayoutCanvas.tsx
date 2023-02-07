@@ -36,6 +36,8 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
   const [selectionSize, setSelectionSize] = createSignal(ZERO_SIZE, { equals: false });
 
+  const [groupOutline, setGroupOutline] = createSignal({ position: ZERO_POS, size: ZERO_SIZE }, { equals: false });
+
   const [ctrl, setCtrl] = createSignal(false);
 
   const [transformState, setTransformState] = createStore<TransformState>({
@@ -257,6 +259,9 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
             index++;
           }
           measureSelection();
+          if (initialComponents.length === 1 && initialComponents[0].groupId) {
+            outlineGroup(initialComponents[0].groupId);
+          }
         } else {
           const solo = initialComponents[0];
           const latest = selected()[0];
@@ -325,6 +330,10 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           index++;
         }
 
+        if (initialComponents.length === 1 && initialComponents[0].groupId) {
+          outlineGroup(initialComponents[0].groupId);
+        }
+
         measureSelection();
       }
 
@@ -381,12 +390,30 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     setSelectionSize({ width: commonBounds.width, height: commonBounds.height });
   };
 
+  const outlineGroup = (groupId: string) => {
+    const components = builder.getComponentsInGroup(groupId).map((id) => builder.componentState.components[id]);
+    const commonBounds = getCommonBounds(components.map((comp) => comp.bounds));
+
+    setGroupOutline({
+      position: { x: commonBounds.left, y: commonBounds.top },
+      size: { width: commonBounds.width, height: commonBounds.height },
+    });
+  };
+
   createEffect(
     on(selected, (newSelection) => {
       if (!newSelection.length) {
         setSelectionPosition(ZERO_POS);
         setSelectionSize(ZERO_SIZE);
         return;
+      }
+
+      if (!newSelection.length || newSelection.length > 1) {
+        setGroupOutline({ position: ZERO_POS, size: ZERO_SIZE });
+      }
+
+      if (newSelection.length === 1 && newSelection[0].groupId) {
+        outlineGroup(newSelection[0].groupId);
       }
       measureSelection();
     })
@@ -482,6 +509,16 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           position={selectionPosition()}
           size={selectionSize()}
           onHandleClick={onResizeStart}
+        />
+        <rect
+          x={groupOutline().position.x}
+          y={groupOutline().position.y}
+          width={groupOutline().size.width}
+          height={groupOutline().size.height}
+          fill="none"
+          stroke="blue"
+          stroke-opacity={0.2}
+          stroke-width={4}
         />
       </svg>
     </div>
