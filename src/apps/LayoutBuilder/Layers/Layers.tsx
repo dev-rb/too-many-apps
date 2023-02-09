@@ -11,19 +11,27 @@ interface LayersProps {
 const Layers = (props: LayersProps) => {
   const builder = useBuilder();
 
+  const sendToBack = () => {
+    builder.layerControls.sendToBack(builder.componentState.selected[0]);
+  };
+
   const sendBackward = () => {
-    if (props.selectedComponents?.length === 1) {
-      builder.layerControls.sendBackward(props.selectedComponents[0].id);
+    if (props.selectedComponents.length) {
+      builder.layerControls.sendBackward(builder.componentState.selected[0]);
     }
   };
 
   const bringForward = () => {
-    if (props.selectedComponents) {
-      builder.layerControls.bringForward(props.selectedComponents[0].id);
+    if (props.selectedComponents.length) {
+      builder.layerControls.bringForward(builder.componentState.selected[0]);
     }
   };
 
-  const isComponentActive = (id: string) => builder.componentState.selected?.includes(id);
+  const bringToFront = () => {
+    builder.layerControls.bringToFront(builder.componentState.selected[0]);
+  };
+
+  const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
   const anySelected = () => props.selectedComponents;
 
   const sortedComponents = createMemo(() => Object.values(props.components).sort((a, b) => b.layer - a.layer));
@@ -32,7 +40,15 @@ const Layers = (props: LayersProps) => {
     <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4">
       <div class="flex justify-between items-center">
         <h1 class="text-lg color-dark-2"> Layers </h1>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center" onMouseDown={(e) => e.preventDefault()}>
+          <button
+            class="appearance-none rounded-md w-8 h-8 bg-dark-3 border-none outline-none color-white cursor-pointer disabled:(cursor-not-allowed bg-dark-4 color-dark-2)"
+            disabled={!anySelected()}
+            title="Send layer to back"
+            onClick={sendToBack}
+          >
+            B
+          </button>
           <button
             class="appearance-none rounded-md w-8 h-8 bg-dark-3 border-none outline-none color-white cursor-pointer disabled:(cursor-not-allowed bg-dark-4 color-dark-2)"
             disabled={!anySelected()}
@@ -48,6 +64,14 @@ const Layers = (props: LayersProps) => {
             onClick={bringForward}
           >
             <BiRegularLayerPlus size={20} />
+          </button>
+          <button
+            class="appearance-none rounded-md w-8 h-8 bg-dark-3 border-none outline-none color-white cursor-pointer disabled:(cursor-not-allowed bg-dark-4 color-dark-2)"
+            disabled={!anySelected()}
+            title="Bring layer to front"
+            onClick={bringToFront}
+          >
+            F
           </button>
         </div>
       </div>

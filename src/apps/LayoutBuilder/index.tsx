@@ -63,13 +63,14 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
   },
 ];
 
+type ElementTypes = { type: 'group'; id: string } | { type: 'component'; id: string };
+
 export interface Group {
-  type: 'group';
   id: string;
   name?: string;
   bounds: Bounds;
   size: Size;
-  components: string[];
+  elements: ElementTypes[];
 }
 
 interface GroupList {
@@ -166,19 +167,33 @@ const LayoutBuilder = () => {
   };
 
   const bringToFront = (id: ComponentID) => {
+    const current = getComponent(id);
     const currentMaxLayer = Object.values(componentState.components).reduce(
       (maxLayer, current) => (current.layer > maxLayer.layer ? current : maxLayer),
-      componentState.components[id]
+      current
     );
+
+    if (current.layer === currentMaxLayer.layer) return;
+
+    for (const component of Object.values(componentState.components)) {
+      if (component.layer <= currentMaxLayer.layer && component.id !== id) {
+        setComponentState('components', component.id, 'layer', (p) => p - 1);
+      }
+    }
+
     setComponentState('components', id, 'layer', currentMaxLayer.layer + 1);
     setComponentState('maxLayer', currentMaxLayer.layer + 1);
   };
 
   const sendToBack = (id: ComponentID) => {
+    const current = getComponent(id);
     const currentMinLayer = Object.values(componentState.components).reduce(
       (minLayer, current) => (current.layer < minLayer.layer ? current : minLayer),
-      componentState.components[id]
+      current
     );
+
+    if (current.layer === currentMinLayer.layer) return;
+
     for (const component of Object.values(componentState.components)) {
       if (component.layer >= currentMinLayer.layer && component.id !== id) {
         setComponentState('components', component.id, 'layer', (p) => p + 1);
@@ -190,7 +205,7 @@ const LayoutBuilder = () => {
   const bringForward = (id: ComponentID) => {
     const current = getComponent(id);
     const oneAhead = getComponentWithLayer(current.layer + 1);
-    // Swap layers with component that has layer one larger layer
+    // Swap layers with component that has one larger layer
     if (oneAhead) {
       setComponentState('components', oneAhead.id, 'layer', current.layer);
       setComponentState('components', id, 'layer', (p) => p + 1);
@@ -259,42 +274,89 @@ const LayoutBuilder = () => {
   };
 
   const groupSelected = () => {
+    if (componentState.selected.length < 2) return;
     const newGroupId = createUniqueId();
     const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
+
+    let selectedElements: { [key: string]: ElementTypes } = {};
+
+    for (const selected of [...componentState.selectedComponent]) {
+      let groupId = selected.groupId;
+      if (groupId) {
+        groupId = getParentGroup(groupId);
+        if (selectedElements[groupId]) continue;
+        selectedElements[groupId] = { type: 'group', id: groupId };
+      } else {
+        selectedElements[selected.id] = { type: 'component', id: selected.id };
+      }
+    }
+
     setGroups(newGroupId, {
       id: newGroupId,
-      bounds: { left: commonBounds.x, top: commonBounds.y, right: commonBounds.right, bottom: commonBounds.bottom },
-      size: { width: commonBounds.right - commonBounds.x, height: commonBounds.bottom - commonBounds.y },
-      components: [...componentState.selected],
+      bounds: {
+        left: commonBounds.left,
+        top: commonBounds.top,
+        right: commonBounds.right,
+        bottom: commonBounds.bottom,
+      },
+      size: { width: commonBounds.right - commonBounds.left, height: commonBounds.bottom - commonBounds.top },
+      elements: [...Object.values(selectedElements)],
     });
-    for (const selectedId of componentState.selected) {
+    for (const selectedId of Object.values(selectedElements)
+      .filter((v) => v.type === 'component')
+      .map((v) => v.id)) {
       setComponentState('components', selectedId, 'groupId', newGroupId);
-      // updateComponentPosition(selectedId, (p) => ({
-      //   x: p.x - commonBounds.x,
-      //   y: p.y - commonBounds.y,
-      // }));
     }
   };
 
   const removeGroup = (groupId: string) => {
-    const newGroupState = removeFromObject({ ...groups }, groupId);
+    const parent = getParentGroup(groupId);
 
-    const groupBounds = groups[groupId].bounds;
-    const groupPosition = { x: groupBounds.left, y: groupBounds.top };
-
-    for (const component of groups[groupId].components) {
-      setComponentState('components', component, 'groupId', undefined);
-      updateComponentPosition(component, (p) => ({
-        x: p.x + groupPosition.x,
-        y: p.y + groupPosition.y,
-      }));
+    const newGroupState = removeFromObject({ ...groups }, parent);
+    for (const element of groups[parent].elements) {
+      if (element.type === 'component') {
+        setComponentState('components', element.id, 'groupId', undefined);
+      }
     }
-
-    setGroups(newGroupState);
+    setGroups(reconcile(newGroupState));
   };
 
-  const getComponentsInGroup = (groupId: string) => {
-    return groups[groupId].components;
+  const getAllComponentsInGroupTree = (groupId: string) => {
+    let components: string[] = [];
+
+    for (const element of groups[groupId].elements) {
+      if (element.id === groupId) continue;
+      if (element.type === 'component') {
+        components.push(element.id);
+      } else {
+        components.push(...getAllComponentsInGroupTree(element.id));
+      }
+    }
+
+    return components;
+  };
+
+  const selectGroup = (groupId: string) => {
+    selectMultipleComponents(getComponentsInGroup(groupId, true));
+  };
+
+  const getParentGroup = (groupId: string) => {
+    let parent = groupId;
+    for (const group of Object.values(groups)) {
+      if (group.id === parent) continue;
+      const hasGroup = group.elements.find((p) => p.type === 'group' && p.id === parent);
+      if (hasGroup) {
+        parent = getParentGroup(group.id);
+      }
+    }
+    return parent;
+  };
+
+  const getComponentsInGroup = (groupId: string, nested: boolean = false) => {
+    if (nested) {
+      return getAllComponentsInGroupTree(getParentGroup(groupId));
+    }
+    return groups[groupId].elements.filter((element) => element.type === 'component').map((element) => element.id);
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -348,6 +410,7 @@ const LayoutBuilder = () => {
     getComponentsInGroup,
     groupSelected,
     removeGroup,
+    selectGroup,
 
     // Delete/Create component
     deleteComponent,
@@ -426,9 +489,10 @@ interface BuilderContextValues {
   clearSelection: () => void;
 
   // Groups
-  getComponentsInGroup: (groupId: string) => string[];
+  getComponentsInGroup: (groupId: string, nested?: boolean) => string[];
   groupSelected: () => void;
   removeGroup: (groupId: string) => void;
+  selectGroup: (groupId: string) => void;
 
   // Delete/Create component
   deleteComponent: (id: ComponentID) => void;
