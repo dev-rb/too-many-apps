@@ -274,14 +274,16 @@ const LayoutBuilder = () => {
   };
 
   const groupSelected = () => {
+    if (componentState.selected.length < 2) return;
     const newGroupId = createUniqueId();
     const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
 
     let selectedElements: { [key: string]: ElementTypes } = {};
 
     for (const selected of [...componentState.selectedComponent]) {
-      const groupId = selected.groupId;
+      let groupId = selected.groupId;
       if (groupId) {
+        groupId = getParentGroup(groupId);
         if (selectedElements[groupId]) continue;
         selectedElements[groupId] = { type: 'group', id: groupId };
       } else {
@@ -303,7 +305,6 @@ const LayoutBuilder = () => {
     for (const selectedId of Object.values(selectedElements)
       .filter((v) => v.type === 'component')
       .map((v) => v.id)) {
-      console.log(selectedId, selectedElements, newGroupId);
       setComponentState('components', selectedId, 'groupId', newGroupId);
     }
   };
@@ -336,17 +337,7 @@ const LayoutBuilder = () => {
   };
 
   const selectGroup = (groupId: string) => {
-    let components: string[] = [];
-
-    const parent = getParentGroup(groupId);
-
-    if (parent !== groupId) {
-      components.push(...getAllComponentsInGroupTree(parent));
-    } else {
-      components = getComponentsInGroup(groupId);
-    }
-
-    selectMultipleComponents(components);
+    selectMultipleComponents(getComponentsInGroup(groupId, true));
   };
 
   const getParentGroup = (groupId: string) => {
@@ -355,14 +346,17 @@ const LayoutBuilder = () => {
       if (group.id === parent) continue;
       const hasGroup = group.elements.find((p) => p.type === 'group' && p.id === parent);
       if (hasGroup) {
-        parent = group.id;
+        parent = getParentGroup(group.id);
       }
     }
     return parent;
   };
 
-  const getComponentsInGroup = (groupId: string) => {
-    return getAllComponentsInGroupTree(getParentGroup(groupId));
+  const getComponentsInGroup = (groupId: string, nested: boolean = false) => {
+    if (nested) {
+      return getAllComponentsInGroupTree(getParentGroup(groupId));
+    }
+    return groups[groupId].elements.filter((element) => element.type === 'component').map((element) => element.id);
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -495,7 +489,7 @@ interface BuilderContextValues {
   clearSelection: () => void;
 
   // Groups
-  getComponentsInGroup: (groupId: string) => string[];
+  getComponentsInGroup: (groupId: string, nested?: boolean) => string[];
   groupSelected: () => void;
   removeGroup: (groupId: string) => void;
   selectGroup: (groupId: string) => void;

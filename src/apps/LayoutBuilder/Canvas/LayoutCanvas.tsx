@@ -375,7 +375,11 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
   };
 
   const outlineGroup = (groupId: string) => {
-    const components = builder.getComponentsInGroup(groupId).map((id) => builder.componentState.components[id]);
+    const isSoloInGroup =
+      builder.groups[groupId].elements.filter((element) => element.type === 'component').length === 1;
+    const components = builder
+      .getComponentsInGroup(groupId, isSoloInGroup)
+      .map((id) => builder.componentState.components[id]);
     const commonBounds = getCommonBounds(components.map((comp) => comp.bounds));
 
     setGroupOutline({
