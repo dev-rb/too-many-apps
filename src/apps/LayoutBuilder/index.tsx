@@ -63,13 +63,14 @@ const DEFAULT_COMPONENTS: Pick<ILayoutComponent, 'color' | 'id' | 'name' | 'css'
   },
 ];
 
+type ElementTypes = { type: 'group'; id: string } | { type: 'component'; id: string };
+
 export interface Group {
-  type: 'group';
   id: string;
   name?: string;
   bounds: Bounds;
   size: Size;
-  components: string[];
+  elements: ElementTypes[];
 }
 
 interface GroupList {
@@ -275,6 +276,19 @@ const LayoutBuilder = () => {
   const groupSelected = () => {
     const newGroupId = createUniqueId();
     const commonBounds = getCommonBounds(componentState.selectedComponent.map((v) => v.bounds));
+
+    let selectedElements: { [key: string]: ElementTypes } = {};
+
+    for (const selected of [...componentState.selectedComponent]) {
+      const groupId = selected.groupId;
+      if (groupId) {
+        if (selectedElements[groupId]) continue;
+        selectedElements[groupId] = { type: 'group', id: groupId };
+      } else {
+        selectedElements[selected.id] = { type: 'component', id: selected.id };
+      }
+    }
+
     setGroups(newGroupId, {
       id: newGroupId,
       bounds: {
@@ -284,36 +298,71 @@ const LayoutBuilder = () => {
         bottom: commonBounds.bottom,
       },
       size: { width: commonBounds.right - commonBounds.left, height: commonBounds.bottom - commonBounds.top },
-      components: [...componentState.selected],
+      elements: [...Object.values(selectedElements)],
     });
-    for (const selectedId of componentState.selected) {
+    for (const selectedId of Object.values(selectedElements)
+      .filter((v) => v.type === 'component')
+      .map((v) => v.id)) {
+      console.log(selectedId, selectedElements, newGroupId);
       setComponentState('components', selectedId, 'groupId', newGroupId);
-      // updateComponentPosition(selectedId, (p) => ({
-      //   x: p.x - commonBounds.left,
-      //   y: p.y - commonBounds.top,
-      // }));
     }
   };
 
   const removeGroup = (groupId: string) => {
-    const newGroupState = removeFromObject({ ...groups }, groupId);
+    const parent = getParentGroup(groupId);
 
-    const groupBounds = groups[groupId].bounds;
-    const groupPosition = { x: groupBounds.left, y: groupBounds.top };
+    const newGroupState = removeFromObject({ ...groups }, parent);
+    for (const element of groups[parent].elements) {
+      if (element.type === 'component') {
+        setComponentState('components', element.id, 'groupId', undefined);
+      }
+    }
+    setGroups(reconcile(newGroupState));
+  };
 
-    for (const component of groups[groupId].components) {
-      setComponentState('components', component, 'groupId', undefined);
-      // updateComponentPosition(component, (p) => ({
-      //   x: p.x + groupPosition.x,
-      //   y: p.y + groupPosition.y,
-      // }));
+  const getAllComponentsInGroupTree = (groupId: string) => {
+    let components: string[] = [];
+
+    for (const element of groups[groupId].elements) {
+      if (element.id === groupId) continue;
+      if (element.type === 'component') {
+        components.push(element.id);
+      } else {
+        components.push(...getAllComponentsInGroupTree(element.id));
+      }
     }
 
-    setGroups(newGroupState);
+    return components;
+  };
+
+  const selectGroup = (groupId: string) => {
+    let components: string[] = [];
+
+    const parent = getParentGroup(groupId);
+
+    if (parent !== groupId) {
+      components.push(...getAllComponentsInGroupTree(parent));
+    } else {
+      components = getComponentsInGroup(groupId);
+    }
+
+    selectMultipleComponents(components);
+  };
+
+  const getParentGroup = (groupId: string) => {
+    let parent = groupId;
+    for (const group of Object.values(groups)) {
+      if (group.id === parent) continue;
+      const hasGroup = group.elements.find((p) => p.type === 'group' && p.id === parent);
+      if (hasGroup) {
+        parent = group.id;
+      }
+    }
+    return parent;
   };
 
   const getComponentsInGroup = (groupId: string) => {
-    return groups[groupId].components;
+    return getAllComponentsInGroupTree(getParentGroup(groupId));
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
@@ -367,6 +416,7 @@ const LayoutBuilder = () => {
     getComponentsInGroup,
     groupSelected,
     removeGroup,
+    selectGroup,
 
     // Delete/Create component
     deleteComponent,
@@ -448,6 +498,7 @@ interface BuilderContextValues {
   getComponentsInGroup: (groupId: string) => string[];
   groupSelected: () => void;
   removeGroup: (groupId: string) => void;
+  selectGroup: (groupId: string) => void;
 
   // Delete/Create component
   deleteComponent: (id: ComponentID) => void;

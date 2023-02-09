@@ -106,7 +106,11 @@ export const Highlighter = () => {
 
       const insideComponents = Object.values(builder.componentState.components).reduce((acc, comp) => {
         if (isInside(comp.bounds, bounds)) {
-          acc.push(comp.id);
+          if (comp.groupId) {
+            acc.push(...builder.getComponentsInGroup(comp.groupId));
+          } else if (!acc.includes(comp.id)) {
+            acc.push(comp.id);
+          }
         }
         return acc;
       }, [] as string[]);

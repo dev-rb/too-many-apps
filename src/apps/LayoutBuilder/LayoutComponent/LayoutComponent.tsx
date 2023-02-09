@@ -16,7 +16,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   const builder = useBuilder();
   const selectElement = () => props.selectElement(props.id);
   const selectGroup = () => {
-    props.groupId && builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
+    props.groupId && builder.selectGroup(props.groupId);
   };
 
   const [ref, setRef] = createSignal<SVGGElement>();
