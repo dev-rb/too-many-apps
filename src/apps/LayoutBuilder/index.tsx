@@ -166,19 +166,33 @@ const LayoutBuilder = () => {
   };
 
   const bringToFront = (id: ComponentID) => {
+    const current = getComponent(id);
     const currentMaxLayer = Object.values(componentState.components).reduce(
       (maxLayer, current) => (current.layer > maxLayer.layer ? current : maxLayer),
-      componentState.components[id]
+      current
     );
+
+    if (current.layer === currentMaxLayer.layer) return;
+
+    for (const component of Object.values(componentState.components)) {
+      if (component.layer <= currentMaxLayer.layer && component.id !== id) {
+        setComponentState('components', component.id, 'layer', (p) => p - 1);
+      }
+    }
+
     setComponentState('components', id, 'layer', currentMaxLayer.layer + 1);
     setComponentState('maxLayer', currentMaxLayer.layer + 1);
   };
 
   const sendToBack = (id: ComponentID) => {
+    const current = getComponent(id);
     const currentMinLayer = Object.values(componentState.components).reduce(
       (minLayer, current) => (current.layer < minLayer.layer ? current : minLayer),
-      componentState.components[id]
+      current
     );
+
+    if (current.layer === currentMinLayer.layer) return;
+
     for (const component of Object.values(componentState.components)) {
       if (component.layer >= currentMinLayer.layer && component.id !== id) {
         setComponentState('components', component.id, 'layer', (p) => p + 1);
@@ -190,7 +204,7 @@ const LayoutBuilder = () => {
   const bringForward = (id: ComponentID) => {
     const current = getComponent(id);
     const oneAhead = getComponentWithLayer(current.layer + 1);
-    // Swap layers with component that has layer one larger layer
+    // Swap layers with component that has one larger layer
     if (oneAhead) {
       setComponentState('components', oneAhead.id, 'layer', current.layer);
       setComponentState('components', id, 'layer', (p) => p + 1);

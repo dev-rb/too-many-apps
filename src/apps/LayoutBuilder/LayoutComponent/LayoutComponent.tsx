@@ -15,6 +15,9 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const builder = useBuilder();
   const selectElement = () => props.selectElement(props.id);
+  const selectGroup = () => {
+    props.groupId && builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
+  };
 
   const [ref, setRef] = createSignal<SVGGElement>();
 
@@ -27,7 +30,7 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     e.stopPropagation();
     if (shift()) {
       if (props.groupId) {
-        builder.selectComponent(props.id);
+        selectElement();
       } else {
         builder.toggleSelect(props.id);
       }
@@ -35,11 +38,10 @@ const LayoutComponent = (props: LayoutComponentProps) => {
     }
     if (!props.active) {
       if (props.groupId) {
-        builder.selectMultipleComponents(builder.getComponentsInGroup(props.groupId));
-        props.onDragStart(e);
-        return;
+        selectGroup();
+      } else {
+        selectElement();
       }
-      selectElement();
     }
 
     props.onDragStart(e);

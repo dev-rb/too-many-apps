@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from 'solid-js';
+import { batch, createEffect, createMemo, createSignal, For, Index, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
 import { useTree } from '~/apps/TreeProvider';
@@ -491,18 +491,18 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
       </div>
       {/* Display */}
       <svg id="canvas" ref={setCanvasRef} width="100%" height="100%" class="bg-white" onPointerDown={onDrawStart}>
-        <For each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
+        <Index each={Object.values(props.components).sort((a, b) => a.layer - b.layer)}>
           {(comp) => (
             <LayoutComponent
-              {...comp}
-              active={builder.componentState.selected?.includes(comp.id)}
+              {...comp()}
+              active={builder.componentState.selected.includes(comp().id)}
               selectElement={selectElement}
               variant="outline"
               onDragStart={onDragStart}
               passThrough={ctrl()}
             />
           )}
-        </For>
+        </Index>
         <Selection
           active={transformOp() !== 'drag' && props.selectedComponents.length > 0}
           position={selectionPosition()}
