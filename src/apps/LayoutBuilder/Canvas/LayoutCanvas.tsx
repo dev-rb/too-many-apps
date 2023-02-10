@@ -3,6 +3,7 @@ import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
 import { useTree } from '~/apps/TreeProvider';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
+import { useKeys } from '~/hooks/useKeys';
 import type { Handles, Size, XYPosition } from '~/types';
 import { clamp } from '~/utils/math';
 import { ILayoutComponent, useBuilder } from '..';
@@ -27,20 +28,18 @@ interface TransformState {
 }
 
 export const LayoutCanvas = (props: LayoutCanvasProps) => {
-  const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
-  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const builder = useBuilder();
   const tree = useTree()!;
+  const { modifiers, addCombo } = useKeys();
+
+  const [canvasRef, setCanvasRef] = createSignal<SVGSVGElement>();
+  const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
 
   const [transformOp, setTransformOp] = createSignal<TransformOp>('draw');
   const [selectionPosition, setSelectionPosition] = createSignal(ZERO_POS, { equals: false });
   const [selectionSize, setSelectionSize] = createSignal(ZERO_SIZE, { equals: false });
 
   const [groupOutline, setGroupOutline] = createSignal({ position: ZERO_POS, size: ZERO_SIZE }, { equals: false });
-
-  const [ctrl, setCtrl] = createSignal(false);
-  const [shift, setShift] = createSignal(false);
-  const [alt, setAlt] = createSignal(false);
 
   const [transformState, setTransformState] = createStore<TransformState>({
     startMousePos: ZERO_POS,
@@ -214,7 +213,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
           scaleY,
           width: w,
           height: h,
-        } = calculateResize(commonBounds, newMousePos, activeHandle, shift(), alt());
+        } = calculateResize(commonBounds, newMousePos, activeHandle, modifiers.shift, modifiers.alt);
 
         const flipX = scaleX < 0;
         const flipY = scaleY < 0;
@@ -418,57 +417,26 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
     });
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.ctrlKey) {
-      setCtrl(true);
-    }
-
-    if (e.shiftKey) {
-      setShift(true);
-    }
-
-    if (e.altKey) {
-      setAlt(true);
-    }
-
-    const group = e.ctrlKey && e.key === 'g';
-
-    if (group) {
-      e.preventDefault();
-      builder.groupSelected();
-    }
-
-    const ungroup = e.ctrlKey && e.shiftKey && e.key === 'G' && selected().length;
-
-    if (ungroup) {
-      e.preventDefault();
-      const groupId = selected()[0].groupId;
-      if (groupId) {
-        builder.removeGroup(groupId);
-      }
-    }
-  };
-
-  const onKeyUp = (e: KeyboardEvent) => {
-    if (e.key === 'Control') {
-      setCtrl(false);
-    }
-    if (e.key === 'Shift') {
-      setShift(false);
-    }
-    if (e.key === 'Alt') {
-      setAlt(false);
-    }
-  };
-
   onMount(() => {
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
+    addCombo(
+      ['Control', 'Shift', 'G'],
+      () => {
+        if (!selected().length) return;
 
-    onCleanup(() => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('keyup', onKeyUp);
-    });
+        const groupId = selected()[0].groupId;
+        if (groupId) {
+          builder.removeGroup(groupId);
+        }
+      },
+      { preventDefault: true }
+    );
+    addCombo(
+      ['Control', 'g'],
+      () => {
+        builder.groupSelected();
+      },
+      { preventDefault: true }
+    );
   });
 
   createEffect(
@@ -503,7 +471,7 @@ export const LayoutCanvas = (props: LayoutCanvasProps) => {
               selectElement={selectElement}
               variant="outline"
               onDragStart={onDragStart}
-              passThrough={ctrl()}
+              passThrough={modifiers.control}
             />
           )}
         </Index>
