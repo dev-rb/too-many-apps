@@ -37,10 +37,7 @@ type Keys = typeof ALPHABET[number] | Uppercase<typeof ALPHABET[number]>;
 type Modifier = Lowercase<typeof MODIFIER_KEYS[number]>;
 type ModifierStore = Record<Modifier, boolean>;
 
-type Combos = Record<
-  string,
-  { callback: () => void; options?: { preventDefault?: boolean; stopPropogation?: boolean } }
->;
+type Combos = Record<string, { action: () => void; options?: { preventDefault?: boolean; stopPropogation?: boolean } }>;
 
 const isModifier = (key: string) => MODIFIER_KEYS.includes(key as Capitalize<Modifier>);
 
@@ -53,22 +50,30 @@ export const useKeys = () => {
 
   const [combos, setCombos] = createStore<Combos>({});
 
+  let currentSequence = new Set<string>();
+
   const onKeyDown = (e: KeyboardEvent) => {
     if (isModifier(e.key)) {
       setModifiers(e.key.toLowerCase() as Modifier, true);
     }
 
+    currentSequence.add(e.key.toLowerCase());
+
     for (const combo of Object.keys(combos)) {
       const keys = combo.split('-');
-      const callback = combos[combo].callback;
+      const action = combos[combo].action;
       const options = combos[combo].options;
+      const comboMatched = keys.every((key) => {
+        if (isModifier(key)) {
+          return modifiers[key.toLowerCase() as Modifier];
+        }
+        return currentSequence.has(key.toLowerCase());
+      });
 
-      const hasModifier = keys.find((key) => isModifier(key));
-
-      if (keys.includes(e.key) && hasModifier && modifiers[hasModifier.toLowerCase() as Modifier]) {
+      if (comboMatched && currentSequence.size === keys.length) {
         options?.preventDefault && e.preventDefault();
         options?.stopPropogation && e.stopPropagation();
-        callback();
+        action();
       }
     }
   };
@@ -77,6 +82,7 @@ export const useKeys = () => {
     if (isModifier(e.key)) {
       setModifiers(e.key.toLowerCase() as Modifier, false);
     }
+    currentSequence.delete(e.key.toLowerCase());
   };
 
   onMount(() => {
@@ -90,10 +96,10 @@ export const useKeys = () => {
 
   const addCombo = (
     keys: (Keys | Capitalize<Modifier>)[],
-    callback: () => void,
+    action: () => void,
     options?: { preventDefault?: boolean; stopPropogation?: boolean }
   ) => {
-    setCombos(keys.join('-'), { callback, options });
+    setCombos(keys.join('-'), { action, options });
   };
 
   return { modifiers, addCombo };
