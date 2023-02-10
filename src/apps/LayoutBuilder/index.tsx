@@ -24,6 +24,7 @@ import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
 import { CssEditor } from './CssEditor';
 import { TreeProvider } from '../TreeProvider';
+import { useKeys } from '~/hooks/useKeys';
 
 export const MIN_LAYER = 4;
 
@@ -93,6 +94,8 @@ interface ToolState {
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
+  const { addCombo } = useKeys();
+
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const [toolState, setToolState] = createStore<ToolState>({
     activeTool: 'pointer',
@@ -377,6 +380,11 @@ const LayoutBuilder = () => {
   };
 
   onMount(() => {
+    addCombo(['r'], () => setToolState('activeTool', 'draw'));
+    addCombo(['v'], () => setToolState('activeTool', 'pointer'));
+    addCombo(['d', 'c'], () => selectDrawItem('cl-1'));
+    addCombo(['d', 'r'], () => selectDrawItem('cl-0'));
+
     const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
 
     setCanvasBounds({
@@ -433,8 +441,14 @@ const LayoutBuilder = () => {
       <BuilderContext.Provider value={contextValues}>
         <Highlighter />
         <TreeProvider>
-          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
+          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4 relative">
             <Menu />
+            <div class="absolute top-4 left-4 p-4 text-dark-2">
+              <p> "R" - Draw tool </p>
+              <p> "V" - Pointer tool </p>
+              <p> "D" + "C" - Column drawable </p>
+              <p> "D" + "R" - Row drawable </p>
+            </div>
             <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
             <div class="flex items-start justify-evenly max-h-2xl">
               <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
