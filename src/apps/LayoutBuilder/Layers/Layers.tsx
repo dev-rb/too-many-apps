@@ -1,5 +1,6 @@
 import { BiRegularLayerMinus, BiRegularLayerPlus } from 'solid-icons/bi';
-import { createMemo, For } from 'solid-js';
+import { createMemo, For, Show } from 'solid-js';
+import { useTree } from '~/apps/TreeProvider';
 import { ILayoutComponent, useBuilder } from '..';
 import Layer from './LayerItem';
 
@@ -10,6 +11,7 @@ interface LayersProps {
 
 const Layers = (props: LayersProps) => {
   const builder = useBuilder();
+  const tree = useTree()!;
 
   const sendToBack = () => {
     builder.layerControls.sendToBack(builder.componentState.selected[0]);
@@ -31,13 +33,20 @@ const Layers = (props: LayersProps) => {
     builder.layerControls.bringToFront(builder.componentState.selected[0]);
   };
 
+  const deleteSelected = () => {
+    for (const comp of props.selectedComponents) {
+      tree.removeLeaf(comp.id);
+      builder.deleteComponent(comp.id);
+    }
+  };
+
   const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
   const anySelected = () => props.selectedComponents;
 
   const sortedComponents = createMemo(() => Object.values(props.components).sort((a, b) => b.layer - a.layer));
 
   return (
-    <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4">
+    <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4 relative">
       <div class="flex justify-between items-center">
         <h1 class="text-lg color-dark-2"> Layers </h1>
         <div class="flex items-center">
@@ -63,6 +72,19 @@ const Layers = (props: LayersProps) => {
           )}
         </For>
       </div>
+      <Show when={props.selectedComponents.length > 1}>
+        <div class="flex items-center w-full absolute bottom-16 left-0 gap-4 px-4">
+          <button
+            class="appearance-none h-8 px-4 rounded-sm bg-red-8 color-red-1 border-none cursor-pointer flex-1 hover:(bg-red-7 outline-solid outline-2 outline-blue-7)"
+            onClick={deleteSelected}
+          >
+            Delete ({props.selectedComponents.length})
+          </button>
+          <button class="appearance-none h-8 px-4 rounded-sm bg-dark-3 color-white border-none cursor-pointer flex-1 hover:(outline-solid outline-2 outline-blue-7)">
+            Rename ({props.selectedComponents.length})
+          </button>
+        </div>
+      </Show>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />
       <div class="flex gap-2 items-center justify-center mt-2" onMouseDown={(e) => e.preventDefault()}>
         <button

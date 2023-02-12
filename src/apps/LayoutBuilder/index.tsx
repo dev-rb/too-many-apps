@@ -13,7 +13,7 @@ import {
 import { createStore, reconcile } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
-import { access, removeFromObject } from '~/utils/common';
+import { access } from '~/utils/common';
 import Preview from './Preview/Preview';
 import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
@@ -315,7 +315,7 @@ const LayoutBuilder = () => {
   const removeGroup = (groupId: string) => {
     const parent = getParentGroup(groupId);
 
-    const newGroupState = removeFromObject({ ...groups }, parent);
+    const { [parent]: _, ...newGroupState } = { ...groups };
     for (const element of groups[parent].elements) {
       if (element.type === 'component') {
         setComponentState('components', element.id, 'groupId', undefined);
@@ -363,8 +363,7 @@ const LayoutBuilder = () => {
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
-    let newState = removeFromObject({ ...componentState.components }, toRemove);
-
+    let { [toRemove]: _, ...newState } = { ...componentState.components };
     setComponentState('selected', (p) => p.filter((id) => id !== toRemove));
     setComponentState('components', reconcile(newState));
   };

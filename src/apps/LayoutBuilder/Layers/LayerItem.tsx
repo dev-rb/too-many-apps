@@ -45,21 +45,8 @@ const Layer = (props: LayerProps) => {
             icon: BiSolidTrash,
             label: 'Delete',
             onClick() {
+              tree.removeLeaf(props.id);
               builder.deleteComponent(props.id);
-
-              const selfParent = tree.tree[props.id].parent;
-              const selfChildren = tree.tree[props.id].children;
-
-              if (selfParent) {
-                tree.removeChild(selfParent, props.id);
-              }
-
-              for (const child of selfChildren) {
-                tree.updateParent(child, selfParent);
-                if (selfParent) {
-                  tree.addChild(selfParent, child);
-                }
-              }
             },
           },
         ],
