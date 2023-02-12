@@ -439,10 +439,10 @@ const LayoutBuilder = () => {
   return (
     <MenuProvider>
       <BuilderContext.Provider value={contextValues}>
-        <Highlighter />
         <TreeProvider>
+          <Menu />
           <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4 relative">
-            <Menu />
+            <Highlighter />
             <div class="absolute top-4 left-4 p-4 text-dark-2">
               <p> "R" - Draw tool </p>
               <p> "V" - Pointer tool </p>

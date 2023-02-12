@@ -37,7 +37,7 @@ type Keys = typeof ALPHABET[number] | Uppercase<typeof ALPHABET[number]>;
 type Modifier = Lowercase<typeof MODIFIER_KEYS[number]>;
 type ModifierStore = Record<Modifier, boolean>;
 
-type Combos = Record<string, { action: () => void; options?: { preventDefault?: boolean; stopPropogation?: boolean } }>;
+type Combos = Record<string, { action: () => void; options?: { preventDefault?: boolean; stopPropagation?: boolean } }>;
 
 const isModifier = (key: string) => MODIFIER_KEYS.includes(key as Capitalize<Modifier>);
 
@@ -72,7 +72,7 @@ export const useKeys = () => {
 
       if (comboMatched && currentSequence.size === keys.length) {
         options?.preventDefault && e.preventDefault();
-        options?.stopPropogation && e.stopPropagation();
+        options?.stopPropagation && e.stopPropagation();
         action();
       }
     }

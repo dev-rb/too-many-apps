@@ -30,11 +30,11 @@ p {
 }
 
 .custom-h-scrollbar::-webkit-scrollbar-track {
-  background-color: var(--hope-colors-neutral1);
+  background-color: #25262b;
 }
 
 .custom-h-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--hope-colors-neutral9);
+  background-color: #909296;
   border-radius: 9999px;
 }
 
@@ -44,12 +44,12 @@ p {
 }
 
 .custom-v-scrollbar::-webkit-scrollbar-track {
-  background-color: var(--hope-colors-neutral1);
+  background-color: #25262b;
   border-radius: 9999px;
 }
 
 .custom-v-scrollbar::-webkit-scrollbar-thumb {
-  background-color: var(--hope-colors-neutral9);
+  background-color: #909296;
   border-radius: 9999px;
 }
 
