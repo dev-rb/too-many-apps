@@ -1,6 +1,7 @@
 {
-  "extends": ["eslint:recommended"],
+  "extends": ["eslint:recommended", "@unocss"],
   "rules": {
+    "@unocss/order": "warn",
     "no-unused-vars": [
       1,
       {
