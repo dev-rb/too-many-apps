@@ -32,7 +32,10 @@ const ALPHABET = [
   'z',
 ] as const;
 
-type Keys = typeof ALPHABET[number] | Uppercase<typeof ALPHABET[number]>;
+type AlphaKeys = typeof ALPHABET[number] | Uppercase<typeof ALPHABET[number]>;
+type WhitespaceKeys = 'Enter' | 'Tab' | ' ';
+
+type Keys = AlphaKeys | WhitespaceKeys;
 
 type Modifier = Lowercase<typeof MODIFIER_KEYS[number]>;
 type ModifierStore = Record<Modifier, boolean>;

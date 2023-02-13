@@ -1,6 +1,8 @@
 import { BiRegularLayerMinus, BiRegularLayerPlus } from 'solid-icons/bi';
-import { createMemo, For, Show } from 'solid-js';
+import { createMemo, createSignal, For, JSX, Show } from 'solid-js';
 import { useTree } from '~/apps/TreeProvider';
+import { useClickOutside } from '~/hooks/useClickOutside';
+import { useKeys } from '~/hooks/useKeys';
 import { ILayoutComponent, useBuilder } from '..';
 import Layer from './LayerItem';
 
@@ -12,6 +14,11 @@ interface LayersProps {
 const Layers = (props: LayersProps) => {
   const builder = useBuilder();
   const tree = useTree()!;
+  const { addCombo } = useKeys();
+
+  const [editName, setEditName] = createSignal(false);
+  const [inputRef, setInputRef] = createSignal<HTMLInputElement>();
+  const [currentName, setCurrentName] = createSignal('');
 
   const sendToBack = () => {
     builder.layerControls.sendToBack(builder.componentState.selected[0]);
@@ -40,13 +47,39 @@ const Layers = (props: LayersProps) => {
     }
   };
 
+  const startRename = () => {
+    setEditName(true);
+    if (inputRef()) {
+      inputRef()!.focus();
+    }
+  };
+
+  const onNameChange: JSX.EventHandler<HTMLInputElement, Event> = (e) => {
+    setCurrentName(e.currentTarget.value);
+  };
+
+  const updateName = () => {
+    const newName = currentName();
+
+    if (newName.trim().length === 0) return;
+
+    for (const comp of props.selectedComponents) {
+      builder.updateComponentName(comp.id, newName);
+    }
+    setCurrentName('');
+    setEditName(false);
+  };
+
+  addCombo(['Enter'], updateName);
+  useClickOutside({ ref: inputRef, callbackFn: updateName });
+
   const isComponentActive = (id: string) => builder.componentState.selected.includes(id);
   const anySelected = () => props.selectedComponents;
 
   const sortedComponents = createMemo(() => Object.values(props.components).sort((a, b) => b.layer - a.layer));
 
   return (
-    <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4 relative">
+    <div class="flex flex-col bg-dark-5 w-72 p-2 h-full mb-4 relative" onMouseDown={(e) => e.preventDefault()}>
       <div class="flex justify-between items-center">
         <h1 class="text-lg color-dark-2"> Layers </h1>
         <div class="flex items-center">
@@ -73,16 +106,30 @@ const Layers = (props: LayersProps) => {
         </For>
       </div>
       <Show when={props.selectedComponents.length > 1}>
-        <div class="flex items-center w-full absolute bottom-16 left-0 gap-4 px-4">
-          <button
-            class="appearance-none h-8 px-4 rounded-sm bg-red-8 color-red-1 border-none cursor-pointer flex-1 hover:(bg-red-7 outline-solid outline-2 outline-blue-7)"
-            onClick={deleteSelected}
-          >
-            Delete ({props.selectedComponents.length})
-          </button>
-          <button class="appearance-none h-8 px-4 rounded-sm bg-dark-3 color-white border-none cursor-pointer flex-1 hover:(outline-solid outline-2 outline-blue-7)">
-            Rename ({props.selectedComponents.length})
-          </button>
+        <div class="flex flex-col items-center w-full absolute bottom-16 left-0 gap-4 px-4">
+          <Show when={editName()}>
+            <input
+              ref={setInputRef}
+              class="appearance-none border-none bg-dark-3 border-1 border-dark-2 outline-none rounded-sm p-1 color-white text-base w-full"
+              value={currentName()}
+              onInput={onNameChange}
+              onBlur={updateName}
+            />
+          </Show>
+          <div class="flex items-center w-full gap-4">
+            <button
+              class="appearance-none h-8 px-4 rounded-sm bg-red-8 color-red-1 border-none cursor-pointer flex-1 hover:(bg-red-7 outline-solid outline-2 outline-blue-7)"
+              onClick={deleteSelected}
+            >
+              Delete ({props.selectedComponents.length})
+            </button>
+            <button
+              class="appearance-none h-8 px-4 rounded-sm bg-dark-3 color-white border-none cursor-pointer flex-1 hover:(outline-solid outline-2 outline-blue-7)"
+              onClick={startRename}
+            >
+              Rename ({props.selectedComponents.length})
+            </button>
+          </div>
         </div>
       </Show>
       <div class="w-full h-[1px] border-t-dark-3 border-t-1 mt-2" />

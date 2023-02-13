@@ -160,7 +160,7 @@ const LayoutBuilder = () => {
     }));
   };
 
-  const updateComponentName = (id: ComponentID, newName: ComponentID) => {
+  const updateComponentName = (id: ComponentID, newName: string) => {
     setComponentState('components', id, 'name', newName);
   };
 

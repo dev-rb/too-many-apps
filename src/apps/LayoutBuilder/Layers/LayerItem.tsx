@@ -87,7 +87,7 @@ const Layer = (props: LayerProps) => {
         onClick={onLayerClick}
       >
         <div class="flex-col gap-1">
-          <Show when={editName()} fallback={<p>{currentName()}</p>}>
+          <Show when={editName()} fallback={<p>{props.name}</p>}>
             <input
               ref={setInputRef}
               class="appearance-none border-none bg-blue-8 outline-none rounded-sm p-1 color-white text-base"
