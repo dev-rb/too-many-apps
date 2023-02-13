@@ -1,7 +1,4 @@
-import { e } from 'unocss';
-import { Bounds, Size, XYPosition } from '~/types';
-import { clamp } from '~/utils/math';
-import { calculateDistances } from './snapping';
+import { Bounds, Size } from '~/types';
 
 export const getRelativeTransformedBounds = (
   parentBounds: Bounds & Size,

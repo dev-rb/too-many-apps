@@ -25,6 +25,7 @@ import { Highlighter } from './Highlighter';
 import { CssEditor } from './CssEditor';
 import { TreeProvider } from '../TreeProvider';
 import { useKeys } from '~/hooks/useKeys';
+import FlexButtons from './FlexButtons';
 
 export const MIN_LAYER = 4;
 
@@ -448,6 +449,7 @@ const LayoutBuilder = () => {
               <p> "D" + "C" - Column drawable </p>
               <p> "D" + "R" - Row drawable </p>
             </div>
+            <FlexButtons />
             <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
             <div class="flex items-start justify-evenly max-h-2xl">
               <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />
