@@ -66,7 +66,7 @@ const Layer = (props: LayerProps) => {
   const onLayerClick = () => {
     setEditName(false);
 
-    props.selectLayer(props.id);
+    builder.selectComponent(props.id);
   };
 
   return (

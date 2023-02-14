@@ -130,6 +130,10 @@ class Flex {
     }
     return newBounds;
   }
+
+  static centerCenter(bounds: Bounds[], parent: Bounds, direction: 'row' | 'column' = 'column') {
+    return [...Flex.alignCenter(bounds, parent, direction), ...Flex.justifyCenter(bounds, parent, direction)];
+  }
 }
 
 export { Flex };
