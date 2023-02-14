@@ -29,28 +29,34 @@ const FlexButtons = () => {
   const recursiveUpdatePosition = (parentId: string, newPosition: XYPosition) => {
     if (!builder.componentState.components[parentId]) return;
 
-    builder.updateComponentPosition(parentId, newPosition);
+    const oldParentBounds = builder.componentState.components[parentId].bounds;
 
-    const parentBounds = builder.componentState.components[parentId].bounds;
+    builder.updateComponentPosition(parentId, newPosition);
 
     const children = tree.tree[parentId].children;
 
     if (!children.length) return;
 
-    const commonBounds = getCommonBounds(children.map((id) => builder.componentState.components[id].bounds));
-
     for (let i = 0; i < children.length; i++) {
       const child = builder.componentState.components[children[i]];
-      console.log(child);
-      const relativePosition = {
-        x: child.bounds.left - parentBounds.left,
-        y: child.bounds.top - parentBounds.top,
+
+      const oldRelativePosition = {
+        x: child.bounds.left - oldParentBounds.left,
+        y: child.bounds.top - oldParentBounds.top,
       };
-      console.log(relativePosition, newPosition, child.bounds);
+      const newRelativePosition = {
+        x: child.bounds.left - newPosition.x,
+        y: child.bounds.top - newPosition.y,
+      };
+
+      const diff = {
+        x: oldRelativePosition.x - newRelativePosition.x,
+        y: oldRelativePosition.y - newRelativePosition.y,
+      };
 
       recursiveUpdatePosition(child.id, {
-        x: builder.canvasBounds().x + relativePosition.x,
-        y: builder.canvasBounds().y + relativePosition.y,
+        x: child.bounds.left + diff.x,
+        y: child.bounds.top + diff.y,
       });
     }
   };
@@ -93,14 +99,6 @@ const FlexButtons = () => {
           </button>
         )}
       </For>
-      {/*       
-      <button class="btn-default" onClick={alignCenter}>
-        Align Center
-      </button>
-      <button class="btn-default"> Align End </button>
-      <button class="btn-default"> Justify Start </button>
-      <button class="btn-default"> Justify Center </button>
-      <button class="btn-default"> Justify End </button> */}
     </div>
   );
 };

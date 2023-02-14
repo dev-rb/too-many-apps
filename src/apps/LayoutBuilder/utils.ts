@@ -180,7 +180,7 @@ export const closestZero = (nums: number[]) => {
   }, Number.MAX_SAFE_INTEGER);
 };
 
-export function closestCorner(mousePos: XYPosition, elBounds: Bounds, offset: number = 10) {
+export function closestCorner(mousePos: XYPosition, elBounds: Bounds, offset: number = 5) {
   const distance = {
     top: mousePos.y - elBounds.top,
     left: mousePos.x - elBounds.left,
