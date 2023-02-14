@@ -1,4 +1,5 @@
 import { mergeProps, createMemo, createSignal, onMount, onCleanup } from 'solid-js';
+import { useKeys } from '~/hooks/useKeys';
 import { ILayoutComponent, useBuilder } from '..';
 import { styleTypes } from './styles';
 
@@ -14,6 +15,8 @@ const LayoutComponent = (props: LayoutComponentProps) => {
   props = mergeProps({ color: 'white', size: { width: 96, height: 40 }, variant: 'lines' }, props);
 
   const builder = useBuilder();
+  const { modifiers } = useKeys();
+
   const selectElement = () => props.selectElement(props.id);
   const selectGroup = () => {
     props.groupId && builder.selectGroup(props.groupId);
@@ -21,14 +24,12 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
   const [ref, setRef] = createSignal<SVGGElement>();
 
-  const [shift, setShift] = createSignal(false);
-
   const onPointerDown = (e: PointerEvent) => {
     e.preventDefault();
 
     if (builder.toolState.activeTool === 'draw') return;
     e.stopPropagation();
-    if (shift()) {
+    if (modifiers.shift) {
       if (props.groupId) {
         selectElement();
       } else {
@@ -46,27 +47,6 @@ const LayoutComponent = (props: LayoutComponentProps) => {
 
     props.onDragStart(e);
   };
-
-  onMount(() => {
-    document.addEventListener('keydown', (e) => {
-      if (e.shiftKey) {
-        setShift(e.shiftKey);
-      }
-    });
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'Shift') {
-        setShift(false);
-      }
-    });
-
-    onCleanup(() => {
-      document.removeEventListener('keydown', (e) => {
-        if (e.shiftKey) {
-          setShift(e.shiftKey);
-        }
-      });
-    });
-  });
 
   const translate = createMemo(() => `translate3d(${props.bounds.left}px, ${props.bounds.top}px, 0)`);
 

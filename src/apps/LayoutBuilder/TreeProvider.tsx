@@ -1,8 +1,8 @@
 import { createContext, createEffect, createMemo, on, ParentComponent, useContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, reconcile } from 'solid-js/store';
 import { Bounds } from '~/types';
-import { useBuilder } from './LayoutBuilder';
-import { isInside } from './LayoutBuilder/utils';
+import { useBuilder } from '.';
+import { isInside } from './utils';
 
 interface ComponentTree {
   [key: string]: {
@@ -19,6 +19,7 @@ interface TreeContextValues {
   removeChild: (parentId: string, childId: string) => void;
   updateParent: (childId: string, newParentId: string | undefined) => void;
   addNewLeaf: (id: string) => void;
+  removeLeaf: (id: string) => void;
 }
 
 export const TreeContext = createContext<TreeContextValues>();
@@ -166,6 +167,25 @@ export const TreeProvider: ParentComponent = (props) => {
     setTree(id, { id, children: [] });
   };
 
+  const removeLeaf = (id: string) => {
+    const selfParent = tree[id].parent;
+    const selfChildren = tree[id].children;
+
+    if (selfParent) {
+      removeChild(selfParent, id);
+    }
+
+    for (const child of selfChildren) {
+      updateParent(child, selfParent);
+      if (selfParent) {
+        addChild(selfParent, child);
+      }
+    }
+
+    const { [id]: _, ...rest } = { ...tree };
+    setTree(reconcile(rest));
+  };
+
   const context: TreeContextValues = {
     tree,
     updateTree,
@@ -173,6 +193,7 @@ export const TreeProvider: ParentComponent = (props) => {
     removeChild,
     updateParent,
     addNewLeaf,
+    removeLeaf,
   };
 
   return <TreeContext.Provider value={context}>{props.children}</TreeContext.Provider>;

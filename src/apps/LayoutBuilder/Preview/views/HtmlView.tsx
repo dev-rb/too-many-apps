@@ -1,5 +1,5 @@
 import { For } from 'solid-js';
-import { useTree } from '~/apps/TreeProvider';
+import { useTree } from '~/apps/LayoutBuilder/TreeProvider';
 import { useBuilder } from '../..';
 import { TreeViewProps } from './TreeView';
 

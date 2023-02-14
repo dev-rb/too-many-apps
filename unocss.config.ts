@@ -5,6 +5,8 @@ export default defineConfig({
     {
       'btn-primary':
         'flex items-center justify-center cursor-pointer outline-none border-none py-1 px-4 h-8 font-600 text-3 rounded-[0.3rem] ml-auto bg-blue-7 color-white shadow-[0px_0px_6px_2px_rgba(28,126,214,0.5)] hover:bg-blue-6',
+      'btn-default':
+        'appearance-none h-8 px-4 rounded-sm bg-dark-3 color-white border-none cursor-pointer flex-1 text-xs whitespace-nowrap hover:(outline-solid outline-2 outline-blue-7)',
     },
     [/^btn-(.*)$/, ([, size]) => `h-${size} w-${size}`],
     [

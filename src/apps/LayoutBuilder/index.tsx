@@ -13,7 +13,7 @@ import {
 import { createStore, reconcile } from 'solid-js/store';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { Bounds, Size, XYPosition } from '~/types';
-import { access, removeFromObject } from '~/utils/common';
+import { access } from '~/utils/common';
 import Preview from './Preview/Preview';
 import LayoutCanvas from './Canvas';
 import Layers from './Layers/Layers';
@@ -23,7 +23,9 @@ import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
 import { CssEditor } from './CssEditor';
-import { TreeProvider } from '../TreeProvider';
+import { TreeProvider } from './TreeProvider';
+import { useKeys } from '~/hooks/useKeys';
+import FlexButtons from './FlexButtons';
 
 export const MIN_LAYER = 4;
 
@@ -93,6 +95,8 @@ interface ToolState {
 const BuilderContext = createContext();
 
 const LayoutBuilder = () => {
+  const { addCombo } = useKeys();
+
   const [canvasBounds, setCanvasBounds] = createSignal({ ...ZERO_POS, ...ZERO_SIZE });
   const [toolState, setToolState] = createStore<ToolState>({
     activeTool: 'pointer',
@@ -157,7 +161,7 @@ const LayoutBuilder = () => {
     }));
   };
 
-  const updateComponentName = (id: ComponentID, newName: ComponentID) => {
+  const updateComponentName = (id: ComponentID, newName: string) => {
     setComponentState('components', id, 'name', newName);
   };
 
@@ -312,7 +316,7 @@ const LayoutBuilder = () => {
   const removeGroup = (groupId: string) => {
     const parent = getParentGroup(groupId);
 
-    const newGroupState = removeFromObject({ ...groups }, parent);
+    const { [parent]: _, ...newGroupState } = { ...groups };
     for (const element of groups[parent].elements) {
       if (element.type === 'component') {
         setComponentState('components', element.id, 'groupId', undefined);
@@ -360,8 +364,7 @@ const LayoutBuilder = () => {
   };
 
   const deleteComponent = (toRemove: ComponentID) => {
-    let newState = removeFromObject({ ...componentState.components }, toRemove);
-
+    let { [toRemove]: _, ...newState } = { ...componentState.components };
     setComponentState('selected', (p) => p.filter((id) => id !== toRemove));
     setComponentState('components', reconcile(newState));
   };
@@ -377,6 +380,11 @@ const LayoutBuilder = () => {
   };
 
   onMount(() => {
+    addCombo(['r'], () => setToolState('activeTool', 'draw'));
+    addCombo(['v'], () => setToolState('activeTool', 'pointer'));
+    addCombo(['d', 'c'], () => selectDrawItem('cl-1'));
+    addCombo(['d', 'r'], () => selectDrawItem('cl-0'));
+
     const canvasBounds = document.getElementById('canvas')!.getBoundingClientRect();
 
     setCanvasBounds({
@@ -431,10 +439,17 @@ const LayoutBuilder = () => {
   return (
     <MenuProvider>
       <BuilderContext.Provider value={contextValues}>
-        <Highlighter />
         <TreeProvider>
-          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4">
-            <Menu />
+          <Menu />
+          <div class="flex flex-col justify-center w-full h-full overflow-y-hidden gap-4 relative">
+            <Highlighter />
+            <div class="absolute top-4 left-4 p-4 text-dark-2">
+              <p> "R" - Draw tool </p>
+              <p> "V" - Pointer tool </p>
+              <p> "D" + "C" - Column drawable </p>
+              <p> "D" + "R" - Row drawable </p>
+            </div>
+            <FlexButtons />
             <Toolbar activeTool={toolState.activeTool} setActiveTool={(tool) => setToolState('activeTool', tool)} />
             <div class="flex items-start justify-evenly max-h-2xl">
               <Layers components={componentState.components} selectedComponents={componentState.selectedComponent} />

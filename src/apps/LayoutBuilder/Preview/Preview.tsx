@@ -1,7 +1,7 @@
 import { createMemo, Match, Switch } from 'solid-js';
 import { createSignal, For, Index, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { useTree } from '~/apps/TreeProvider';
+import { useTree } from '~/apps/LayoutBuilder/TreeProvider';
 import { ILayoutComponent, useBuilder } from '..';
 import { TreeView, HtmlView, CssView } from './views';
 
