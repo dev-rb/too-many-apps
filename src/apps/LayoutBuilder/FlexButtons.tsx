@@ -2,7 +2,7 @@ import { For } from 'solid-js';
 import { XYPosition } from '~/types';
 import { toCamelCase } from '~/utils/common';
 import { useBuilder } from '.';
-import { useTree } from '../TreeProvider';
+import { useTree } from './TreeProvider';
 import { Flex } from './layout';
 import { getCommonBounds } from './utils';
 

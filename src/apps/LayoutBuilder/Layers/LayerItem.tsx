@@ -1,6 +1,6 @@
 import { BiRegularText, BiSolidTrash, BiRegularDotsVerticalRounded } from 'solid-icons/bi';
 import { createSignal, JSX, Show } from 'solid-js';
-import { useTree } from '~/apps/TreeProvider';
+import { useTree } from '~/apps/LayoutBuilder/TreeProvider';
 import { useMenu } from '~/components/Menu/MenuProvider';
 import { useBuilder } from '..';
 

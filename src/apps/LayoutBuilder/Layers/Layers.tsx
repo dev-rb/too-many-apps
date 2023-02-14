@@ -1,6 +1,6 @@
 import { BiRegularLayerMinus, BiRegularLayerPlus } from 'solid-icons/bi';
 import { createMemo, createSignal, For, JSX, Show } from 'solid-js';
-import { useTree } from '~/apps/TreeProvider';
+import { useTree } from '~/apps/LayoutBuilder/TreeProvider';
 import { useClickOutside } from '~/hooks/useClickOutside';
 import { useKeys } from '~/hooks/useKeys';
 import { ILayoutComponent, useBuilder } from '..';

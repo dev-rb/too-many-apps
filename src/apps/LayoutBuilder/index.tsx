@@ -23,7 +23,7 @@ import { MenuProvider } from '~/components/Menu/MenuProvider';
 import { Menu } from '~/components/Menu/Menu';
 import { Highlighter } from './Highlighter';
 import { CssEditor } from './CssEditor';
-import { TreeProvider } from '../TreeProvider';
+import { TreeProvider } from './TreeProvider';
 import { useKeys } from '~/hooks/useKeys';
 import FlexButtons from './FlexButtons';
 

@@ -1,7 +1,7 @@
 import { batch, createEffect, createMemo, createSignal, For, Index, on, onCleanup, onMount, Show } from 'solid-js';
 import { createStore, unwrap } from 'solid-js/store';
 import { Match, Switch } from 'solid-js/web';
-import { useTree } from '~/apps/TreeProvider';
+import { useTree } from '~/apps/LayoutBuilder/TreeProvider';
 import { ZERO_POS, ZERO_SIZE } from '~/constants';
 import { useKeys } from '~/hooks/useKeys';
 import type { Handles, Size, XYPosition } from '~/types';

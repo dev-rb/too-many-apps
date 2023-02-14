@@ -1,8 +1,8 @@
 import { createContext, createEffect, createMemo, on, ParentComponent, useContext } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import { Bounds } from '~/types';
-import { useBuilder } from './LayoutBuilder';
-import { isInside } from './LayoutBuilder/utils';
+import { useBuilder } from '.';
+import { isInside } from './utils';
 
 interface ComponentTree {
   [key: string]: {
